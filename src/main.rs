@@ -30,6 +30,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{:?}", prg_rom.hex_dump());
     println!("{:?}", chr_rom.hex_dump());
 
+    let bus = Box::new(Bus::new(prg_rom));
+    let mut cpu = CPU::new(bus);
+
+    // 電源ON
+    cpu.int_reset();
+
+    println!("pc: {:?}", cpu.pc);
 
     // 画面表示
     let event_loop = EventLoop::new();
@@ -156,5 +163,56 @@ impl World {
 
             pixel.copy_from_slice(&rgba);
         }
+    }
+}
+
+#[derive(Debug)]
+struct CPU<'a> {
+    a: u8,
+    x: u8,
+    y: u8,
+    p: u8,
+    sp: u16,
+    pc: u16,
+
+    bus : Box<Bus<'a>>
+}
+
+
+impl CPU<'_> {
+
+    fn new<'a>(bus : Box<Bus<'a>>) -> CPU<'a> {
+        CPU { a: 0, x: 0, y: 0, p: 0, sp: 0, pc: 0, bus: bus }
+    }
+
+    fn int_reset(&mut self) {
+        let l = self.bus.read(0xFFFC);
+        let h = self.bus.read(0xFFFD);
+        let addr = (h as u16) << 8 | l as u16;
+
+        self.pc = addr;
+    }
+}
+
+#[derive(Debug)]
+struct Bus<'a> {
+    prg : &'a [u8]
+}
+
+impl Bus<'_> {
+
+    fn new<'a>(prg: &'a [u8]) -> Bus<'a> {
+        Bus { prg: prg }
+    }
+
+    fn read(&self, addr: u16) -> u8 {
+        if addr >= 0x8000 && addr <= 0xFFFF {
+            let offset = addr - 0x8000;
+            return self.prg[offset as usize];
+        }
+        0
+    }
+    fn write(&mut self, addr: u16, value: u8) {
+        // TODO
     }
 }
