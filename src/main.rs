@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 電源ON
     cpu.int_reset();
 
-    println!("pc: {:#04X}", cpu.pc);
+    println!("pc: {:#04x}", cpu.pc);
 
     // 画面表示
     let event_loop = EventLoop::new();
@@ -87,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 pixels.resize_surface(size.width, size.height);
             }
 
-            cpu.next();
+            cpu.step_next();
 
             // Update internal state and request a redraw
             world.update();
@@ -174,17 +174,26 @@ struct CPU {
     x: u8,
     y: u8,
     p: u8,
-    sp: u16,
+    s: u8,
     pc: u16,
 
     bus : Bus
 }
 
+static p_mask_carry : u8 = 1 << 0;
+static p_mask_zero : u8 = 1 << 1;
+static p_mask_int_disable : u8 = 1 << 2;
+static p_mask_decimal_mode : u8 = 1 << 3;
+static p_mask_break_command : u8 = 1 << 4;
+static p_mask_overflow : u8 = 1 << 5;
+static p_mask_negative : u8 = 1 << 6;
+
+
 
 impl CPU {
 
     fn new(bus : Bus) -> Self {
-        CPU { a: 0, x: 0, y: 0, p: 0, sp: 0, pc: 0, bus: bus }
+        CPU { a: 0, x: 0, y: 0, p: 0, s: 0, pc: 0, bus: bus }
     }
 
     fn int_reset(&mut self) {
@@ -196,47 +205,212 @@ impl CPU {
     }
 
     // 1命令の実行
-    fn next(&mut self) {
+    fn step_next(&mut self) {
         let op = self.bus.read(self.pc);
         self.pc += 1;
 
         match op {
             0x78 => {
                 // SEI : set i flag
-                self.seti();
+                self.p |= p_mask_int_disable;
+            }
+            0x8d => {
+                // STA absolute
+                let l = self.bus.read(self.pc);
+                self.pc += 1;
+                let h = self.bus.read(self.pc);
+                self.pc += 1;
+                let addr = (h as u16) << 8 | l as u16;
+                self.bus.write(addr, self.a);
+
+            }
+            0x9a => {
+                // TXS
+                self.s = self.x;
+            }
+            0xa0 => {
+                // LDY imm
+                let v = self.bus.read(self.pc);
+                self.pc += 1;
+                self.y = v;
+                self.update_status_zero(v);
+            }
+            0xa2 => {
+                // LDX imm
+                let v = self.bus.read(self.pc);
+                self.pc += 1;
+                self.x = v;
+                self.update_status_zero(v);
+            }
+            0xa9 => {
+                // LDA imm
+                let v = self.bus.read(self.pc);
+                self.pc += 1;
+                self.a = v;
+                self.update_status_zero(v);
+                self.update_status_negative(v);
+            }
+            0xbd => {
+                // LDA Absolute,X
+                let l = self.bus.read(self.pc);
+                self.pc += 1;
+                let h = self.bus.read(self.pc);
+                self.pc += 1;
+                let addr = (h as u16) << 8 | l as u16 + self.x as u16;
+                let v = self.bus.read(addr);
+                self.update_status_zero(v);
+                self.update_status_negative(v);
+            }
+            0x88 => {
+                // DEY
+                self.y -= 1;
+                self.update_status_zero(self.y);
+                self.update_status_negative(self.y);
+            }
+            0xe8 => {
+                // INX
+                self.x += 1;
+                self.update_status_zero(self.x);
+                self.update_status_negative(self.x);
+            }
+            0xd0 => {
+                // BNE Rel
+                let rel = self.bus.read(self.pc) as i8 as u16;
+                self.pc += 1;
+                if self.p & p_mask_zero == 0 {
+                    println!("branch {}", rel);
+                    println!("branch {:#04x} {:#04x}", self.pc, self.pc.wrapping_add(rel));
+                    
+                    self.pc = self.pc.wrapping_add(rel);
+                }
             }
             _ => {
-                println!("not impl {:#02X}", op);
+                println!("not impl {:#02x}", op);
                 panic!("not impl error");
             }
         }
     }
 
-    fn seti(&mut self) {
-        self.p = self.p | (1 << 2);
+    fn update_status_zero(&mut self, v : u8) {
+        if v == 0 {
+            self.p |= p_mask_zero
+        } else {
+            self.p &= !p_mask_zero
+        }
     }
+    fn update_status_negative(&mut self, v : u8) {
+        if v & 0x80 != 0 {
+            self.p |= p_mask_negative
+        } else {
+            self.p &= !p_mask_negative
+        }
+    }
+
 
 }
 
 #[derive(Debug)]
 struct Bus {
-    prg : Vec<u8>
+    prg : Vec<u8>,
+    ppu : PPU,
 }
 
 impl Bus {
 
     fn new(prg: Vec<u8>) -> Self {
-        Bus { prg: prg }
+        Bus { prg: prg, ppu: PPU::new() }
     }
 
+    // https://www.nesdev.org/wiki/CPU_memory_map
     fn read(&self, addr: u16) -> u8 {
         if addr >= 0x8000 {
             let offset = addr - 0x8000;
             return self.prg[offset as usize];
         }
-        0
+        println!("cant read {:#02x}", addr);
+        panic!("not impl read addr");
     }
+    // https://www.nesdev.org/wiki/CPU_memory_map
     fn write(&mut self, addr: u16, value: u8) {
-        // TODO
+        println!("write {:#04x}: {:#02x}", addr, value);
+
+        match addr {
+            0x0000 ..= 0x07ff => {
+                // ram
+                println!(" write ram");
+            }
+            0x2000 => {
+                self.ppu.ppuctrl = value;
+            }
+            0x2001 => {
+                self.ppu.ppumask = value;
+            }
+            0x2006 => {
+                println!(" write ppuaddr: {:#02x}", value);
+                self.ppu.write_ppuaddr(value);
+            }
+            0x2007 => {
+                println!(" write ppudata: {:#02x}", value);
+                self.ppu.write_ppudata(value);
+            }
+            _ => {
+                println!("cant write {:#02x}", addr);
+                panic!("not impl write addr");
+            }
+        }
+
+
+    }
+}
+
+#[derive(Debug)]
+struct PPU {
+    // https://www.nesdev.org/wiki/PPU_registers
+    ppuctrl : u8,
+    ppumask	: u8,
+    ppustatus : u8,
+    oamaddr : u8,
+    oamdata : u8,
+    ppuscroll : u8,
+    ppuaddr : u8,
+    ppudata : u8,
+    oamdma: u8,
+
+    addr: u16,
+    palette_ram : [u8; 0x20],
+}
+
+impl PPU {
+    fn new() -> Self {
+        PPU { 
+            ppuctrl: 0,
+            ppumask: 0,
+            ppustatus: 0,
+            oamaddr: 0,
+            oamdata: 0,
+            ppuscroll: 0,
+            ppuaddr: 0,
+            ppudata: 0,
+            oamdma: 0,
+            addr: 0,
+            palette_ram: [0; 0x20],
+         }
+    }
+
+    fn write_ppuaddr(&mut self, v : u8) {
+        self.addr = self.addr << 8 | v as u16;
+    }
+    // https://www.nesdev.org/wiki/PPU_memory_map
+    fn write_ppudata(&mut self, v : u8) {
+        println!(" ppu write {:04x} {:02x}", self.addr, v);
+        match self.addr {
+            0x3f00 ..= 0x3f1f => {
+                self.palette_ram[self.addr as usize - 0x3f00] = v;
+            }
+            _ => {
+                println!(" ppu cant write {:#02x}", self.addr);
+                panic!("not impl ppu write addr");
+            }
+        }
     }
 }
