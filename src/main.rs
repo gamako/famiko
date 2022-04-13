@@ -258,6 +258,7 @@ impl CPU {
                 self.pc += 1;
                 let addr = (h as u16) << 8 | l as u16 + self.x as u16;
                 let v = self.bus.read(addr);
+                self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
             }
@@ -283,6 +284,23 @@ impl CPU {
                     
                     self.pc = self.pc.wrapping_add(rel);
                 }
+            }
+            0x4c => {
+                // JMP Absolute
+                let l = self.bus.read(self.pc);
+                self.pc += 1;
+                let h = self.bus.read(self.pc);
+                self.pc += 1;
+                let addr = (h as u16) << 8 | l as u16;
+                self.pc = addr;
+            }
+            0x18 => {
+                // CLC
+                self.p &= !p_mask_carry
+            }
+            0x28 => {
+                // PLP
+
             }
             _ => {
                 println!("not impl {:#02x}", op);
@@ -318,7 +336,10 @@ struct Bus {
 impl Bus {
 
     fn new(prg: Vec<u8>) -> Self {
-        Bus { prg: prg, ppu: PPU::new() }
+        Bus { 
+            prg: prg,
+            ppu: PPU::new(),
+        }
     }
 
     // https://www.nesdev.org/wiki/CPU_memory_map
@@ -344,6 +365,9 @@ impl Bus {
             }
             0x2001 => {
                 self.ppu.ppumask = value;
+            }
+            0x2005 => {
+                self.ppu.write_ppuscroll(value);
             }
             0x2006 => {
                 println!(" write ppuaddr: {:#02x}", value);
@@ -377,7 +401,11 @@ struct PPU {
     oamdma: u8,
 
     addr: u16,
+    scroll_x : u8,
+    scroll_y : u8,
+    scroll_next_y : bool,
     palette_ram : [u8; 0x20],
+    name_table : [u8; 0x400 * 4],
 }
 
 impl PPU {
@@ -393,10 +421,21 @@ impl PPU {
             ppudata: 0,
             oamdma: 0,
             addr: 0,
+            scroll_x: 0,
+            scroll_y: 0,
+            scroll_next_y: true,
             palette_ram: [0; 0x20],
+            name_table: [0; 0x400 * 4],
          }
     }
-
+    fn write_ppuscroll(&mut self, v : u8) {
+        println!(" write scroll: {:#02x}", v);
+        match self.scroll_next_y {
+            false => { self.scroll_x = v }
+            true => { self.scroll_y = v }
+        }
+        self.scroll_next_y = self.scroll_next_y;
+    }
     fn write_ppuaddr(&mut self, v : u8) {
         self.addr = self.addr << 8 | v as u16;
     }
@@ -404,8 +443,15 @@ impl PPU {
     fn write_ppudata(&mut self, v : u8) {
         println!(" ppu write {:04x} {:02x}", self.addr, v);
         match self.addr {
+            0x2000 ..= 0x2fff => {
+                println!(" write nametable: {:#04x} {:#02x}", self.addr, v);
+                self.name_table[self.addr as usize - 0x2000] = v;
+                self.addr += 1;
+            }
             0x3f00 ..= 0x3f1f => {
+                println!(" write palette_ram: {:#04x} {:#02x}", self.addr, v);
                 self.palette_ram[self.addr as usize - 0x3f00] = v;
+                self.addr += 1;
             }
             _ => {
                 println!(" ppu cant write {:#02x}", self.addr);
