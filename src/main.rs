@@ -15,28 +15,29 @@ const HEIGHT: u32 = 240;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = File::open("./rom/hw.nes")?;
-    let mut buf = Vec::new();
-    let _ = file.read_to_end(&mut buf)?;
+    let mut rom = Vec::new();
+    
+    let _ = file.read_to_end(&mut rom)?;
     // println!("{:?}", buf);
 
-    let h = parse_header(&buf).unwrap();
+    let h = parse_header(&rom).unwrap();
 
     let mut p : usize = 16;
-    let prg_rom = &buf[p .. p + h.prg_size];
+    let prg_rom = Vec::from(&rom[p .. p + h.prg_size]);
     p += h.prg_size;
-    let chr_rom = &buf[p .. p+h.chr_size];
+    let chr_rom = Vec::from(&rom[p .. p+h.chr_size]);
 
     println!("{:?}", h);
     println!("{:?}", prg_rom.hex_dump());
     println!("{:?}", chr_rom.hex_dump());
 
-    let bus = Box::new(Bus::new(prg_rom));
+    let bus = Bus::new(prg_rom);
     let mut cpu = CPU::new(bus);
 
     // 電源ON
     cpu.int_reset();
 
-    println!("pc: {:?}", cpu.pc);
+    println!("pc: {:#04X}", cpu.pc);
 
     // 画面表示
     let event_loop = EventLoop::new();
@@ -86,6 +87,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 pixels.resize_surface(size.width, size.height);
             }
 
+            cpu.next();
+
             // Update internal state and request a redraw
             world.update();
             window.request_redraw();
@@ -93,7 +96,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
 
-    Ok(())
 }
 
 #[derive(Debug)]
@@ -167,7 +169,7 @@ impl World {
 }
 
 #[derive(Debug)]
-struct CPU<'a> {
+struct CPU {
     a: u8,
     x: u8,
     y: u8,
@@ -175,13 +177,13 @@ struct CPU<'a> {
     sp: u16,
     pc: u16,
 
-    bus : Box<Bus<'a>>
+    bus : Bus
 }
 
 
-impl CPU<'_> {
+impl CPU {
 
-    fn new<'a>(bus : Box<Bus<'a>>) -> CPU<'a> {
+    fn new(bus : Bus) -> Self {
         CPU { a: 0, x: 0, y: 0, p: 0, sp: 0, pc: 0, bus: bus }
     }
 
@@ -192,21 +194,43 @@ impl CPU<'_> {
 
         self.pc = addr;
     }
+
+    // 1命令の実行
+    fn next(&mut self) {
+        let op = self.bus.read(self.pc);
+        self.pc += 1;
+
+        match op {
+            0x78 => {
+                // SEI : set i flag
+                self.seti();
+            }
+            _ => {
+                println!("not impl {:#02X}", op);
+                panic!("not impl error");
+            }
+        }
+    }
+
+    fn seti(&mut self) {
+        self.p = self.p | (1 << 2);
+    }
+
 }
 
 #[derive(Debug)]
-struct Bus<'a> {
-    prg : &'a [u8]
+struct Bus {
+    prg : Vec<u8>
 }
 
-impl Bus<'_> {
+impl Bus {
 
-    fn new<'a>(prg: &'a [u8]) -> Bus<'a> {
+    fn new(prg: Vec<u8>) -> Self {
         Bus { prg: prg }
     }
 
     fn read(&self, addr: u16) -> u8 {
-        if addr >= 0x8000 && addr <= 0xFFFF {
+        if addr >= 0x8000 {
             let offset = addr - 0x8000;
             return self.prg[offset as usize];
         }
