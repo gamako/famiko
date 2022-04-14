@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{:?}", prg_rom.hex_dump());
     println!("{:?}", chr_rom.hex_dump());
 
-    let bus = Bus::new(prg_rom);
+    let bus = Bus::new(prg_rom, chr_rom);
     let mut cpu = CPU::new(bus);
 
     // 電源ON
@@ -57,20 +57,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
         Pixels::new(WIDTH, HEIGHT, surface_texture)?
     };
-    let mut world = World::new();
 
     event_loop.run(move |event, _, control_flow| {
         // Draw the current frame
         if let Event::RedrawRequested(_) = event {
-            world.draw(pixels.get_frame());
-            if pixels
-                .render()
-                .map_err(|e| error!("pixels.render() failed: {}", e))
-                .is_err()
-            {
-                *control_flow = ControlFlow::Exit;
-                return;
-            }
         }
 
         // Handle input events
@@ -88,9 +78,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             cpu.step_next();
+            cpu.bus.ppu.draw(pixels.get_frame());
+            if pixels
+                .render()
+                .map_err(|e| error!("pixels.render() failed: {}", e))
+                .is_err()
+            {
+                *control_flow = ControlFlow::Exit;
+                return;
+            }
 
             // Update internal state and request a redraw
-            world.update();
             window.request_redraw();
         }
     });
@@ -141,31 +139,6 @@ fn parse_header(buf : &[u8]) -> Result<Box<NesHeader>, Box<dyn std::error::Error
         flag6 : flag6,
         trainer_exist : flag6 & 0x40 != 0
     }))
-}
-
-struct World {
-}
-
-impl World {
-    fn new() -> Self {
-        Self {
-        }
-    }
-
-    fn update(&mut self) {
-        ()
-    }
-
-    fn draw(&self, frame: &mut [u8]) {
-        for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let x = (i % WIDTH as usize) as i16;
-            let y = (i / WIDTH as usize) as i16;
-
-            let rgba = [0x48, 0xb2, 0xe8, 0xff];
-
-            pixel.copy_from_slice(&rgba);
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -335,10 +308,10 @@ struct Bus {
 
 impl Bus {
 
-    fn new(prg: Vec<u8>) -> Self {
+    fn new(prg: Vec<u8>, chr: Vec<u8>) -> Self {
         Bus { 
             prg: prg,
-            ppu: PPU::new(),
+            ppu: PPU::new(chr),
         }
     }
 
@@ -406,10 +379,11 @@ struct PPU {
     scroll_next_y : bool,
     palette_ram : [u8; 0x20],
     name_table : [u8; 0x400 * 4],
+    pattern_table : Vec<u8>
 }
 
 impl PPU {
-    fn new() -> Self {
+    fn new(chr: Vec<u8>) -> Self {
         PPU { 
             ppuctrl: 0,
             ppumask: 0,
@@ -426,6 +400,7 @@ impl PPU {
             scroll_next_y: true,
             palette_ram: [0; 0x20],
             name_table: [0; 0x400 * 4],
+            pattern_table: chr,
          }
     }
     fn write_ppuscroll(&mut self, v : u8) {
@@ -459,4 +434,65 @@ impl PPU {
             }
         }
     }
+
+
+    fn draw(&self, frame: &mut [u8]) {
+        for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
+            let x = (i % WIDTH as usize) as i16;
+            let y = (i / WIDTH as usize) as i16;
+
+            let name_table_index = x / 8 + y / 8 * 32;
+            let name_table = &self.name_table[0..960];
+            let character = name_table[name_table_index as usize];
+            
+            let attribute_table = &self.name_table[960..960 + 64];
+            let attribute_table_index = x / 32 + y / 32 * 8;
+            let bit = match (x%32 < 16, y%32 < 16) {
+                (true,true) => 0,
+                (false,true) => 2,
+                (true,false) => 4,
+                (false,false) => 6,
+            };
+            let palette_index = (attribute_table[attribute_table_index as usize] >> bit) as usize;
+
+            let name_index = (x / 8 + y / 8 * 32) as usize;
+            let pattern_index = self.name_table[name_index] as usize;
+
+            let pattern_y = (y % 8) as usize;
+
+            let pattern0 = self.pattern_table[pattern_index * 16 + pattern_y];
+            let pattern1 = self.pattern_table[pattern_index * 16 + pattern_y + 8];
+            let pattern_bit = (7 - (x % 8)) as usize;
+            let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
+
+            let color = self.palette_ram[palette_index * 4 + palette_num];
+
+            let rgb = colors[color as usize];
+
+            pixel[0..3].copy_from_slice(&rgb);
+            pixel[3] = 0xff;
+        }
+    }
+
+
+
 }
+
+static colors : [[u8;3];64]= [
+    [0x80, 0x80, 0x80], [0x00, 0x3D, 0xA6], [0x00, 0x12, 0xB0], [0x44, 0x00, 0x96],
+    [0xA1, 0x00, 0x5E], [0xC7, 0x00, 0x28], [0xBA, 0x06, 0x00], [0x8C, 0x17, 0x00],
+    [0x5C, 0x2F, 0x00], [0x10, 0x45, 0x00], [0x05, 0x4A, 0x00], [0x00, 0x47, 0x2E],
+    [0x00, 0x41, 0x66], [0x00, 0x00, 0x00], [0x05, 0x05, 0x05], [0x05, 0x05, 0x05],
+    [0xC7, 0xC7, 0xC7], [0x00, 0x77, 0xFF], [0x21, 0x55, 0xFF], [0x82, 0x37, 0xFA],
+    [0xEB, 0x2F, 0xB5], [0xFF, 0x29, 0x50], [0xFF, 0x22, 0x00], [0xD6, 0x32, 0x00],
+    [0xC4, 0x62, 0x00], [0x35, 0x80, 0x00], [0x05, 0x8F, 0x00], [0x00, 0x8A, 0x55],
+    [0x00, 0x99, 0xCC], [0x21, 0x21, 0x21], [0x09, 0x09, 0x09], [0x09, 0x09, 0x09],
+    [0xFF, 0xFF, 0xFF], [0x0F, 0xD7, 0xFF], [0x69, 0xA2, 0xFF], [0xD4, 0x80, 0xFF],
+    [0xFF, 0x45, 0xF3], [0xFF, 0x61, 0x8B], [0xFF, 0x88, 0x33], [0xFF, 0x9C, 0x12],
+    [0xFA, 0xBC, 0x20], [0x9F, 0xE3, 0x0E], [0x2B, 0xF0, 0x35], [0x0C, 0xF0, 0xA4],
+    [0x05, 0xFB, 0xFF], [0x5E, 0x5E, 0x5E], [0x0D, 0x0D, 0x0D], [0x0D, 0x0D, 0x0D],
+    [0xFF, 0xFF, 0xFF], [0xA6, 0xFC, 0xFF], [0xB3, 0xEC, 0xFF], [0xDA, 0xAB, 0xEB],
+    [0xFF, 0xA8, 0xF9], [0xFF, 0xAB, 0xB3], [0xFF, 0xD2, 0xB0], [0xFF, 0xEF, 0xA6],
+    [0xFF, 0xF7, 0x9C], [0xD7, 0xE8, 0x95], [0xA6, 0xED, 0xAF], [0xA2, 0xF2, 0xDA],
+    [0x99, 0xFF, 0xFC], [0xDD, 0xDD, 0xDD], [0x11, 0x11, 0x11], [0x11, 0x11, 0x11],
+  ];
