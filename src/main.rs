@@ -14,7 +14,8 @@ const WIDTH: u32 = 256;
 const HEIGHT: u32 = 240;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut file = File::open("./rom/hw.nes")?;
+    let file = std::env::args().nth(1).expect("famiko <NES file path>");
+    let mut file = File::open(file)?;
     let mut rom = Vec::new();
     
     let _ = file.read_to_end(&mut rom)?;
