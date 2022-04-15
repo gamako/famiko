@@ -320,7 +320,13 @@ impl Bus {
     // https://www.nesdev.org/wiki/CPU_memory_map
     fn read(&self, addr: u16) -> u8 {
         if addr >= 0x8000 {
-            let offset = addr - 0x8000;
+            let offset_ = addr - 0x8000;
+            // mapper-0
+            let offset = if offset_ >= 16 * 0x400 && self.prg.len() == 16 * 0x400 {
+                offset_ - 16 * 0x400
+            } else {
+                offset_
+            };
             return self.prg[offset as usize];
         }
         println!("cant read {:#02x}", addr);
