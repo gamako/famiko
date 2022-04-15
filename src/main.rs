@@ -97,6 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 struct NesHeader {
     prg : u8,
@@ -154,13 +155,13 @@ struct CPU {
     bus : Bus
 }
 
-static p_mask_carry : u8 = 1 << 0;
-static p_mask_zero : u8 = 1 << 1;
-static p_mask_int_disable : u8 = 1 << 2;
-static p_mask_decimal_mode : u8 = 1 << 3;
-static p_mask_break_command : u8 = 1 << 4;
-static p_mask_overflow : u8 = 1 << 5;
-static p_mask_negative : u8 = 1 << 6;
+static P_MASK_CARRY : u8 = 1 << 0;
+static P_MASK_ZERO : u8 = 1 << 1;
+static P_MASK_INT_DISABLE : u8 = 1 << 2;
+// static P_MASK_DECIMAL_MODE : u8 = 1 << 3;
+// static P_MASK_BREAK_COMMAND : u8 = 1 << 4;
+// static P_MASK_OVERFLOW : u8 = 1 << 5;
+static P_MASK_NEGATIVE : u8 = 1 << 6;
 
 
 
@@ -186,7 +187,7 @@ impl CPU {
         match op {
             0x78 => {
                 // SEI : set i flag
-                self.p |= p_mask_int_disable;
+                self.p |= P_MASK_INT_DISABLE;
             }
             0x8d => {
                 // STA absolute
@@ -252,7 +253,7 @@ impl CPU {
                 // BNE Rel
                 let rel = self.bus.read(self.pc) as i8 as u16;
                 self.pc += 1;
-                if self.p & p_mask_zero == 0 {
+                if self.p & P_MASK_ZERO == 0 {
                     println!("branch {}", rel);
                     println!("branch {:#04x} {:#04x}", self.pc, self.pc.wrapping_add(rel));
                     
@@ -270,7 +271,7 @@ impl CPU {
             }
             0x18 => {
                 // CLC
-                self.p &= !p_mask_carry
+                self.p &= !P_MASK_CARRY
             }
             0x28 => {
                 // PLP
@@ -285,16 +286,16 @@ impl CPU {
 
     fn update_status_zero(&mut self, v : u8) {
         if v == 0 {
-            self.p |= p_mask_zero
+            self.p |= P_MASK_ZERO
         } else {
-            self.p &= !p_mask_zero
+            self.p &= !P_MASK_ZERO
         }
     }
     fn update_status_negative(&mut self, v : u8) {
         if v & 0x80 != 0 {
-            self.p |= p_mask_negative
+            self.p |= P_MASK_NEGATIVE
         } else {
-            self.p &= !p_mask_negative
+            self.p &= !P_MASK_NEGATIVE
         }
     }
 
@@ -361,6 +362,7 @@ impl Bus {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 struct PPU {
     // https://www.nesdev.org/wiki/PPU_registers
@@ -441,10 +443,6 @@ impl PPU {
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
             let x = (i % WIDTH as usize) as i16;
             let y = (i / WIDTH as usize) as i16;
-
-            let name_table_index = x / 8 + y / 8 * 32;
-            let name_table = &self.name_table[0..960];
-            let character = name_table[name_table_index as usize];
             
             let attribute_table = &self.name_table[960..960 + 64];
             let attribute_table_index = x / 32 + y / 32 * 8;
@@ -468,7 +466,7 @@ impl PPU {
 
             let color = self.palette_ram[palette_index * 4 + palette_num];
 
-            let rgb = colors[color as usize];
+            let rgb = COLORS[color as usize];
 
             pixel[0..3].copy_from_slice(&rgb);
             pixel[3] = 0xff;
@@ -479,7 +477,7 @@ impl PPU {
 
 }
 
-static colors : [[u8;3];64]= [
+static COLORS : [[u8;3];64]= [
     [0x80, 0x80, 0x80], [0x00, 0x3D, 0xA6], [0x00, 0x12, 0xB0], [0x44, 0x00, 0x96],
     [0xA1, 0x00, 0x5E], [0xC7, 0x00, 0x28], [0xBA, 0x06, 0x00], [0x8C, 0x17, 0x00],
     [0x5C, 0x2F, 0x00], [0x10, 0x45, 0x00], [0x05, 0x4A, 0x00], [0x00, 0x47, 0x2E],
