@@ -16,9 +16,9 @@ impl Bus {
     }
 
     // https://www.nesdev.org/wiki/CPU_memory_map
-    pub fn read(&self, addr: u16) -> u8 {
+    pub fn read(&mut self, addr: u16) -> u8 {
         match addr {
-            0x2002 => self.ppu.ppustatus,
+            0x2002 => self.ppu.read_status(),
             0x4020 ..= 0xffff => {
                 // mapper-0 prg
                 if addr >= 0x8000 {

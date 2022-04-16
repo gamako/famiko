@@ -30,7 +30,7 @@ impl PPU {
         PPU { 
             ppuctrl: 0,
             ppumask: 0,
-            ppustatus: 0,
+            ppustatus: 1 << 7,
             oamaddr: 0,
             oamdata: 0,
             ppuscroll: 0,
@@ -45,6 +45,13 @@ impl PPU {
             name_table: [0; 0x400 * 4],
             pattern_table: chr,
          }
+    }
+
+    pub fn read_status(&mut self) -> u8 {
+        let status = self.ppustatus;
+
+        self.ppustatus |= 1 << 7;
+        status
     }
 
     pub fn write_ppuscroll(&mut self, v : u8) {
