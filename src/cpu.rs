@@ -149,10 +149,11 @@ enum Command {
     TXS,
     DEY,
     INX,
+    BPL(i8),
     BNE(i8),
     JMPAbs(u16),
-    CLP(FlagType),
-    SEP(FlagType),
+    CL(FlagType),
+    SE(FlagType),
     PLP,
 }
 
@@ -167,9 +168,10 @@ impl Command {
             Command::TXS => "TXS".to_string(),
             Command::DEY => "DEY".to_string(),
             Command::INX => "INX".to_string(),
+            Command::BPL(v) => format!("BNE rel {}", v),
             Command::BNE(v) => format!("BNE rel {}", v),
             Command::JMPAbs(addr) => format!("JMP {}", addr),
-            Command::CLP(t) =>
+            Command::CL(t) =>
                 match t {
                     FlagType::Carry => "CLC".to_string(),
                     FlagType::IntDisable => "CLI".to_string(),
@@ -177,7 +179,7 @@ impl Command {
                     FlagType::Overflow => "CLV".to_string(),
                     _ => format!("CL (xxx{:?})", t),
                 },
-            Command::SEP(t) =>
+            Command::SE(t) =>
                 match t {
                     FlagType::Carry => "SEC".to_string(),
                     FlagType::IntDisable => "SEI".to_string(),
@@ -223,24 +225,30 @@ impl CPU {
             0xa0 => Command::LDY(AddressingMode::new_imm(self)),
             0x88 => Command::DEY,
             0xe8 => Command::INX,
-            0xd0 => {
-                let rel = self.bus.read(self.pc) as i8;
-                self.pc += 1;
-                Command::BNE(rel)
-            }
+
+            0x10 => Command::BPL(self.read_byte() as i8),
+            0xd0 => Command::BNE(self.read_byte() as i8),
+            
             0x4c => Command::JMPAbs(self.read_word()),
-            0x18 => Command::CLP(FlagType::Carry),
-            0x58 => Command::CLP(FlagType::IntDisable),
-            0xb8 => Command::CLP(FlagType::Overflow),
-            0xd8 => Command::CLP(FlagType::Decimal),
-            0x38 => Command::SEP(FlagType::Carry),
-            0x78 => Command::SEP(FlagType::IntDisable),
-            0xf8 => Command::SEP(FlagType::Decimal),
+            0x18 => Command::CL(FlagType::Carry),
+            0x58 => Command::CL(FlagType::IntDisable),
+            0xb8 => Command::CL(FlagType::Overflow),
+            0xd8 => Command::CL(FlagType::Decimal),
+            0x38 => Command::SE(FlagType::Carry),
+            0x78 => Command::SE(FlagType::IntDisable),
+            0xf8 => Command::SE(FlagType::Decimal),
             0x28 => Command::PLP,
             _ => {
                 println!("not impl {:#02x}", op);
                 panic!("not impl error");
             }
+        }
+    }
+    
+    fn exec_branch<F : Fn(u8) -> bool>(&mut self, cond : F, rel : i8) {
+        if cond(self.p) {
+            println!("branch {}", rel);
+            self.pc = self.pc.wrapping_add(rel as u16);
         }
     }
 
@@ -276,17 +284,12 @@ impl CPU {
                 self.update_status_zero(self.x);
                 self.update_status_negative(self.x);
             },
-            Command::BNE(rel) => {
-                if self.p & P_MASK_ZERO == 0 {
-                    println!("branch {}", rel);
-                    println!("branch {:#04x} {:#04x}", self.pc, self.pc.wrapping_add(*rel as u16));
-                    
-                    self.pc = self.pc.wrapping_add(*rel as u16);
-                }
-            },
+            Command::BPL(rel) => self.exec_branch( |p|{ p & P_MASK_NEGATIVE == 0}, *rel ),
+            Command::BNE(rel) => self.exec_branch( |p|{ p & P_MASK_ZERO == 0}, *rel ),
+
             Command::JMPAbs(addr) => self.pc = *addr,
-            Command::CLP(f) => self.p &= !f.mask(),
-            Command::SEP(f) => self.p |= f.mask(),
+            Command::CL(f) => self.p &= !f.mask(),
+            Command::SE(f) => self.p |= f.mask(),
             Command::PLP => {
                 let v = self.bus.read(self.s as u16 + 0x0100);
                 self.s += 1;
