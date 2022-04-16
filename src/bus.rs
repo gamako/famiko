@@ -17,18 +17,29 @@ impl Bus {
 
     // https://www.nesdev.org/wiki/CPU_memory_map
     pub fn read(&self, addr: u16) -> u8 {
-        if addr >= 0x8000 {
-            let offset_ = addr - 0x8000;
-            // mapper-0
-            let offset = if offset_ >= 16 * 0x400 && self.prg.len() == 16 * 0x400 {
-                offset_ - 16 * 0x400
-            } else {
-                offset_
-            };
-            return self.prg[offset as usize];
+        match addr {
+            0x2002 => self.ppu.ppustatus,
+            0x4020 ..= 0xffff => {
+                // mapper-0 prg
+                if addr >= 0x8000 {
+                    let offset_ = addr - 0x8000;
+                    // mapper-0
+                    let offset = if offset_ >= 16 * 0x400 && self.prg.len() == 16 * 0x400 {
+                        offset_ - 16 * 0x400
+                    } else {
+                        offset_
+                    };
+                    self.prg[offset as usize]
+                } else {
+                    println!("cant read {:#02x}", addr);
+                    panic!("not impl read addr");
+                }
+            }
+            _ => {
+                println!("cant read {:#02x}", addr);
+                panic!("not impl read addr");
+            }
         }
-        println!("cant read {:#02x}", addr);
-        panic!("not impl read addr");
     }
 
     // https://www.nesdev.org/wiki/CPU_memory_map
