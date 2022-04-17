@@ -156,10 +156,12 @@ impl FlagType {
 #[derive(Debug)]
 enum Command {
     STA(AddressingMode),
+    STX(AddressingMode),
     LDA(AddressingMode),
     LDX(AddressingMode),
     LDY(AddressingMode),
     TXS,
+    DEX,
     DEY,
     INX,
     BPL(i8),
@@ -175,10 +177,12 @@ impl Command {
     fn desc(&self) -> String {
         match self {
             Command::STA(a) => format!("STA {}", a.desc()),
+            Command::STX(a) => format!("STX {}", a.desc()),
             Command::LDA(a) => format!("LDA {}", a.desc()),
             Command::LDX(a) => format!("LDX {}", a.desc()),
             Command::LDY(a) => format!("LDY {}", a.desc()),
             Command::TXS => "TXS".to_string(),
+            Command::DEX => "DEX".to_string(),
             Command::DEY => "DEY".to_string(),
             Command::INX => "INX".to_string(),
             Command::BPL(v) => format!("BNE rel {}", v),
@@ -224,6 +228,10 @@ impl CPU {
         match op {
             0x8d => Command::STA(AddressingMode::new_absolute(self)),
 
+            0x86 => Command::STX(AddressingMode::new_zero_page(self)),
+            0x8e => Command::STX(AddressingMode::new_absolute(self)),
+            0x96 => Command::STX(AddressingMode::new_zero_page_y(self)),
+
             0xa1 => Command::LDA(AddressingMode::new_indirect_x(self)),
             0xa5 => Command::LDA(AddressingMode::new_zero_page(self)),
             0xa9 => Command::LDA(AddressingMode::new_imm(self)),
@@ -236,6 +244,7 @@ impl CPU {
             0x9a => Command::TXS,
             0xa2 => Command::LDX(AddressingMode::new_imm(self)),
             0xa0 => Command::LDY(AddressingMode::new_imm(self)),
+            0xca => Command::DEX,
             0x88 => Command::DEY,
             0xe8 => Command::INX,
 
@@ -268,6 +277,7 @@ impl CPU {
     fn exec_command(&mut self, command: &Command) {
         match command {
             Command::STA(a) => { a.store(self, self.a) },
+            Command::STX(a) => { a.store(self, self.x) },
             Command::LDA(a) => {
                 let v = a.load(self);
                 self.a = v;
@@ -287,18 +297,23 @@ impl CPU {
                 self.update_status_negative(v);
             },
             Command::TXS => self.s = self.x,
+            Command::DEX => {
+                self.x = self.x.wrapping_add(-1 as i8 as u8);
+                self.update_status_zero(self.x);
+                self.update_status_negative(self.x);
+            },
             Command::DEY => {
-                self.y -= 1;
+                self.y = self.y.wrapping_add(-1 as i8 as u8);
                 self.update_status_zero(self.y);
                 self.update_status_negative(self.y);
             },
             Command::INX => {
-                self.x += 1;
+                self.x = self.x.wrapping_add(1 as i8 as u8);
                 self.update_status_zero(self.x);
                 self.update_status_negative(self.x);
             },
-            Command::BPL(rel) => self.exec_branch( |p|{ p & P_MASK_NEGATIVE == 0}, *rel ),
-            Command::BNE(rel) => self.exec_branch( |p|{ p & P_MASK_ZERO == 0}, *rel ),
+            Command::BPL(rel) => self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) == 0}, *rel ),
+            Command::BNE(rel) => self.exec_branch( |p|{ (p & P_MASK_ZERO) == 0}, *rel ),
 
             Command::JMPAbs(addr) => self.pc = *addr,
             Command::CL(f) => self.p &= !f.mask(),
