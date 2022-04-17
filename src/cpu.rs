@@ -1,6 +1,6 @@
 use crate::bus::Bus;
+use std::fmt;
 
-#[derive(Debug)]
 pub struct CPU {
     a: u8,
     x: u8,
@@ -10,6 +10,19 @@ pub struct CPU {
     pc: u16,
 
     pub bus : Bus
+}
+
+impl fmt::Debug for CPU {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "cpu[a:{:#02x},x:{:#02x},y:{:#02x},p:{:#08b},s:{:#02x},pc:{:#04x}]", 
+            self.a,
+            self.x,
+            self.y,
+            self.p,
+            self.s,
+            self.pc,
+        )
+    }
 }
 
 static P_MASK_CARRY : u8 = 1 << 0;
