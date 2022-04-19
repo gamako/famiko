@@ -2,10 +2,11 @@ use std::fs::File;
 use std::io::Read;
 use pretty_hex::*;
 
-use log::error;
 use pixels::{Pixels, SurfaceTexture};
+use tokio::runtime::Runtime;
+use tokio::sync::mpsc;
 use winit::dpi::LogicalSize;
-use winit::event::{Event, VirtualKeyCode};
+use winit::event::{Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
@@ -13,6 +14,11 @@ use winit_input_helper::WinitInputHelper;
 use famiko::cpu::CPU;
 use famiko::bus::Bus;
 use famiko::ppu::{WIDTH, HEIGHT};
+
+#[derive(Debug)]
+enum RenderEvent {
+    Render(Vec<u8>),
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = std::env::args().nth(1).expect("famiko <NES file path>");
@@ -36,8 +42,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bus = Bus::new(prg_rom, chr_rom);
     let mut cpu = CPU::new(bus);
 
-    // 電源ON
-    cpu.int_reset();
+    // 画面情報をUIスレッドに転送するチャネル
+    let (render_sender, mut render_receiver) = mpsc::channel::<RenderEvent>(1);
+    
+    // CPU処理のコルーチン
+    let rt  = Runtime::new()?;
+    rt.spawn(async move {
+
+        // 電源ON
+        cpu.int_reset();
+
+        loop {
+            cpu.step_next();
+            let mut frame = [0].repeat((WIDTH * HEIGHT * 4) as usize);
+            
+            cpu.bus.ppu.draw(frame.as_mut_slice());
+
+            render_sender.send(RenderEvent::Render(frame)).await.unwrap();
+        };
+    });
+
 
     // 画面表示
     let event_loop = EventLoop::new();
@@ -59,10 +83,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     event_loop.run(move |event, _, control_flow| {
-        // Draw the current frame
-        if let Event::RedrawRequested(_) = event {
-        }
 
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => {
+                *control_flow = ControlFlow::Exit;
+            }
+            Event::RedrawRequested(_) => {
+                pixels.render().unwrap();
+            }
+            Event::MainEventsCleared => match render_receiver.try_recv() {
+                Ok(event) => match event {
+                    RenderEvent::Render(buffer) => {
+                        pixels.get_frame().copy_from_slice(buffer.as_slice());
+                    }
+                },
+                _ => {}
+            },
+            _ => {}
+        }
+        
         // Handle input events
         if input.update(&event) {
             
@@ -75,17 +117,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Resize the window
             if let Some(size) = input.window_resized() {
                 pixels.resize_surface(size.width, size.height);
-            }
-
-            cpu.step_next();
-            cpu.bus.ppu.draw(pixels.get_frame());
-            if pixels
-                .render()
-                .map_err(|e| error!("pixels.render() failed: {}", e))
-                .is_err()
-            {
-                *control_flow = ControlFlow::Exit;
-                return;
             }
 
             // Update internal state and request a redraw
