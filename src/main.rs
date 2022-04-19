@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::Read;
+use std::time::Instant;
 use pretty_hex::*;
 
 use pixels::{Pixels, SurfaceTexture};
@@ -52,13 +53,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // 電源ON
         cpu.int_reset();
 
+        let mut time = Instant::now();
         loop {
             cpu.step_next();
             let mut frame = [0].repeat((WIDTH * HEIGHT * 4) as usize);
             
-            cpu.bus.ppu.draw(frame.as_mut_slice());
-
-            render_sender.send(RenderEvent::Render(frame)).await.unwrap();
+            if time.elapsed().as_micros() > (1000 * 1000 / 60) {
+                time = Instant::now();
+                cpu.bus.ppu.draw(frame.as_mut_slice());
+                render_sender.send(RenderEvent::Render(frame)).await.unwrap();
+            }
         };
     });
 
