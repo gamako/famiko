@@ -1,5 +1,35 @@
 use crate::bus::Bus;
-use std::fmt;
+use std::{fmt, time::{Instant, Duration}, thread::sleep};
+use log::debug;
+
+static CPU_CLOCK_HZ : u128 = 1789773;
+static CPU_CLOCK_UNIT_NSEC : u128 = 1 * 1000 * 1000 * 1000 / CPU_CLOCK_HZ;
+
+#[derive(Debug)]
+pub struct Clock {
+    start: Instant,
+    speed_nsec : u128
+}
+
+impl Clock {
+    pub fn new() -> Self {
+        Clock { start: Instant::now(), speed_nsec: CPU_CLOCK_UNIT_NSEC }
+    }
+
+    pub fn new_with(speed_nsec: u128) -> Self {
+        Clock { start: Instant::now(), speed_nsec }
+    }
+
+    // 次のクロック時間まで待つ
+    pub fn wait(&mut self, n: usize) {
+        let now = Instant::now();
+        let spend = (now - self.start).as_nanos();
+
+        let wait_time = self.speed_nsec - (spend % self.speed_nsec);
+        println!("wait_time : {} {}", spend / self.speed_nsec , wait_time);
+        sleep(Duration::from_nanos(wait_time as u64));
+    }
+}
 
 pub struct CPU {
     a: u8,
@@ -9,7 +39,9 @@ pub struct CPU {
     s: u8,
     pc: u16,
 
-    pub bus : Bus
+    pub bus : Bus,
+
+    clock: Clock,
 }
 
 impl fmt::Debug for CPU {
@@ -33,7 +65,6 @@ static P_MASK_BREAK_COMMAND : u8 = 1 << 4;
 static P_MASK_OVERFLOW : u8 = 1 << 5;
 static P_MASK_NEGATIVE : u8 = 1 << 6;
 
-#[derive(Debug)]
 enum AddressingMode {
     Imm(u8),
     ZeroPage(u8),
@@ -46,84 +77,18 @@ enum AddressingMode {
     IndirectY(u8),
 }
 
-impl AddressingMode {
-    fn new_imm(cpu: &mut CPU) -> Self {
-        let v = cpu.bus.read(cpu.pc);
-        cpu.pc += 1;
-        AddressingMode::Imm(v)
-    }
-
-    fn new_zero_page(cpu: &mut CPU) -> Self {
-        AddressingMode::ZeroPage(cpu.read_byte())
-    }
-
-    fn new_zero_page_x(cpu: &mut CPU) -> Self {
-        AddressingMode::ZeroPage(cpu.read_byte())
-    }
-
-    fn new_zero_page_y(cpu: &mut CPU) -> Self {
-        AddressingMode::ZeroPage(cpu.read_byte())
-    }
-
-    fn new_absolute(cpu: &mut CPU) -> Self {
-        AddressingMode::Absolute(cpu.read_word())
-    }
-
-    fn new_absolute_x(cpu: &mut CPU) -> Self {
-        AddressingMode::AbsoluteX(cpu.read_word())
-    }
-
-    fn new_absolute_y(cpu: &mut CPU) -> Self {
-        AddressingMode::AbsoluteY(cpu.read_word())
-    }
-
-    fn new_indirect_x(cpu: &mut CPU) -> Self {
-        AddressingMode::IndirectX(cpu.read_byte())
-    }
-
-    fn new_indirect_y(cpu: &mut CPU) -> Self {
-        AddressingMode::IndirectY(cpu.read_byte())
-    }
-
-    fn load(&self, cpu: &mut CPU) -> u8 {
+impl fmt::Debug for AddressingMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AddressingMode::Imm(v) => *v,
-            AddressingMode::ZeroPage(addr) => cpu.bus.read(*addr as u16),
-            AddressingMode::ZeroPageX(addr) => cpu.bus.read(*addr as u16 + cpu.x as u16),
-            AddressingMode::ZeroPageY(addr) => cpu.bus.read(*addr as u16 + cpu.y as u16),
-            AddressingMode::Absolute(addr) => cpu.bus.read(*addr),
-            AddressingMode::AbsoluteX(addr) => cpu.bus.read(*addr + cpu.x as u16),
-            AddressingMode::AbsoluteY(addr) => cpu.bus.read(*addr + cpu.y as u16),
-            AddressingMode::IndirectX(h) => cpu.bus.read((*h as u16) << 8 + cpu.x as u16),
-            AddressingMode::IndirectY(h) => cpu.bus.read((*h as u16) << 8 + cpu.y as u16),
-        }
-    }
-    fn store(&self, cpu: &mut CPU, v : u8) {
-        match self {
-            AddressingMode::Imm(_) => { panic!("store imm error"); },
-            AddressingMode::ZeroPage(addr) => cpu.bus.write(*addr as u16, v),
-            AddressingMode::ZeroPageX(addr) => cpu.bus.write(*addr as u16 + cpu.x as u16, v),
-            AddressingMode::ZeroPageY(addr) => cpu.bus.write(*addr as u16 + cpu.y as u16, v),
-            AddressingMode::Absolute(addr) => cpu.bus.write(*addr, v),
-            AddressingMode::AbsoluteX(addr) => cpu.bus.write(*addr + cpu.x as u16, v),
-            AddressingMode::AbsoluteY(addr) => cpu.bus.write(*addr + cpu.y as u16, v),
-            AddressingMode::IndirectX(h) => cpu.bus.write((*h as u16) << 8 + cpu.x as u16, v),
-            AddressingMode::IndirectY(h) => cpu.bus.write((*h as u16) << 8 + cpu.y as u16, v),
-        }
-    }
-
-    #[allow(unused)]
-    fn desc(&self) -> String {
-        match self {
-            AddressingMode::Imm(v) => format!("{:#02x}", v),
-            AddressingMode::ZeroPage(addr) => format!("#{:#02x}", addr),
-            AddressingMode::ZeroPageX(addr) => format!("#{:#02x},x", addr),
-            AddressingMode::ZeroPageY(addr) => format!("#{:#02x},y", addr),
-            AddressingMode::Absolute(addr) => format!("[{:#02x}]", addr),
-            AddressingMode::AbsoluteX(addr) => format!("[{:#02x} + x]", addr),
-            AddressingMode::AbsoluteY(addr) => format!("[{:#02x} + y]", addr),
-            AddressingMode::IndirectX(h) => format!("({:#02x} , x)", h),
-            AddressingMode::IndirectY(h) => format!("({:#02x} , y)", h),
+            AddressingMode::Imm(v) => write!(f, "{:#02x}", v),
+            AddressingMode::ZeroPage(addr) => write!(f, "#{:#02x}", addr),
+            AddressingMode::ZeroPageX(addr) => write!(f, "#{:#02x},x", addr),
+            AddressingMode::ZeroPageY(addr) => write!(f, "#{:#02x},y", addr),
+            AddressingMode::Absolute(addr) => write!(f, "[{:#02x}]", addr),
+            AddressingMode::AbsoluteX(addr) => write!(f, "[{:#02x} + x]", addr),
+            AddressingMode::AbsoluteY(addr) => write!(f, "[{:#02x} + y]", addr),
+            AddressingMode::IndirectX(h) => write!(f, "({:#02x} , x)", h),
+            AddressingMode::IndirectY(h) => write!(f, "({:#02x} , y)", h),
         }
     }
 }
@@ -153,7 +118,6 @@ impl FlagType {
     }
 }
 
-#[derive(Debug)]
 enum Command {
     STA(AddressingMode),
     STX(AddressingMode),
@@ -172,45 +136,44 @@ enum Command {
     PLP,
 }
 
-impl Command {
-    #[allow(unused)]
-    fn desc(&self) -> String {
+impl fmt::Debug for Command {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Command::STA(a) => format!("STA {}", a.desc()),
-            Command::STX(a) => format!("STX {}", a.desc()),
-            Command::LDA(a) => format!("LDA {}", a.desc()),
-            Command::LDX(a) => format!("LDX {}", a.desc()),
-            Command::LDY(a) => format!("LDY {}", a.desc()),
-            Command::TXS => "TXS".to_string(),
-            Command::DEX => "DEX".to_string(),
-            Command::DEY => "DEY".to_string(),
-            Command::INX => "INX".to_string(),
-            Command::BPL(v) => format!("BNE rel {}", v),
-            Command::BNE(v) => format!("BNE rel {}", v),
-            Command::JMPAbs(addr) => format!("JMP {}", addr),
+            Command::STA(a) => write!(f, "STA {:?}", a),
+            Command::STX(a) => write!(f, "STX {:?}", a),
+            Command::LDA(a) => write!(f, "LDA {:?}", a),
+            Command::LDX(a) => write!(f, "LDX {:?}", a),
+            Command::LDY(a) => write!(f, "LDY {:?}", a),
+            Command::TXS => write!(f, "TXS"),
+            Command::DEX => write!(f, "DEX"),
+            Command::DEY => write!(f, "DEY"),
+            Command::INX => write!(f, "INX"),
+            Command::BPL(v) => write!(f, "BNE rel {}", v),
+            Command::BNE(v) => write!(f, "BNE rel {}", v),
+            Command::JMPAbs(addr) => write!(f, "JMP {}", addr),
             Command::CL(t) =>
                 match t {
-                    FlagType::Carry => "CLC".to_string(),
-                    FlagType::IntDisable => "CLI".to_string(),
-                    FlagType::Decimal => "CLD".to_string(),
-                    FlagType::Overflow => "CLV".to_string(),
-                    _ => format!("CL (xxx{:?})", t),
+                    FlagType::Carry => write!(f, "CLC"),
+                    FlagType::IntDisable => write!(f, "CLI"),
+                    FlagType::Decimal => write!(f, "CLD"),
+                    FlagType::Overflow => write!(f, "CLV"),
+                    _ => write!(f, "CL (xxx{:?})", t),
                 },
             Command::SE(t) =>
                 match t {
-                    FlagType::Carry => "SEC".to_string(),
-                    FlagType::IntDisable => "SEI".to_string(),
-                    FlagType::Decimal => "SED".to_string(),
-                    _ => format!("CL (xxx{:?})", t),
+                    FlagType::Carry => write!(f, "SEC"),
+                    FlagType::IntDisable => write!(f, "SEI"),
+                    FlagType::Decimal => write!(f, "SED"),
+                    _ => write!(f, "CL (xxx{:?})", t),
                 },
-            Command::PLP => "PLP".to_string(),
+            Command::PLP => write!(f, "PLP"),
         }
     }
 }
 
 impl CPU {
     pub fn new(bus : Bus) -> Self {
-        CPU { a: 0, x: 0, y: 0, p: 0, s: 0, pc: 0, bus: bus }
+        CPU { a: 0, x: 0, y: 0, p: 0, s: 0, pc: 0, bus: bus, clock: Clock::new() }
     }
 
     pub fn int_reset(&mut self) {
@@ -222,36 +185,35 @@ impl CPU {
     }
 
     fn fetch(&mut self) -> Command {
-        let op = self.bus.read(self.pc);
-        self.pc += 1;
+        let op = self.read_byte_pc();
 
         match op {
-            0x8d => Command::STA(AddressingMode::new_absolute(self)),
+            0x8d => Command::STA(self.new_absolute()),
 
-            0x86 => Command::STX(AddressingMode::new_zero_page(self)),
-            0x8e => Command::STX(AddressingMode::new_absolute(self)),
-            0x96 => Command::STX(AddressingMode::new_zero_page_y(self)),
+            0x86 => Command::STX(self.new_zero_page()),
+            0x8e => Command::STX(self.new_absolute()),
+            0x96 => Command::STX(self.new_zero_page_y()),
 
-            0xa1 => Command::LDA(AddressingMode::new_indirect_x(self)),
-            0xa5 => Command::LDA(AddressingMode::new_zero_page(self)),
-            0xa9 => Command::LDA(AddressingMode::new_imm(self)),
-            0xad => Command::LDA(AddressingMode::new_absolute(self)),
-            0xb1 => Command::LDA(AddressingMode::new_indirect_y(self)),
-            0xb5 => Command::LDA(AddressingMode::new_zero_page_x(self)),
-            0xb9 => Command::LDA(AddressingMode::new_absolute_y(self)),
-            0xbd => Command::LDA(AddressingMode::new_absolute_x(self)),
+            0xa1 => Command::LDA(self.new_indirect_x()),
+            0xa5 => Command::LDA(self.new_zero_page()),
+            0xa9 => Command::LDA(self.new_imm()),
+            0xad => Command::LDA(self.new_absolute()),
+            0xb1 => Command::LDA(self.new_indirect_y()),
+            0xb5 => Command::LDA(self.new_zero_page_x()),
+            0xb9 => Command::LDA(self.new_absolute_y()),
+            0xbd => Command::LDA(self.new_absolute_x()),
 
             0x9a => Command::TXS,
-            0xa2 => Command::LDX(AddressingMode::new_imm(self)),
-            0xa0 => Command::LDY(AddressingMode::new_imm(self)),
+            0xa2 => Command::LDX(self.new_imm()),
+            0xa0 => Command::LDY(self.new_imm()),
             0xca => Command::DEX,
             0x88 => Command::DEY,
             0xe8 => Command::INX,
 
-            0x10 => Command::BPL(self.read_byte() as i8),
-            0xd0 => Command::BNE(self.read_byte() as i8),
+            0x10 => Command::BPL(self.read_byte_pc() as i8),
+            0xd0 => Command::BNE(self.read_byte_pc() as i8),
             
-            0x4c => Command::JMPAbs(self.read_word()),
+            0x4c => Command::JMPAbs(self.read_word_pc()),
             0x18 => Command::CL(FlagType::Carry),
             0x58 => Command::CL(FlagType::IntDisable),
             0xb8 => Command::CL(FlagType::Overflow),
@@ -276,22 +238,22 @@ impl CPU {
 
     fn exec_command(&mut self, command: &Command) {
         match command {
-            Command::STA(a) => { a.store(self, self.a) },
-            Command::STX(a) => { a.store(self, self.x) },
+            Command::STA(a) => { self.store(a, self.a) },
+            Command::STX(a) => { self.store(a, self.x) },
             Command::LDA(a) => {
-                let v = a.load(self);
+                let v = self.load(a);
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
             },
             Command::LDX(a) => {
-                let v = a.load(self);
+                let v = self.load(a);
                 self.x = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
             },
             Command::LDY(a) => {
-                let v = a.load(self);
+                let v = self.load(a);
                 self.y = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
@@ -326,24 +288,102 @@ impl CPU {
         };
     }
 
-    fn read_byte(&mut self) -> u8 {
-        let v = self.bus.read(self.pc);
+    fn read_byte(&mut self, addr: u16) -> u8 {
+        self.clock.wait(1);
+        self.bus.read(addr)
+    }
+
+    fn read_byte_pc(&mut self) -> u8 {
+        let v = self.read_byte(self.pc);
         self.pc += 1;
         v
     }
 
-    fn read_word(&mut self) -> u16 {
-        let l = self.bus.read(self.pc);
-        self.pc += 1;
-        let h = self.bus.read(self.pc);
-        self.pc += 1;
+    fn read_word(&mut self, addr: u16) -> u16 {
+        let l = self.read_byte(addr);
+        let h = self.read_byte(addr + 1);
         (h as u16) << 8 | l as u16
+    }
+
+    fn read_word_pc(&mut self) -> u16 {
+        let v = self.read_word(self.pc);
+        self.pc += 2;
+        v
+    }
+
+    fn write_byte(&mut self, addr: u16, v: u8) {
+        self.clock.wait(1);
+        self.bus.write(addr, v);
+    }
+
+    fn new_imm(&mut self) -> AddressingMode {
+        AddressingMode::Imm(self.read_byte_pc())
+    }
+
+    fn new_zero_page(&mut self) -> AddressingMode {
+        AddressingMode::ZeroPage(self.read_byte_pc())
+    }
+
+    fn new_zero_page_x(&mut self) -> AddressingMode {
+        AddressingMode::ZeroPage(self.read_byte_pc())
+    }
+
+    fn new_zero_page_y(&mut self) -> AddressingMode {
+        AddressingMode::ZeroPage(self.read_byte_pc())
+    }
+
+    fn new_absolute(&mut self) -> AddressingMode {
+        AddressingMode::Absolute(self.read_word_pc())
+    }
+
+    fn new_absolute_x(&mut self) -> AddressingMode {
+        AddressingMode::AbsoluteX(self.read_word_pc())
+    }
+
+    fn new_absolute_y(&mut self) -> AddressingMode {
+        AddressingMode::AbsoluteY(self.read_word_pc())
+    }
+
+    fn new_indirect_x(&mut self) -> AddressingMode {
+        AddressingMode::IndirectX(self.read_byte_pc())
+    }
+
+    fn new_indirect_y(&mut self) -> AddressingMode {
+        AddressingMode::IndirectY(self.read_byte_pc())
+    }
+
+    fn load(&mut self, addr_mode: &AddressingMode) -> u8 {
+        match *addr_mode {
+            AddressingMode::Imm(v) => v,
+            AddressingMode::ZeroPage(addr) => self.read_byte(addr as u16),
+            AddressingMode::ZeroPageX(addr) => self.read_byte(addr as u16 + self.x as u16),
+            AddressingMode::ZeroPageY(addr) => self.read_byte(addr as u16 + self.y as u16),
+            AddressingMode::Absolute(addr) => self.read_byte(addr),
+            AddressingMode::AbsoluteX(addr) => self.read_byte(addr + self.x as u16),
+            AddressingMode::AbsoluteY(addr) => self.read_byte(addr + self.y as u16),
+            AddressingMode::IndirectX(h) => self.read_byte((h as u16) << 8 + self.x as u16),
+            AddressingMode::IndirectY(h) => self.read_byte((h as u16) << 8 + self.y as u16),
+        }
+    }
+
+    fn store(&mut self, addr_mode: &AddressingMode, v : u8) {
+        match *addr_mode {
+            AddressingMode::Imm(_) => { panic!("store imm error"); },
+            AddressingMode::ZeroPage(addr) => self.write_byte(addr as u16, v),
+            AddressingMode::ZeroPageX(addr) => self.write_byte(addr as u16 + self.x as u16, v),
+            AddressingMode::ZeroPageY(addr) => self.write_byte(addr as u16 + self.y as u16, v),
+            AddressingMode::Absolute(addr) => self.write_byte(addr, v),
+            AddressingMode::AbsoluteX(addr) => self.write_byte(addr + self.x as u16, v),
+            AddressingMode::AbsoluteY(addr) => self.write_byte(addr + self.y as u16, v),
+            AddressingMode::IndirectX(h) => self.write_byte((h as u16) << 8 + self.x as u16, v),
+            AddressingMode::IndirectY(h) => self.write_byte((h as u16) << 8 + self.y as u16, v),
+        }
     }
 
     pub fn step_next(&mut self) {
         let pc = self.pc;
         let command = self.fetch();
-        println!("{:#04x} {}", pc, command.desc());
+        println!("{:#04x} {:?}", pc, command);
         self.exec_command(&command);
     }
 

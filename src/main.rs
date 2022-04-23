@@ -1,11 +1,11 @@
 use std::fs::File;
 use std::io::Read;
+use std::sync::mpsc;
+use std::thread;
 use std::time::Instant;
 use pretty_hex::*;
 
 use pixels::{Pixels, SurfaceTexture};
-use tokio::runtime::Runtime;
-use tokio::sync::mpsc;
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -44,11 +44,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut cpu = CPU::new(bus);
 
     // 画面情報をUIスレッドに転送するチャネル
-    let (render_sender, mut render_receiver) = mpsc::channel::<RenderEvent>(1);
-    
-    // CPU処理のコルーチン
-    let rt  = Runtime::new()?;
-    rt.spawn(async move {
+    let (render_sender, render_receiver) = mpsc::channel::<RenderEvent>();
+
+    thread::spawn(move ||{
 
         // 電源ON
         cpu.int_reset();
@@ -61,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if time.elapsed().as_micros() > (1000 * 1000 / 60) {
                 time = Instant::now();
                 cpu.bus.ppu.draw(frame.as_mut_slice());
-                render_sender.send(RenderEvent::Render(frame)).await.unwrap();
+                render_sender.send(RenderEvent::Render(frame)).unwrap();
             }
         };
     });
