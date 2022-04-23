@@ -26,7 +26,7 @@ impl Clock {
         let spend = (now - self.start).as_nanos();
 
         let wait_time = self.speed_nsec - (spend % self.speed_nsec);
-        println!("wait_time : {} {}", spend / self.speed_nsec , wait_time);
+        // println!("wait_time : {} {}", spend / self.speed_nsec , wait_time);
         sleep(Duration::from_nanos(wait_time as u64));
     }
 }
@@ -128,6 +128,8 @@ enum Command {
     DEX,
     DEY,
     INX,
+    CPX(AddressingMode),
+    CPY(AddressingMode),
     BPL(i8),
     BNE(i8),
     JMPAbs(u16),
@@ -148,6 +150,8 @@ impl fmt::Debug for Command {
             Command::DEX => write!(f, "DEX"),
             Command::DEY => write!(f, "DEY"),
             Command::INX => write!(f, "INX"),
+            Command::CPX(a) => write!(f, "CPX {:?}", a),
+            Command::CPY(a) => write!(f, "CPY {:?}", a),
             Command::BPL(v) => write!(f, "BNE rel {}", v),
             Command::BNE(v) => write!(f, "BNE rel {}", v),
             Command::JMPAbs(addr) => write!(f, "JMP {}", addr),
@@ -208,6 +212,7 @@ impl CPU {
             0xa0 => Command::LDY(self.new_imm()),
             0xca => Command::DEX,
             0x88 => Command::DEY,
+            0xe0 => Command::CPX(self.new_imm()),
             0xe8 => Command::INX,
 
             0x10 => Command::BPL(self.read_byte_pc() as i8),
@@ -274,6 +279,18 @@ impl CPU {
                 self.update_status_zero(self.x);
                 self.update_status_negative(self.x);
             },
+            Command::CPX(a) => {
+                let (v, b) = self.x.overflowing_sub(self.load(a));
+                self.update_status_carry(b);
+                self.update_status_zero(v);
+                self.update_status_negative(v);
+            }
+            Command::CPY(a) => {
+                let (v, b) = self.y.overflowing_sub(self.load(a));
+                self.update_status_carry(b);
+                self.update_status_zero(v);
+                self.update_status_negative(v);
+            }
             Command::BPL(rel) => self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) == 0}, *rel ),
             Command::BNE(rel) => self.exec_branch( |p|{ (p & P_MASK_ZERO) == 0}, *rel ),
 
@@ -399,6 +416,13 @@ impl CPU {
             self.p |= P_MASK_NEGATIVE
         } else {
             self.p &= !P_MASK_NEGATIVE
+        }
+    }
+    fn update_status_carry(&mut self, b : bool) {
+        if b {
+            self.p |= P_MASK_CARRY
+        } else {
+            self.p &= !P_MASK_CARRY
         }
     }
 
