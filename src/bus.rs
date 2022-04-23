@@ -68,6 +68,9 @@ impl Bus {
                 println!(" write ppudata: {:#02x}", value);
                 self.ppu.write_ppudata(value);
             }
+            0x4000 ..= 0x4017 => {
+                println!(" write apu register: {:#02x}", value);
+            }
             _ => {
                 println!("cant write {:#02x}", addr);
                 panic!("not impl write addr");
