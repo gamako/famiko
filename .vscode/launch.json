@@ -1,0 +1,62 @@
+{
+    // IntelliSense を使用して利用可能な属性を学べます。
+    // 既存の属性の説明をホバーして表示します。
+    // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "halloworld",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=famiko",
+                    "--package=famiko"
+                ],
+                "filter": {
+                    "name": "famiko",
+                    "kind": "bin"
+                }
+            },
+            "args": ["./rom/hw.nes"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "nestest",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=famiko",
+                    "--package=famiko"
+                ],
+                "filter": {
+                    "name": "famiko",
+                    "kind": "bin"
+                }
+            },
+            "args": ["./rom/nestest.nes"],
+            "cwd": "${workspaceFolder}"
+        },        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'famiko'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=famiko",
+                    "--package=famiko"
+                ],
+                "filter": {
+                    "name": "famiko",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
