@@ -164,8 +164,8 @@ impl fmt::Debug for Command {
             Command::BPL(v) => write!(f, "BPL rel {}", v),
             Command::BNE(v) => write!(f, "BNE rel {}", v),
             Command::BEQ(v) => write!(f, "BEQ rel {}", v),
-            Command::JMPAbs(addr) => write!(f, "JMP {:?}", addr),
-            Command::JSRAbs(addr) => write!(f, "JSR {:?}", addr),
+            Command::JMPAbs(addr) => write!(f, "JMP {:#04x}", addr),
+            Command::JSRAbs(addr) => write!(f, "JSR {:#04x}", addr),
             Command::RTS => write!(f, "RTS"),
             Command::CL(t) =>
                 match t {
