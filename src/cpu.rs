@@ -121,6 +121,7 @@ impl FlagType {
 enum Command {
     STA(AddressingMode),
     STX(AddressingMode),
+    STY(AddressingMode),
     LDA(AddressingMode),
     LDX(AddressingMode),
     LDY(AddressingMode),
@@ -143,6 +144,7 @@ impl fmt::Debug for Command {
         match self {
             Command::STA(a) => write!(f, "STA {:?}", a),
             Command::STX(a) => write!(f, "STX {:?}", a),
+            Command::STY(a) => write!(f, "STY {:?}", a),
             Command::LDA(a) => write!(f, "LDA {:?}", a),
             Command::LDX(a) => write!(f, "LDX {:?}", a),
             Command::LDY(a) => write!(f, "LDY {:?}", a),
@@ -192,11 +194,21 @@ impl CPU {
         let op = self.read_byte_pc();
 
         match op {
+            0x81 => Command::STA(self.new_indirect_x()),
+            0x85 => Command::STA(self.new_zero_page()),
             0x8d => Command::STA(self.new_absolute()),
+            0x91 => Command::STA(self.new_indirect_y()),
+            0x95 => Command::STA(self.new_zero_page_x()),
+            0x99 => Command::STA(self.new_absolute_y()),
+            0x9d => Command::STA(self.new_absolute_x()),
 
             0x86 => Command::STX(self.new_zero_page()),
             0x8e => Command::STX(self.new_absolute()),
             0x96 => Command::STX(self.new_zero_page_y()),
+
+            0x84 => Command::STY(self.new_zero_page()),
+            0x8c => Command::STY(self.new_absolute()),
+            0x94 => Command::STY(self.new_zero_page_x()),
 
             0xa1 => Command::LDA(self.new_indirect_x()),
             0xa5 => Command::LDA(self.new_zero_page()),
@@ -212,7 +224,14 @@ impl CPU {
             0xa0 => Command::LDY(self.new_imm()),
             0xca => Command::DEX,
             0x88 => Command::DEY,
+
             0xe0 => Command::CPX(self.new_imm()),
+            0xe4 => Command::CPX(self.new_zero_page()),
+            0xec => Command::CPX(self.new_absolute()),
+            0xc0 => Command::CPY(self.new_imm()),
+            0xc4 => Command::CPY(self.new_zero_page()),
+            0xcc => Command::CPY(self.new_absolute()),
+
             0xe8 => Command::INX,
 
             0x10 => Command::BPL(self.read_byte_pc() as i8),
@@ -226,6 +245,7 @@ impl CPU {
             0x38 => Command::SE(FlagType::Carry),
             0x78 => Command::SE(FlagType::IntDisable),
             0xf8 => Command::SE(FlagType::Decimal),
+
             0x28 => Command::PLP,
             _ => {
                 println!("not impl {:#02x}", op);
@@ -245,6 +265,7 @@ impl CPU {
         match command {
             Command::STA(a) => { self.store(a, self.a) },
             Command::STX(a) => { self.store(a, self.x) },
+            Command::STY(a) => { self.store(a, self.y) },
             Command::LDA(a) => {
                 let v = self.load(a);
                 self.a = v;
