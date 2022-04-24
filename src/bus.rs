@@ -25,6 +25,9 @@ impl Bus {
                 self.ram[addr as usize]
             }
             0x2002 => self.ppu.read_status(),
+            0x4000 ..= 0x4017 => {
+                0
+            }
             0x4020 ..= 0xffff => {
                 // mapper-0 prg
                 if addr >= 0x8000 {
