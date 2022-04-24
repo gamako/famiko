@@ -4,6 +4,7 @@ use crate::ppu::PPU;
 pub struct Bus {
     pub prg : Vec<u8>,
     pub ppu : PPU,
+    ram : Vec<u8>,
 }
 
 impl Bus {
@@ -12,12 +13,17 @@ impl Bus {
         Bus { 
             prg: prg,
             ppu: PPU::new(chr),
+            ram: [0].repeat(0x800),
         }
     }
 
     // https://www.nesdev.org/wiki/CPU_memory_map
     pub fn read(&mut self, addr: u16) -> u8 {
         match addr {
+            0x0000 ..= 0x1fff => {
+                let addr = addr & 0x7fff;
+                self.ram[addr as usize]
+            }
             0x2002 => self.ppu.read_status(),
             0x4020 ..= 0xffff => {
                 // mapper-0 prg
@@ -47,9 +53,9 @@ impl Bus {
         println!("write {:#04x}: {:#02x}", addr, value);
 
         match addr {
-            0x0000 ..= 0x07ff => {
-                // ram
-                println!(" write ram");
+            0x0000 ..= 0x1fff => {
+                let addr = addr & 0x7fff;
+                self.ram[addr as usize] = value;
             }
             0x2000 => {
                 self.ppu.ppuctrl = value;

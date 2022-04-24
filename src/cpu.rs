@@ -134,6 +134,8 @@ enum Command {
     BPL(i8),
     BNE(i8),
     JMPAbs(u16),
+    JSRAbs(u16),
+    RTS,
     CL(FlagType),
     SE(FlagType),
     PLP,
@@ -156,7 +158,9 @@ impl fmt::Debug for Command {
             Command::CPY(a) => write!(f, "CPY {:?}", a),
             Command::BPL(v) => write!(f, "BNE rel {}", v),
             Command::BNE(v) => write!(f, "BNE rel {}", v),
-            Command::JMPAbs(addr) => write!(f, "JMP {}", addr),
+            Command::JMPAbs(addr) => write!(f, "JMP {:?}", addr),
+            Command::JSRAbs(addr) => write!(f, "JSR {:?}", addr),
+            Command::RTS => write!(f, "RTS"),
             Command::CL(t) =>
                 match t {
                     FlagType::Carry => write!(f, "CLC"),
@@ -238,6 +242,9 @@ impl CPU {
             0xd0 => Command::BNE(self.read_byte_pc() as i8),
             
             0x4c => Command::JMPAbs(self.read_word_pc()),
+            0x20 => Command::JSRAbs(self.read_word_pc()),
+            0x60 => Command::RTS,
+
             0x18 => Command::CL(FlagType::Carry),
             0x58 => Command::CL(FlagType::IntDisable),
             0xb8 => Command::CL(FlagType::Overflow),
@@ -316,6 +323,13 @@ impl CPU {
             Command::BNE(rel) => self.exec_branch( |p|{ (p & P_MASK_ZERO) == 0}, *rel ),
 
             Command::JMPAbs(addr) => self.pc = *addr,
+            Command::JSRAbs(addr) => {
+                self.push_stack_word(self.pc);
+                self.pc = *addr
+            }
+            Command::RTS => {
+                self.pc = self.pop_stack_word();
+            }
             Command::CL(f) => self.p &= !f.mask(),
             Command::SE(f) => self.p |= f.mask(),
             Command::PLP => {
@@ -352,6 +366,29 @@ impl CPU {
     fn write_byte(&mut self, addr: u16, v: u8) {
         self.clock.wait(1);
         self.bus.write(addr, v);
+    }
+
+    fn push_stack(&mut self, v: u8) {
+        let addr = 0x100u16 | (self.s as u16);
+        self.s = self.s.wrapping_sub(1);
+        self.write_byte(addr, v);
+    }
+
+    fn push_stack_word(&mut self, v: u16) {
+        self.push_stack(((v >> 8) & 0x00ff) as u8);
+        self.push_stack((v & 0x00ff) as u8);
+    }
+
+    fn pop_stack(&mut self) -> u8 {
+        self.s = self.s.wrapping_add(1);
+        let addr = 0x100u16 | (self.s as u16);
+        self.read_byte(addr)
+    }
+
+    fn pop_stack_word(&mut self) -> u16 {
+        let l = self.pop_stack();
+        let h = self.pop_stack();
+        (h as u16) << 8 | l as u16 
     }
 
     fn new_imm(&mut self) -> AddressingMode {
