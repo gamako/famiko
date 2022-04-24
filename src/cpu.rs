@@ -479,7 +479,7 @@ impl CPU {
             AddressingMode::Absolute(addr) => self.write_byte(addr, v),
             AddressingMode::AbsoluteX(addr) => self.write_byte(addr + self.x as u16, v),
             AddressingMode::AbsoluteY(addr) => self.write_byte(addr + self.y as u16, v),
-            AddressingMode::IndirectX(h) => self.write_byte((h as u16) << 8 + self.x as u16, v),
+            AddressingMode::IndirectX(h) => self.write_byte((h as u16) + self.x as u16, v),
             AddressingMode::IndirectY(h) => self.write_byte((h as u16) << 8 + self.y as u16, v),
         }
     }
