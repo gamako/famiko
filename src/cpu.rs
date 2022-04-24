@@ -129,10 +129,13 @@ enum Command {
     DEX,
     DEY,
     INX,
+    INY,
+    CMP(AddressingMode),
     CPX(AddressingMode),
     CPY(AddressingMode),
     BPL(i8),
     BNE(i8),
+    BEQ(i8),
     JMPAbs(u16),
     JSRAbs(u16),
     RTS,
@@ -154,10 +157,13 @@ impl fmt::Debug for Command {
             Command::DEX => write!(f, "DEX"),
             Command::DEY => write!(f, "DEY"),
             Command::INX => write!(f, "INX"),
+            Command::INY => write!(f, "INY"),
+            Command::CMP(a) => write!(f, "CMP {:?}", a),
             Command::CPX(a) => write!(f, "CPX {:?}", a),
             Command::CPY(a) => write!(f, "CPY {:?}", a),
-            Command::BPL(v) => write!(f, "BNE rel {}", v),
+            Command::BPL(v) => write!(f, "BPL rel {}", v),
             Command::BNE(v) => write!(f, "BNE rel {}", v),
+            Command::BEQ(v) => write!(f, "BEQ rel {}", v),
             Command::JMPAbs(addr) => write!(f, "JMP {:?}", addr),
             Command::JSRAbs(addr) => write!(f, "JSR {:?}", addr),
             Command::RTS => write!(f, "RTS"),
@@ -229,6 +235,15 @@ impl CPU {
             0xca => Command::DEX,
             0x88 => Command::DEY,
 
+            0xc1 => Command::CMP(self.new_indirect_x()),
+            0xc5 => Command::CMP(self.new_zero_page()),
+            0xc9 => Command::CMP(self.new_imm()),
+            0xcd => Command::CMP(self.new_absolute()),
+            0xd5 => Command::CMP(self.new_zero_page_x()),
+            0xdd => Command::CMP(self.new_absolute_x()),
+            0xd9 => Command::CMP(self.new_absolute_y()),
+            0xd1 => Command::CMP(self.new_indirect_x()),
+
             0xe0 => Command::CPX(self.new_imm()),
             0xe4 => Command::CPX(self.new_zero_page()),
             0xec => Command::CPX(self.new_absolute()),
@@ -237,9 +252,11 @@ impl CPU {
             0xcc => Command::CPY(self.new_absolute()),
 
             0xe8 => Command::INX,
+            0xc8 => Command::INY,
 
             0x10 => Command::BPL(self.read_byte_pc() as i8),
             0xd0 => Command::BNE(self.read_byte_pc() as i8),
+            0xf0 => Command::BEQ(self.read_byte_pc() as i8),
             
             0x4c => Command::JMPAbs(self.read_word_pc()),
             0x20 => Command::JSRAbs(self.read_word_pc()),
@@ -293,20 +310,31 @@ impl CPU {
             },
             Command::TXS => self.s = self.x,
             Command::DEX => {
-                self.x = self.x.wrapping_add(-1 as i8 as u8);
+                self.x = self.x.wrapping_sub(1u8);
                 self.update_status_zero(self.x);
                 self.update_status_negative(self.x);
             },
             Command::DEY => {
-                self.y = self.y.wrapping_add(-1 as i8 as u8);
+                self.y = self.y.wrapping_sub(1u8);
                 self.update_status_zero(self.y);
                 self.update_status_negative(self.y);
             },
             Command::INX => {
-                self.x = self.x.wrapping_add(1 as i8 as u8);
+                self.x = self.x.wrapping_add(1u8);
                 self.update_status_zero(self.x);
                 self.update_status_negative(self.x);
             },
+            Command::INY => {
+                self.y = self.y.wrapping_add(1u8);
+                self.update_status_zero(self.y);
+                self.update_status_negative(self.y);
+            },
+            Command::CMP(a) => {
+                let (v, b) = self.a.overflowing_sub(self.load(a));
+                self.update_status_carry(b);
+                self.update_status_zero(v);
+                self.update_status_negative(v);
+            }
             Command::CPX(a) => {
                 let (v, b) = self.x.overflowing_sub(self.load(a));
                 self.update_status_carry(b);
@@ -321,6 +349,7 @@ impl CPU {
             }
             Command::BPL(rel) => self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) == 0}, *rel ),
             Command::BNE(rel) => self.exec_branch( |p|{ (p & P_MASK_ZERO) == 0}, *rel ),
+            Command::BEQ(rel) => self.exec_branch( |p|{ (p & P_MASK_ZERO) != 0}, *rel ),
 
             Command::JMPAbs(addr) => self.pc = *addr,
             Command::JSRAbs(addr) => {
