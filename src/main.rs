@@ -36,9 +36,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     p += h.prg_size;
     let chr_rom = Vec::from(&rom[p .. p+h.chr_size]);
 
-    println!("{:?}", h);
-    println!("{:?}", prg_rom.hex_dump());
-    println!("{:?}", chr_rom.hex_dump());
+    // println!("{:?}", h);
+    // println!("{:?}", prg_rom.hex_dump());
+    // println!("{:?}", chr_rom.hex_dump());
 
     let bus = Bus::new(prg_rom, chr_rom);
     let mut cpu = CPU::new(bus);
@@ -49,7 +49,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     thread::spawn(move ||{
 
         // 電源ON
-        cpu.int_reset();
+        // cpu.int_reset();
+
+        // nestest用にc000から始める
+        cpu.init_pc(0xc000);
 
         let mut time = Instant::now();
         loop {

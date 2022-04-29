@@ -1,4 +1,4 @@
-use crate::ppu::PPU;
+use crate::{ppu::PPU, hex};
 
 #[derive(Debug)]
 pub struct Bus {
@@ -53,7 +53,7 @@ impl Bus {
 
     // https://www.nesdev.org/wiki/CPU_memory_map
     pub fn write(&mut self, addr: u16, value: u8) {
-        println!("write {:#04x}: {:#02x}", addr, value);
+        // println!("write {:#04x}: {:#02x}", addr, value);
 
         match addr {
             0x0000 ..= 0x1fff => {
@@ -87,5 +87,13 @@ impl Bus {
         }
 
 
+    }
+
+    pub fn debug_prg_bytes(&mut self, addr: u16, l: usize) -> String {
+        (addr .. (addr + (l as u16)))
+            .map(|v|{ self.read(v) })
+            .map(|x| { format!("{:02X}", x) })
+            .collect::<Vec<_>>()
+            .join(" ")
     }
 }
