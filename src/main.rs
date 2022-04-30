@@ -3,7 +3,6 @@ use std::io::Read;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Instant;
-use pretty_hex::*;
 
 use pixels::{Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;

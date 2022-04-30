@@ -1,6 +1,9 @@
 use crate::bus::Bus;
 use std::{fmt::{self, format}, time::{Instant, Duration}, thread::sleep};
 use crate::hex::dump_bytes;
+use std::string::ToString;
+use strum_macros;
+use std::fmt::Write as FmtWrite;
 
 static CPU_CLOCK_HZ : u128 = 1789773;
 static CPU_CLOCK_UNIT_NSEC : u128 = 1 * 1000 * 1000 * 1000 / CPU_CLOCK_HZ;
@@ -153,6 +156,7 @@ impl FlagType {
     }
 }
 
+#[derive(strum::Display, Debug)]
 enum Command {
     STA(AddressingMode),
     STX(AddressingMode),
@@ -177,6 +181,7 @@ enum Command {
     CL(FlagType),
     SE(FlagType),
     PLP,
+    NOP,
 }
 impl Command {
     fn len(&self) -> usize {
@@ -198,48 +203,41 @@ impl Command {
             _ => 0,
         }
     }
-}
 
-impl fmt::Debug for Command {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn type_name(&self) -> String {
         match self {
-            Command::STA(a) => write!(f, "STA ${:?}", a),
-            Command::STX(a) => write!(f, "STX ${:?}", a),
-            Command::STY(a) => write!(f, "STY ${:?}", a),
-            Command::LDA(a) => write!(f, "LDA #${:?}", a),
-            Command::LDX(a) => write!(f, "LDX #${:?}", a),
-            Command::LDY(a) => write!(f, "LDY #${:?}", a),
-            Command::TXS => write!(f, "TXS"),
-            Command::DEX => write!(f, "DEX"),
-            Command::DEY => write!(f, "DEY"),
-            Command::INX => write!(f, "INX"),
-            Command::INY => write!(f, "INY"),
-            Command::CMP(a) => write!(f, "CMP ${:?}", a),
-            Command::CPX(a) => write!(f, "CPX ${:?}", a),
-            Command::CPY(a) => write!(f, "CPY ${:?}", a),
-            Command::BPL(v) => write!(f, "BPL rel ${:?}", v),
-            Command::BNE(v) => write!(f, "BNE rel ${}", v),
-            Command::BEQ(v) => write!(f, "BEQ rel ${}", v),
-            Command::JMP(a) => write!(f, "JMP ${:?}", a),
-            Command::JSR(a) => write!(f, "JSR ${:?}", a),
-            Command::RTS => write!(f, "RTS"),
+            Command::STA(_) => "STA".to_string(),
+            Command::STX(_) => "STX".to_string(),
+            Command::STY(_) => "STY".to_string(),
+            Command::LDA(_) => "LDA".to_string(),
+            Command::LDX(_) => "LDX".to_string(),
+            Command::LDY(_) => "LDY".to_string(),
+            Command::CMP(_) => "CMP".to_string(),
+            Command::CPX(_) => "CPX".to_string(),
+            Command::CPY(_) => "CPY".to_string(),
+            Command::BPL(_) => "BPL".to_string(),
+            Command::BNE(_) => "BNE".to_string(),
+            Command::BEQ(_) => "BEQ".to_string(),
+            Command::JMP(_) => "JMP".to_string(),
+            Command::JSR(_) => "JSR".to_string(),
             Command::CL(t) =>
                 match t {
-                    FlagType::Carry => write!(f, "CLC"),
-                    FlagType::IntDisable => write!(f, "CLI"),
-                    FlagType::Decimal => write!(f, "CLD"),
-                    FlagType::Overflow => write!(f, "CLV"),
-                    _ => write!(f, "CL (xxx{:?})", t),
+                    FlagType::Carry => "CLC".to_string(),
+                    FlagType::IntDisable => "CLI".to_string(),
+                    FlagType::Decimal => "CLD".to_string(),
+                    FlagType::Overflow => "CLV".to_string(),
+                    _ => "CL?".to_string(),
                 },
             Command::SE(t) =>
                 match t {
-                    FlagType::Carry => write!(f, "SEC"),
-                    FlagType::IntDisable => write!(f, "SEI"),
-                    FlagType::Decimal => write!(f, "SED"),
-                    _ => write!(f, "CL (xxx{:?})", t),
+                    FlagType::Carry => "SEC".to_string(),
+                    FlagType::IntDisable => "SEI".to_string(),
+                    FlagType::Decimal => "SED".to_string(),
+                    _ => "SE?".to_string(),
                 },
-            Command::PLP => write!(f, "PLP"),
+            _ => self.to_string(),
         }
+    
     }
 }
 
@@ -339,6 +337,7 @@ impl CPU {
             0xf8 => (Command::SE(FlagType::Decimal), vec![op]),
 
             0x28 => (Command::PLP, vec![op]),
+            0xea => (Command::NOP, vec![op]),
             _ => {
                 println!("not impl {:#02x}", op);
                 panic!("not impl error");
@@ -353,22 +352,27 @@ impl CPU {
         }
     }
 
-    fn exec_command(&mut self, command: &Command) {
+    fn exec_command(&mut self, command: &Command) -> String {
+        let mut l = String::new();
+        write!(l, "{} ", command.type_name()).unwrap();
         match command {
-            Command::STA(a) => { self.store(a, self.a) },
-            Command::STX(a) => { self.store(a, self.x) },
-            Command::STY(a) => { self.store(a, self.y) },
+            Command::STA(a) => { self.store(a, self.a, &mut l) },
+            Command::STX(a) => { self.store(a, self.x, &mut l) },
+            Command::STY(a) => { self.store(a, self.y, &mut l) },
             Command::LDA(a) => {
                 let v = self.load(a);
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
+                //format!("{}", "STA")
             },
             Command::LDX(a) => {
                 let v = self.load(a);
+                write!(l, "#${:02X}", v).unwrap();
                 self.x = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
+
             },
             Command::LDY(a) => {
                 let v = self.load(a);
@@ -419,9 +423,13 @@ impl CPU {
             Command::BNE(rel) => self.exec_branch( |p|{ (p & P_MASK_ZERO) == 0}, *rel ),
             Command::BEQ(rel) => self.exec_branch( |p|{ (p & P_MASK_ZERO) != 0}, *rel ),
 
-            Command::JMP(AddressingMode::Absolute(addr)) => self.pc = *addr,
+            Command::JMP(AddressingMode::Absolute(addr)) => {
+                write!(l, "${:04X}", addr).unwrap();
+                self.pc = *addr
+            }
             Command::JMP(AddressingMode::Indirect(addr)) => self.pc = self.read_word(*addr),
             Command::JSR(AddressingMode::Absolute(addr)) => {
+                write!(l, "${:04X}", addr).unwrap();
                 self.push_stack_word(self.pc);
                 self.pc = *addr
             }
@@ -435,8 +443,10 @@ impl CPU {
                 self.s += 1;
                 self.p = v;
             },
+            Command::NOP => {}
             _ => { panic!("xx") }
         };
+        return l;
     }
 
     fn read_byte(&mut self, addr: u16) -> u8 {
@@ -561,10 +571,13 @@ impl CPU {
         }
     }
 
-    fn store(&mut self, addr_mode: &AddressingMode, v : u8) {
+    fn store(&mut self, addr_mode: &AddressingMode, v : u8, l: &mut String) {
         match *addr_mode {
             AddressingMode::Imm(_) => { panic!("store imm error"); },
-            AddressingMode::ZeroPage(addr) => self.write_byte(addr as u16, v),
+            AddressingMode::ZeroPage(addr) => {
+                write!(l, "${:02X} = {:02X}", addr, v).unwrap();
+                self.write_byte(addr as u16, v)
+            }
             AddressingMode::ZeroPageX(addr) => self.write_byte(addr as u16 + self.x as u16, v),
             AddressingMode::ZeroPageY(addr) => self.write_byte(addr as u16 + self.y as u16, v),
             AddressingMode::Absolute(addr) => self.write_byte(addr, v),
@@ -585,9 +598,10 @@ impl CPU {
         let (command, bytes) = self.fetch();
 
         debug.bytes = Some(bytes);
-        debug.command = Some(format!("{:?}", command));
 
-        self.exec_command(&command);
+        let command_log = self.exec_command(&command);
+
+        debug.command = Some(command_log);
 
         debug.log();
     }

@@ -1,4 +1,4 @@
-use crate::{ppu::PPU, hex};
+use crate::{ppu::PPU};
 
 #[derive(Debug)]
 pub struct Bus {
