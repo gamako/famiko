@@ -49,7 +49,7 @@ pub struct CPU {
 
 impl CPU {
     fn log_str(&self) -> String {
-        format!("A:{:02x} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X}", 
+        format!("A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X}", 
             self.a,
             self.x,
             self.y,
@@ -77,8 +77,8 @@ static P_MASK_ZERO : u8 = 1 << 1;
 static P_MASK_INT_DISABLE : u8 = 1 << 2;
 static P_MASK_DECIMAL_MODE : u8 = 1 << 3;
 static P_MASK_BREAK_COMMAND : u8 = 1 << 4;
-static P_MASK_OVERFLOW : u8 = 1 << 5;
-static P_MASK_NEGATIVE : u8 = 1 << 6;
+static P_MASK_OVERFLOW : u8 = 1 << 6;
+static P_MASK_NEGATIVE : u8 = 1 << 7;
 
 enum AddressingMode {
     Imm(u8),
@@ -173,37 +173,23 @@ enum Command {
     CPX(AddressingMode),
     CPY(AddressingMode),
     BPL(AddressingMode),
-    BNE(i8),
-    BEQ(i8),
+    BCC(AddressingMode),
+    BCS(AddressingMode),
+    BEQ(AddressingMode),
+    BVS(AddressingMode),
+    BVC(AddressingMode),
+    BNE(AddressingMode),
     JMP(AddressingMode),
     JSR(AddressingMode),
     RTS,
     CL(FlagType),
     SE(FlagType),
+    BIT(AddressingMode),
+    PHP,
     PLP,
     NOP,
 }
 impl Command {
-    fn len(&self) -> usize {
-        1 + match self {
-            Command::STA(a) => a.len(),
-            Command::STX(a) => a.len(),
-            Command::STY(a) => a.len(),
-            Command::LDA(a) => a.len(),
-            Command::LDX(a) => a.len(),
-            Command::LDY(a) => a.len(),
-            Command::CMP(a) => a.len(),
-            Command::CPX(a) => a.len(),
-            Command::CPY(a) => a.len(),
-            Command::BPL(a) => a.len(),
-            Command::BNE(_) => 1,
-            Command::BEQ(_) => 1,
-            Command::JMP(a) => a.len(),
-            Command::JSR(a) => a.len(),
-            _ => 0,
-        }
-    }
-
     fn type_name(&self) -> String {
         match self {
             Command::STA(_) => "STA".to_string(),
@@ -218,6 +204,10 @@ impl Command {
             Command::BPL(_) => "BPL".to_string(),
             Command::BNE(_) => "BNE".to_string(),
             Command::BEQ(_) => "BEQ".to_string(),
+            Command::BCC(_) => "BCC".to_string(),
+            Command::BCS(_) => "BCS".to_string(),
+            Command::BVS(_) => "BVS".to_string(),
+            Command::BVC(_) => "BVC".to_string(),
             Command::JMP(_) => "JMP".to_string(),
             Command::JSR(_) => "JSR".to_string(),
             Command::CL(t) =>
@@ -235,6 +225,7 @@ impl Command {
                     FlagType::Decimal => "SED".to_string(),
                     _ => "SE?".to_string(),
                 },
+            Command::BIT(_) => "BIT".to_string(),
             _ => self.to_string(),
         }
     
@@ -320,9 +311,13 @@ impl CPU {
             0xc8 => (Command::INY, vec![op]),
 
             0x10 => self.new_command(op, Command::BPL, Self::new_relative),
-            // 0xd0 => Command::BNE(self.read_byte_pc() as i8),
-            // 0xf0 => Command::BEQ(self.read_byte_pc() as i8),
-            
+            0x50 => self.new_command(op, Command::BVC, Self::new_relative),
+            0x70 => self.new_command(op, Command::BVS, Self::new_relative),
+            0x90 => self.new_command(op, Command::BCC, Self::new_relative),
+            0xb0 => self.new_command(op, Command::BCS, Self::new_relative),
+            0xd0 => self.new_command(op, Command::BNE, Self::new_relative),
+            0xf0 => self.new_command(op, Command::BEQ, Self::new_relative),
+
             0x4c => self.new_command(op, Command::JMP, Self::new_absolute),
             0x6c => self.new_command(op, Command::JMP, Self::new_indirect),
             0x20 => self.new_command(op, Command::JSR, Self::new_absolute),
@@ -336,6 +331,10 @@ impl CPU {
             0x78 => (Command::SE(FlagType::IntDisable), vec![op]),
             0xf8 => (Command::SE(FlagType::Decimal), vec![op]),
 
+            0x24 => self.new_command(op, Command::BIT, Self::new_zero_page),
+            0x2c => self.new_command(op, Command::BIT, Self::new_absolute),
+
+            0x08 => (Command::PHP, vec![op]),
             0x28 => (Command::PLP, vec![op]),
             0xea => (Command::NOP, vec![op]),
             _ => {
@@ -345,37 +344,43 @@ impl CPU {
         }
     }
     
-    fn exec_branch<F : Fn(u8) -> bool>(&mut self, cond : F, rel : i8) {
-        if cond(self.p) {
-            // println!("branch {}", rel);
-            self.pc = self.pc.wrapping_add(rel as u16);
-        }
+    fn exec_branch<F : Fn(u8) -> bool>(&mut self, cond : F, addr : &AddressingMode, l: &mut String) {
+        match addr {
+            AddressingMode::Relative(a) => {
+                let addr = self.pc.wrapping_add(*a as i8 as u16);
+                write!(l, "${:04X}", addr).unwrap();
+                if cond(self.p) {
+                    self.pc = addr;
+                }
+            },
+            _ => { panic!("branch addressing mode error") }
+        };
     }
 
     fn exec_command(&mut self, command: &Command) -> String {
         let mut l = String::new();
+        
         write!(l, "{} ", command.type_name()).unwrap();
         match command {
             Command::STA(a) => { self.store(a, self.a, &mut l) },
             Command::STX(a) => { self.store(a, self.x, &mut l) },
             Command::STY(a) => { self.store(a, self.y, &mut l) },
             Command::LDA(a) => {
-                let v = self.load(a);
+                let v = self.load(a, &mut l);
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
                 //format!("{}", "STA")
             },
             Command::LDX(a) => {
-                let v = self.load(a);
-                write!(l, "#${:02X}", v).unwrap();
+                let v = self.load(a, &mut l);
                 self.x = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
 
             },
             Command::LDY(a) => {
-                let v = self.load(a);
+                let v = self.load(a, &mut l);
                 self.y = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
@@ -402,26 +407,30 @@ impl CPU {
                 self.update_status_negative(self.y);
             },
             Command::CMP(a) => {
-                let (v, b) = self.a.overflowing_sub(self.load(a));
+                let (v, b) = self.a.overflowing_sub(self.load(a, &mut l));
                 self.update_status_carry(b);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
             }
             Command::CPX(a) => {
-                let (v, b) = self.x.overflowing_sub(self.load(a));
+                let (v, b) = self.x.overflowing_sub(self.load(a, &mut l));
                 self.update_status_carry(b);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
             }
             Command::CPY(a) => {
-                let (v, b) = self.y.overflowing_sub(self.load(a));
+                let (v, b) = self.y.overflowing_sub(self.load(a, &mut l));
                 self.update_status_carry(b);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
             }
-            Command::BPL(AddressingMode::Relative(rel)) => self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) == 0}, *rel as i8),
-            Command::BNE(rel) => self.exec_branch( |p|{ (p & P_MASK_ZERO) == 0}, *rel ),
-            Command::BEQ(rel) => self.exec_branch( |p|{ (p & P_MASK_ZERO) != 0}, *rel ),
+            Command::BPL(a) => self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) == 0}, a, &mut l),
+            Command::BNE(a) => self.exec_branch( |p|{ (p & P_MASK_ZERO) == 0}, a, &mut l),
+            Command::BEQ(a) => self.exec_branch( |p|{ (p & P_MASK_ZERO) != 0}, a, &mut l),
+            Command::BCC(a) => self.exec_branch( |p|{ (p & P_MASK_CARRY) == 0}, a, &mut l),
+            Command::BCS(a) => self.exec_branch( |p|{ (p & P_MASK_CARRY) != 0}, a, &mut l),
+            Command::BVS(a) => self.exec_branch( |p|{ (p & P_MASK_OVERFLOW) != 0}, a, &mut l),
+            Command::BVC(a) => self.exec_branch( |p|{ (p & P_MASK_OVERFLOW) == 0}, a, &mut l),
 
             Command::JMP(AddressingMode::Absolute(addr)) => {
                 write!(l, "${:04X}", addr).unwrap();
@@ -438,6 +447,17 @@ impl CPU {
             }
             Command::CL(f) => self.p &= !f.mask(),
             Command::SE(f) => self.p |= f.mask(),
+            Command::BIT(a) => {
+                let v = self.load(a, &mut l) & self.a;
+                self.update_status_zero(v);
+                self.update_status_overflow(v);
+                self.update_status_negative(v);
+
+            }
+            Command::PHP => {
+                self.s -= 1;
+                self.bus.write(self.s as u16 + 0x0100, self.p);
+            },
             Command::PLP => {
                 let v = self.bus.read(self.s as u16 + 0x0100);
                 self.s += 1;
@@ -555,10 +575,17 @@ impl CPU {
         self.new_addr_and_u8(AddressingMode::Relative)
     }
 
-    fn load(&mut self, addr_mode: &AddressingMode) -> u8 {
+    fn load(&mut self, addr_mode: &AddressingMode, l: &mut String) -> u8 {
         match *addr_mode {
-            AddressingMode::Imm(v) => v,
-            AddressingMode::ZeroPage(addr) => self.read_byte(addr as u16),
+            AddressingMode::Imm(v) => {
+                write!(l, "#${:02X}", v).unwrap();
+                v
+            }
+            AddressingMode::ZeroPage(addr) => {
+                let v = self.read_byte(addr as u16);
+                write!(l, "${:02X} = {:02X}", addr, v).unwrap();
+                v
+            }
             AddressingMode::ZeroPageX(addr) => self.read_byte(addr as u16 + self.x as u16),
             AddressingMode::ZeroPageY(addr) => self.read_byte(addr as u16 + self.y as u16),
             AddressingMode::Absolute(addr) => self.read_byte(addr),
@@ -575,7 +602,8 @@ impl CPU {
         match *addr_mode {
             AddressingMode::Imm(_) => { panic!("store imm error"); },
             AddressingMode::ZeroPage(addr) => {
-                write!(l, "${:02X} = {:02X}", addr, v).unwrap();
+                let old = self.read_byte(addr as u16);
+                write!(l, "${:02X} = {:02X}", addr, old).unwrap();
                 self.write_byte(addr as u16, v)
             }
             AddressingMode::ZeroPageX(addr) => self.write_byte(addr as u16 + self.x as u16, v),
@@ -611,6 +639,13 @@ impl CPU {
             self.p |= P_MASK_ZERO
         } else {
             self.p &= !P_MASK_ZERO
+        }
+    }
+    fn update_status_overflow(&mut self, v : u8) {
+        if v & 0x30 != 0 {
+            self.p |= P_MASK_OVERFLOW
+        } else {
+            self.p &= !P_MASK_OVERFLOW
         }
     }
     fn update_status_negative(&mut self, v : u8) {
