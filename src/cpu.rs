@@ -1,5 +1,5 @@
 use crate::bus::Bus;
-use std::{fmt::{self, format}, time::{Instant, Duration}, thread::sleep};
+use std::{fmt::{self, format}, time::{Instant, Duration}, thread::sleep, ops::Add};
 use crate::hex::dump_bytes;
 use std::string::ToString;
 use strum_macros;
@@ -169,6 +169,7 @@ enum Command {
     DEY,
     INX,
     INY,
+    AND(AddressingMode),
     CMP(AddressingMode),
     CPX(AddressingMode),
     CPY(AddressingMode),
@@ -186,6 +187,7 @@ enum Command {
     SE(FlagType),
     BIT(AddressingMode),
     PHP,
+    PLA,
     PLP,
     NOP,
 }
@@ -198,6 +200,7 @@ impl Command {
             Command::LDA(_) => "LDA".to_string(),
             Command::LDX(_) => "LDX".to_string(),
             Command::LDY(_) => "LDY".to_string(),
+            Command::AND(_) => "AND".to_string(),
             Command::CMP(_) => "CMP".to_string(),
             Command::CPX(_) => "CPX".to_string(),
             Command::CPY(_) => "CPY".to_string(),
@@ -286,6 +289,15 @@ impl CPU {
             0xb9 => self.new_command(op, Command::LDA, Self::new_absolute_y),
             0xbd => self.new_command(op, Command::LDA, Self::new_absolute_x),
 
+            0x21 => self.new_command(op, Command::AND, Self::new_indirect_x),
+            0x25 => self.new_command(op, Command::AND, Self::new_zero_page),
+            0x29 => self.new_command(op, Command::AND, Self::new_imm),
+            0x2d => self.new_command(op, Command::AND, Self::new_absolute),
+            0x31 => self.new_command(op, Command::AND, Self::new_indirect_y),
+            0x35 => self.new_command(op, Command::AND, Self::new_zero_page_x),
+            0x39 => self.new_command(op, Command::AND, Self::new_absolute_y),
+            0x3d => self.new_command(op, Command::AND, Self::new_absolute_x),
+
             0x9a => (Command::TXS, vec![op]),
             0xa2 => self.new_command(op, Command::LDX, Self::new_imm),
             0xa0 => self.new_command(op, Command::LDY, Self::new_imm),
@@ -335,6 +347,7 @@ impl CPU {
             0x2c => self.new_command(op, Command::BIT, Self::new_absolute),
 
             0x08 => (Command::PHP, vec![op]),
+            0x68 => (Command::PLA, vec![op]),
             0x28 => (Command::PLP, vec![op]),
             0xea => (Command::NOP, vec![op]),
             _ => {
@@ -382,6 +395,12 @@ impl CPU {
             Command::LDY(a) => {
                 let v = self.load(a, &mut l);
                 self.y = v;
+                self.update_status_zero(v);
+                self.update_status_negative(v);
+            },
+            Command::AND(a) => {
+                let v = self.load(a, &mut l) & self.a;
+                self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
             },
@@ -456,12 +475,22 @@ impl CPU {
             }
             Command::PHP => {
                 self.s -= 1;
-                self.bus.write(self.s as u16 + 0x0100, self.p);
+                let v = self.p | P_MASK_BREAK_COMMAND;
+                self.bus.write(self.s as u16 + 0x0100, v);
             },
             Command::PLP => {
                 let v = self.bus.read(self.s as u16 + 0x0100);
                 self.s += 1;
                 self.p = v;
+                self.update_status_zero(v);
+                self.update_status_negative(v);
+            },
+            Command::PLA => {
+                let v = self.bus.read(self.s as u16 + 0x0100);
+                self.s += 1;
+                self.a = v;
+                self.update_status_zero(v);
+                self.update_status_negative(v);
             },
             Command::NOP => {}
             _ => { panic!("xx") }
@@ -640,7 +669,7 @@ impl CPU {
         } else {
             self.p &= !P_MASK_ZERO
         }
-    }
+    }   
     fn update_status_overflow(&mut self, v : u8) {
         if v & 0x30 != 0 {
             self.p |= P_MASK_OVERFLOW
