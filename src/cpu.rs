@@ -426,7 +426,8 @@ impl CPU {
                 self.update_status_negative(self.y);
             },
             Command::CMP(a) => {
-                let (v, b) = self.a.overflowing_sub(self.load(a, &mut l));
+                let r = -(self.load(a, &mut l) as i8) as u8;
+                let (v, b) = self.a.overflowing_add(r);
                 self.update_status_carry(b);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
