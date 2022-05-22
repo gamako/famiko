@@ -672,7 +672,7 @@ impl CPU {
         }
     }   
     fn update_status_overflow(&mut self, v : u8) {
-        if v & 0x30 != 0 {
+        if v & 0x70 != 0 {
             self.p |= P_MASK_OVERFLOW
         } else {
             self.p &= !P_MASK_OVERFLOW
