@@ -490,7 +490,7 @@ impl CPU {
             Command::PLP => {
                 let v = self.bus.read(self.s as u16 + 0x0100);
                 self.s += 1;
-                self.p = v;
+                self.p = (self.p & 0x30) | (v & 0xcf);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
             },
