@@ -186,6 +186,7 @@ enum Command {
     CL(FlagType),
     SE(FlagType),
     BIT(AddressingMode),
+    PHA,
     PHP,
     PLA,
     PLP,
@@ -229,6 +230,8 @@ impl Command {
                     _ => "SE?".to_string(),
                 },
             Command::BIT(_) => "BIT".to_string(),
+            Command::PHA => "PHA".to_string(),
+            Command::PHP => "PHP".to_string(),
             _ => self.to_string(),
         }
     
@@ -346,6 +349,7 @@ impl CPU {
             0x24 => self.new_command(op, Command::BIT, Self::new_zero_page),
             0x2c => self.new_command(op, Command::BIT, Self::new_absolute),
 
+            0x48 => (Command::PHA, vec![op]),
             0x08 => (Command::PHP, vec![op]),
             0x68 => (Command::PLA, vec![op]),
             0x28 => (Command::PLP, vec![op]),
@@ -474,6 +478,10 @@ impl CPU {
                 self.update_status_negative(v);
 
             }
+            Command::PHA => {
+                self.s -= 1;
+                self.bus.write(self.s as u16 + 0x0100, self.a);
+            },
             Command::PHP => {
                 self.s -= 1;
                 let v = self.p | P_MASK_BREAK_COMMAND;
