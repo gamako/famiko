@@ -493,10 +493,11 @@ impl CPU {
             Command::CL(f) => self.p &= !f.mask(),
             Command::SE(f) => self.p |= f.mask(),
             Command::BIT(a) => {
-                let v = self.load(a, &mut l) & self.a;
-                self.update_status_zero(v);
-                self.update_status_overflow(v);
-                self.update_status_negative(v);
+                let m = self.load(a, &mut l);
+                let r = m & & self.a;
+                self.update_status_zero(r);
+                self.update_status_overflow(m);
+                self.update_status_negative(m);
 
             }
             Command::PHA => {
