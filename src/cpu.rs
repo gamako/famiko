@@ -171,6 +171,7 @@ enum Command {
     INY,
     AND(AddressingMode),
     ORA(AddressingMode),
+    EOR(AddressingMode),
     CMP(AddressingMode),
     CPX(AddressingMode),
     CPY(AddressingMode),
@@ -204,6 +205,7 @@ impl Command {
             Command::LDX(_) => "LDX".to_string(),
             Command::LDY(_) => "LDY".to_string(),
             Command::AND(_) => "AND".to_string(),
+            Command::EOR(_) => "EOR".to_string(),
             Command::ORA(_) => "ORA".to_string(),
             Command::CMP(_) => "CMP".to_string(),
             Command::CPX(_) => "CPX".to_string(),
@@ -304,6 +306,15 @@ impl CPU {
             0x15 => self.new_command(op, Command::ORA, Self::new_zero_page_x),
             0x19 => self.new_command(op, Command::ORA, Self::new_absolute_y),
             0x1d => self.new_command(op, Command::ORA, Self::new_absolute_x),
+
+            0x41 => self.new_command(op, Command::EOR, Self::new_indirect_x),
+            0x45 => self.new_command(op, Command::EOR, Self::new_zero_page),
+            0x49 => self.new_command(op, Command::EOR, Self::new_imm),
+            0x4d => self.new_command(op, Command::EOR, Self::new_absolute),
+            0x51 => self.new_command(op, Command::EOR, Self::new_indirect_y),
+            0x55 => self.new_command(op, Command::EOR, Self::new_zero_page_x),
+            0x59 => self.new_command(op, Command::EOR, Self::new_absolute_y),
+            0x5d => self.new_command(op, Command::EOR, Self::new_absolute_x),
 
             0x21 => self.new_command(op, Command::AND, Self::new_indirect_x),
             0x25 => self.new_command(op, Command::AND, Self::new_zero_page),
@@ -424,6 +435,12 @@ impl CPU {
             },
             Command::ORA(a) => {
                 let v = self.load(a, &mut l) | self.a;
+                self.a = v;
+                self.update_status_zero(v);
+                self.update_status_negative(v);
+            },
+            Command::EOR(a) => {
+                let v = self.load(a, &mut l) ^ self.a;
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
