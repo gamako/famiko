@@ -179,6 +179,7 @@ enum Command {
     BEQ(AddressingMode),
     BVS(AddressingMode),
     BVC(AddressingMode),
+    BMI(AddressingMode),
     BNE(AddressingMode),
     JMP(AddressingMode),
     JSR(AddressingMode),
@@ -206,6 +207,7 @@ impl Command {
             Command::CPX(_) => "CPX".to_string(),
             Command::CPY(_) => "CPY".to_string(),
             Command::BPL(_) => "BPL".to_string(),
+            Command::BMI(_) => "BMI".to_string(),
             Command::BNE(_) => "BNE".to_string(),
             Command::BEQ(_) => "BEQ".to_string(),
             Command::BCC(_) => "BCC".to_string(),
@@ -330,6 +332,7 @@ impl CPU {
             0x70 => self.new_command(op, Command::BVS, Self::new_relative),
             0x90 => self.new_command(op, Command::BCC, Self::new_relative),
             0xb0 => self.new_command(op, Command::BCS, Self::new_relative),
+            0x30 => self.new_command(op, Command::BMI, Self::new_relative),
             0xd0 => self.new_command(op, Command::BNE, Self::new_relative),
             0xf0 => self.new_command(op, Command::BEQ, Self::new_relative),
 
@@ -449,6 +452,7 @@ impl CPU {
                 self.update_status_negative(v);
             }
             Command::BPL(a) => self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) == 0}, a, &mut l),
+            Command::BMI(a) => self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) != 0}, a, &mut l),
             Command::BNE(a) => self.exec_branch( |p|{ (p & P_MASK_ZERO) == 0}, a, &mut l),
             Command::BEQ(a) => self.exec_branch( |p|{ (p & P_MASK_ZERO) != 0}, a, &mut l),
             Command::BCC(a) => self.exec_branch( |p|{ (p & P_MASK_CARRY) == 0}, a, &mut l),
