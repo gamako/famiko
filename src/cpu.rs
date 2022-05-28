@@ -192,6 +192,7 @@ enum Command {
     JMP(AddressingMode),
     JSR(AddressingMode),
     RTS,
+    RTI,
     CL(FlagType),
     SE(FlagType),
     BIT(AddressingMode),
@@ -401,6 +402,7 @@ impl CPU {
             0x6c => self.new_command(op, Command::JMP, Self::new_indirect),
             0x20 => self.new_command(op, Command::JSR, Self::new_absolute),
             0x60 => (Command::RTS, vec![op]),
+            0x40 => (Command::RTI, vec![op]),
 
             0x18 => (Command::CL(FlagType::Carry), vec![op]),
             0x58 => (Command::CL(FlagType::IntDisable), vec![op]),
@@ -599,6 +601,10 @@ impl CPU {
             }
             Command::RTS => {
                 self.pc = self.pop_stack_word()+1;
+            }
+            Command::RTI => {
+                self.p = self.pop_stack() | 0x20u8;
+                self.pc = self.pop_stack_word();
             }
             Command::CL(f) => self.p &= !f.mask(),
             Command::SE(f) => self.p |= f.mask(),
