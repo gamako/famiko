@@ -504,14 +504,16 @@ impl CPU {
                 self.update_status_negative(v);
             }
             Command::CPX(a) => {
-                let (v, b) = self.x.overflowing_sub(self.load(a, &mut l));
-                self.update_status_carry(b);
+                let m = self.load(a, &mut l);
+                let (v, b) = self.x.overflowing_sub(m);
+                self.update_status_carry(self.x >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
             }
             Command::CPY(a) => {
-                let (v, b) = self.y.overflowing_sub(self.load(a, &mut l));
-                self.update_status_carry(b);
+                let m = self.load(a, &mut l);
+                let (v, b) = self.y.overflowing_sub(m);
+                self.update_status_carry(self.y >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
             }
