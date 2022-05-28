@@ -165,7 +165,10 @@ enum Command {
     LDY(AddressingMode),
     TAX,
     TAY,
+    TSX,
+    TXA,
     TXS,
+    TYA,
     DEX,
     DEY,
     INX,
@@ -307,6 +310,10 @@ impl CPU {
 
             0xaa => (Command::TAX, vec![op]),
             0xa8 => (Command::TAY, vec![op]),
+            0xba => (Command::TSX, vec![op]),
+            0x8a => (Command::TXA, vec![op]),
+            0x9a => (Command::TXS, vec![op]),
+            0x98 => (Command::TYA, vec![op]),
 
             0x01 => self.new_command(op, Command::ORA, Self::new_indirect_x),
             0x05 => self.new_command(op, Command::ORA, Self::new_zero_page),
@@ -455,6 +462,11 @@ impl CPU {
                 self.update_status_zero(v);
                 self.update_status_negative(v);
             },
+            Command::TSX => {
+                self.x = self.s;
+                self.update_status_zero(self.x);
+                self.update_status_negative(self.x);
+            },
             Command::TAX => {
                 self.x = self.a;
                 self.update_status_zero(self.a);
@@ -465,6 +477,18 @@ impl CPU {
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
             },
+            Command::TXA => {
+                self.a = self.x;
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
+            },
+            Command::TXS => self.s = self.x,
+            Command::TYA => {
+                self.a = self.y;
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
+            },
+            
             Command::AND(a) => {
                 let v = self.load(a, &mut l) & self.a;
                 self.a = v;
@@ -509,7 +533,6 @@ impl CPU {
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
             },
-            Command::TXS => self.s = self.x,
             Command::DEX => {
                 self.x = self.x.wrapping_sub(1u8);
                 self.update_status_zero(self.x);
