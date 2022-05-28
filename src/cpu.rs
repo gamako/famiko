@@ -1,8 +1,7 @@
 use crate::bus::Bus;
-use std::{fmt::{self, format}, time::{Instant, Duration}, thread::sleep, ops::Add};
+use std::{fmt, time::{Instant, Duration}, thread::sleep};
 use crate::hex::dump_bytes;
 use std::string::ToString;
-use strum_macros;
 use std::fmt::Write as FmtWrite;
 
 static CPU_CLOCK_HZ : u128 = 1789773;
@@ -547,7 +546,7 @@ impl CPU {
             }
             Command::CPY(a) => {
                 let m = self.load(a, &mut l);
-                let (v, b) = self.y.overflowing_sub(m);
+                let (v, _) = self.y.overflowing_sub(m);
                 self.update_status_carry(self.y >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
