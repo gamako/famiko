@@ -1,5 +1,5 @@
 use crate::bus::Bus;
-use std::{fmt, time::{Instant, Duration}, thread::sleep};
+use std::{fmt, time::{Instant, Duration}, thread::sleep, ops::Add};
 use crate::hex::dump_bytes;
 use std::string::ToString;
 use std::fmt::Write as FmtWrite;
@@ -80,6 +80,7 @@ static P_MASK_OVERFLOW : u8 = 1 << 6;
 static P_MASK_NEGATIVE : u8 = 1 << 7;
 
 enum AddressingMode {
+    Accumelator,
     Imm(u8),
     ZeroPage(u8),
     ZeroPageX(u8),
@@ -96,6 +97,7 @@ enum AddressingMode {
 impl AddressingMode {
     fn len(&self) -> usize {
         match self {
+            AddressingMode::Accumelator => 0,
             AddressingMode::Imm(_) => 1,
             AddressingMode::ZeroPage(_) => 1,
             AddressingMode::ZeroPageX(_) => 1,
@@ -115,6 +117,7 @@ impl AddressingMode {
 impl fmt::Debug for AddressingMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            AddressingMode::Accumelator => write!(f, ""),
             AddressingMode::Imm(v) => write!(f, "{:02X}", v),
             AddressingMode::ZeroPage(addr) => write!(f, "#{:02X}", addr),
             AddressingMode::ZeroPageX(addr) => write!(f, "#{:02X},x", addr),
@@ -176,6 +179,8 @@ enum Command {
     AND(AddressingMode),
     ORA(AddressingMode),
     EOR(AddressingMode),
+    ASL(AddressingMode),
+    LSR(AddressingMode),
     ADC(AddressingMode),
     SBC(AddressingMode),
     CMP(AddressingMode),
@@ -215,6 +220,7 @@ impl Command {
             Command::TAY => "TAY".to_string(),
             Command::AND(_) => "AND".to_string(),
             Command::EOR(_) => "EOR".to_string(),
+            Command::LSR(_) => "LSR".to_string(),
             Command::ADC(_) => "ADC".to_string(),
             Command::SBC(_) => "SBC".to_string(),
             Command::ORA(_) => "ORA".to_string(),
@@ -342,6 +348,18 @@ impl CPU {
             0x35 => self.new_command(op, Command::AND, Self::new_zero_page_x),
             0x39 => self.new_command(op, Command::AND, Self::new_absolute_y),
             0x3d => self.new_command(op, Command::AND, Self::new_absolute_x),
+
+            0x0a => (Command::ASL(AddressingMode::Accumelator), vec![op]),
+            0x06 => self.new_command(op, Command::ASL, Self::new_zero_page),
+            0x16 => self.new_command(op, Command::ASL, Self::new_zero_page_x),
+            0x0e => self.new_command(op, Command::ASL, Self::new_absolute),
+            0x1e => self.new_command(op, Command::ASL, Self::new_absolute_x),
+
+            0x4a => (Command::LSR(AddressingMode::Accumelator), vec![op]),
+            0x46 => self.new_command(op, Command::LSR, Self::new_zero_page),
+            0x56 => self.new_command(op, Command::LSR, Self::new_zero_page_x),
+            0x4e => self.new_command(op, Command::LSR, Self::new_absolute),
+            0x5e => self.new_command(op, Command::LSR, Self::new_absolute_x),
 
             0x61 => self.new_command(op, Command::ADC, Self::new_indirect_x),
             0x65 => self.new_command(op, Command::ADC, Self::new_zero_page),
@@ -512,6 +530,21 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
+            },
+            Command::ASL(a) => {
+                let v = self.load(a, &mut l);
+                self.update_status_carry(v & 0x80 != 0);
+                self.a = v.wrapping_shl(1);
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
+                
+            },
+            Command::LSR(a) => {
+                let v = self.load(a, &mut l);
+                self.update_status_carry(v & 0x01 != 0);
+                self.a = v.wrapping_shr(1);
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
             },
             Command::ADC(addr) => {
                 let a = self.a;
@@ -751,6 +784,10 @@ impl CPU {
 
     fn load(&mut self, addr_mode: &AddressingMode, l: &mut String) -> u8 {
         match *addr_mode {
+            AddressingMode::Accumelator => {
+                write!(l, "A").unwrap();
+                self.a
+            },
             AddressingMode::Imm(v) => {
                 write!(l, "#${:02X}", v).unwrap();
                 v
@@ -778,6 +815,7 @@ impl CPU {
 
     fn store(&mut self, addr_mode: &AddressingMode, v : u8, l: &mut String) {
         match *addr_mode {
+            AddressingMode::Accumelator => panic!("store Accumelator error"),
             AddressingMode::Imm(_) => { panic!("store imm error"); },
             AddressingMode::ZeroPage(addr) => {
                 let old = self.read_byte(addr as u16);
