@@ -772,7 +772,11 @@ impl CPU {
             }
             AddressingMode::ZeroPageX(addr) => self.write_byte(addr as u16 + self.x as u16, v),
             AddressingMode::ZeroPageY(addr) => self.write_byte(addr as u16 + self.y as u16, v),
-            AddressingMode::Absolute(addr) => self.write_byte(addr, v),
+            AddressingMode::Absolute(addr) => {
+                let old = self.read_byte(addr as u16);
+                self.write_byte(addr, v);
+                write!(l, "${:04X} = {:02X}", addr, old).unwrap();
+            },
             AddressingMode::AbsoluteX(addr) => self.write_byte(addr + self.x as u16, v),
             AddressingMode::AbsoluteY(addr) => self.write_byte(addr + self.y as u16, v),
             AddressingMode::Indirect(h) => panic!("store indirect"),
