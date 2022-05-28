@@ -360,7 +360,6 @@ impl CPU {
             0xf9 => self.new_command(op, Command::SBC, Self::new_absolute_y),
             0xfd => self.new_command(op, Command::SBC, Self::new_absolute_x),
 
-            0x9a => (Command::TXS, vec![op]),
             0xa2 => self.new_command(op, Command::LDX, Self::new_imm),
             0xa0 => self.new_command(op, Command::LDY, Self::new_imm),
             0xca => (Command::DEX, vec![op]),
