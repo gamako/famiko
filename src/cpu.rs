@@ -484,11 +484,11 @@ impl CPU {
                 let a = self.a;
                 let b = self.load(addr, &mut l);
                 let c = self.p & P_MASK_CARRY;
-                let d = a  as u16 - b  as u16 - (1 - c)  as u16;
+                let d = (a as u16).wrapping_sub(b  as u16).wrapping_sub((1 - c) as u16);
                 self.a = (d & 0xff) as u8;
 
                 self.update_status_carry(!d > 0xff);
-                self.update_status_overflow_of((a ^ b) & 0x80 == 0 && (self.a ^ a) & 0x80 != 0);
+                self.update_status_overflow_of((a ^ b) & 0x80 != 0 && (self.a ^ a) & 0x80 != 0);
 
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
