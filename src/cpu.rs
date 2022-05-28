@@ -173,6 +173,7 @@ enum Command {
     ORA(AddressingMode),
     EOR(AddressingMode),
     ADC(AddressingMode),
+    SBC(AddressingMode),
     CMP(AddressingMode),
     CPX(AddressingMode),
     CPY(AddressingMode),
@@ -208,6 +209,7 @@ impl Command {
             Command::AND(_) => "AND".to_string(),
             Command::EOR(_) => "EOR".to_string(),
             Command::ADC(_) => "ADC".to_string(),
+            Command::SBC(_) => "SBC".to_string(),
             Command::ORA(_) => "ORA".to_string(),
             Command::CMP(_) => "CMP".to_string(),
             Command::CPX(_) => "CPX".to_string(),
@@ -336,6 +338,15 @@ impl CPU {
             0x79 => self.new_command(op, Command::ADC, Self::new_absolute_y),
             0x7d => self.new_command(op, Command::ADC, Self::new_absolute_x),
 
+            0xe1 => self.new_command(op, Command::SBC, Self::new_indirect_x),
+            0xe5 => self.new_command(op, Command::SBC, Self::new_zero_page),
+            0xe9 => self.new_command(op, Command::SBC, Self::new_imm),
+            0xed => self.new_command(op, Command::SBC, Self::new_absolute),
+            0xf1 => self.new_command(op, Command::SBC, Self::new_indirect_y),
+            0xf5 => self.new_command(op, Command::SBC, Self::new_zero_page_x),
+            0xf9 => self.new_command(op, Command::SBC, Self::new_absolute_y),
+            0xfd => self.new_command(op, Command::SBC, Self::new_absolute_x),
+
             0x9a => (Command::TXS, vec![op]),
             0xa2 => self.new_command(op, Command::LDX, Self::new_imm),
             0xa0 => self.new_command(op, Command::LDY, Self::new_imm),
@@ -457,12 +468,6 @@ impl CPU {
                 self.update_status_negative(v);
             },
             Command::ADC(addr) => {
-                // let c = (self.p & P_MASK_CARRY) as i8;
-                // let (v, b1) = (self.load(a, &mut l) as i8).overflowing_add(self.a as i8);
-                // let (v, b2) = v.overflowing_add(c);
-                // let b = b1 | b2;
-                // self.a = v as u8;
-
                 let a = self.a;
                 let b = self.load(addr, &mut l);
                 let c = self.p & P_MASK_CARRY;
@@ -470,6 +475,19 @@ impl CPU {
                 self.a = (d & 0xff) as u8;
 
                 self.update_status_carry(d > 0xff);
+                self.update_status_overflow_of((a ^ b) & 0x80 == 0 && (self.a ^ a) & 0x80 != 0);
+
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
+            },
+            Command::SBC(addr) => {
+                let a = self.a;
+                let b = self.load(addr, &mut l);
+                let c = self.p & P_MASK_CARRY;
+                let d = a  as u16 - b  as u16 - (1 - c)  as u16;
+                self.a = (d & 0xff) as u8;
+
+                self.update_status_carry(!d > 0xff);
                 self.update_status_overflow_of((a ^ b) & 0x80 == 0 && (self.a ^ a) & 0x80 != 0);
 
                 self.update_status_zero(self.a);
