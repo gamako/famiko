@@ -594,11 +594,11 @@ impl CPU {
             Command::JMP(AddressingMode::Indirect(addr)) => self.pc = self.read_word(*addr),
             Command::JSR(AddressingMode::Absolute(addr)) => {
                 write!(l, "${:04X}", addr).unwrap();
-                self.push_stack_word(self.pc);
+                self.push_stack_word(self.pc-1);
                 self.pc = *addr
             }
             Command::RTS => {
-                self.pc = self.pop_stack_word();
+                self.pc = self.pop_stack_word()+1;
             }
             Command::CL(f) => self.p &= !f.mask(),
             Command::SE(f) => self.p |= f.mask(),
