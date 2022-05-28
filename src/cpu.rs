@@ -164,6 +164,8 @@ enum Command {
     LDA(AddressingMode),
     LDX(AddressingMode),
     LDY(AddressingMode),
+    TAX,
+    TAY,
     TXS,
     DEX,
     DEY,
@@ -206,6 +208,8 @@ impl Command {
             Command::LDA(_) => "LDA".to_string(),
             Command::LDX(_) => "LDX".to_string(),
             Command::LDY(_) => "LDY".to_string(),
+            Command::TAX => "TAX".to_string(),
+            Command::TAY => "TAY".to_string(),
             Command::AND(_) => "AND".to_string(),
             Command::EOR(_) => "EOR".to_string(),
             Command::ADC(_) => "ADC".to_string(),
@@ -301,6 +305,9 @@ impl CPU {
             0xb5 => self.new_command(op, Command::LDA, Self::new_zero_page_x),
             0xb9 => self.new_command(op, Command::LDA, Self::new_absolute_y),
             0xbd => self.new_command(op, Command::LDA, Self::new_absolute_x),
+
+            0xaa => (Command::TAX, vec![op]),
+            0xa8 => (Command::TAY, vec![op]),
 
             0x01 => self.new_command(op, Command::ORA, Self::new_indirect_x),
             0x05 => self.new_command(op, Command::ORA, Self::new_zero_page),
@@ -448,6 +455,16 @@ impl CPU {
                 self.y = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
+            },
+            Command::TAX => {
+                self.x = self.a;
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
+            },
+            Command::TAY => {
+                self.y = self.a;
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
             },
             Command::AND(a) => {
                 let v = self.load(a, &mut l) & self.a;
