@@ -361,6 +361,11 @@ impl CPU {
             0xfd => self.new_command(op, Command::SBC, Self::new_absolute_x),
 
             0xa2 => self.new_command(op, Command::LDX, Self::new_imm),
+            0xae => self.new_command(op, Command::LDX, Self::new_absolute),
+            0xa6 => self.new_command(op, Command::LDX, Self::new_zero_page),
+            0xb6 => self.new_command(op, Command::LDX, Self::new_zero_page_y),
+            0xbe => self.new_command(op, Command::LDX, Self::new_absolute_y),
+
             0xa0 => self.new_command(op, Command::LDY, Self::new_imm),
             0xca => (Command::DEX, vec![op]),
             0x88 => (Command::DEY, vec![op]),
@@ -751,7 +756,11 @@ impl CPU {
             }
             AddressingMode::ZeroPageX(addr) => self.read_byte(addr as u16 + self.x as u16),
             AddressingMode::ZeroPageY(addr) => self.read_byte(addr as u16 + self.y as u16),
-            AddressingMode::Absolute(addr) => self.read_byte(addr),
+            AddressingMode::Absolute(addr) => {
+                let v = self.read_byte(addr);
+                write!(l, "${:04X} = {:02X}", addr, v).unwrap();
+                v
+            },
             AddressingMode::AbsoluteX(addr) => self.read_byte(addr + self.x as u16),
             AddressingMode::AbsoluteY(addr) => self.read_byte(addr + self.y as u16),
             AddressingMode::Indirect(h) => panic!("load indirect"),
