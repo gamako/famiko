@@ -1,5 +1,5 @@
 use crate::bus::Bus;
-use std::{fmt, time::{Instant, Duration}, thread::sleep, ops::Add};
+use std::{fmt, time::{Instant, Duration}, thread::sleep};
 use crate::hex::dump_bytes;
 use std::string::ToString;
 use std::fmt::Write as FmtWrite;
