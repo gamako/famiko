@@ -181,6 +181,8 @@ enum Command {
     EOR(AddressingMode),
     ASL(AddressingMode),
     LSR(AddressingMode),
+    ROL(AddressingMode),
+    ROR(AddressingMode),
     ADC(AddressingMode),
     SBC(AddressingMode),
     CMP(AddressingMode),
@@ -222,6 +224,8 @@ impl Command {
             Command::EOR(_) => "EOR".to_string(),
             Command::LSR(_) => "LSR".to_string(),
             Command::ADC(_) => "ADC".to_string(),
+            Command::ROL(_) => "ROL".to_string(),
+            Command::ROR(_) => "ROR".to_string(),
             Command::SBC(_) => "SBC".to_string(),
             Command::ORA(_) => "ORA".to_string(),
             Command::CMP(_) => "CMP".to_string(),
@@ -360,6 +364,18 @@ impl CPU {
             0x56 => self.new_command(op, Command::LSR, Self::new_zero_page_x),
             0x4e => self.new_command(op, Command::LSR, Self::new_absolute),
             0x5e => self.new_command(op, Command::LSR, Self::new_absolute_x),
+
+            0x2a => (Command::ROL(AddressingMode::Accumelator), vec![op]),
+            0x26 => self.new_command(op, Command::ROL, Self::new_zero_page),
+            0x36 => self.new_command(op, Command::ROL, Self::new_zero_page_x),
+            0x2e => self.new_command(op, Command::ROL, Self::new_absolute),
+            0x3e => self.new_command(op, Command::ROL, Self::new_absolute_x),
+
+            0x6a => (Command::ROR(AddressingMode::Accumelator), vec![op]),
+            0x66 => self.new_command(op, Command::ROR, Self::new_zero_page),
+            0x76 => self.new_command(op, Command::ROR, Self::new_zero_page_x),
+            0x6e => self.new_command(op, Command::ROR, Self::new_absolute),
+            0x7e => self.new_command(op, Command::ROR, Self::new_absolute_x),
 
             0x61 => self.new_command(op, Command::ADC, Self::new_indirect_x),
             0x65 => self.new_command(op, Command::ADC, Self::new_zero_page),
@@ -543,6 +559,20 @@ impl CPU {
                 let v = self.load(a, &mut l);
                 self.update_status_carry(v & 0x01 != 0);
                 self.a = v.wrapping_shr(1);
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
+            },
+            Command::ROL(a) => {
+                let v = self.load(a, &mut l);
+                self.a = v.wrapping_shl(1) | (self.p & 0x01);
+                self.update_status_carry(v & 0x80 != 0);
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
+            },
+            Command::ROR(a) => {
+                let v = self.load(a, &mut l);
+                self.a = v.wrapping_shr(1) | ((self.p & 0x01) << 7);
+                self.update_status_carry(v & 0x01 != 0);
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
             },
