@@ -837,7 +837,13 @@ impl CPU {
             AddressingMode::AbsoluteX(addr) => self.read_byte(addr + self.x as u16),
             AddressingMode::AbsoluteY(addr) => self.read_byte(addr + self.y as u16),
             AddressingMode::Indirect(h) => panic!("load indirect"),
-            AddressingMode::IndirectX(h) => self.read_byte((h as u16) << 8 + self.x as u16),
+            AddressingMode::IndirectX(m) => {
+                let addr = m.wrapping_add(self.x);
+                let addr1 = self.read_word(addr as u16);
+                let v = self.read_byte(addr1);
+                write!(l, "(${:02X},X) @ {:02X} = {:04X} = {:02X}", m, addr, addr1, v).unwrap();
+                v
+            },
             AddressingMode::IndirectY(h) => self.read_byte((h as u16) << 8 + self.y as u16),
             AddressingMode::Relative(rel) => panic!("load rel"),
         }
