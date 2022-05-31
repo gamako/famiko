@@ -570,18 +570,20 @@ impl CPU {
                 self.update_status_negative(v);
             },
             Command::ROL(a) => {
-                let v = self.load(a, &mut l);
-                self.a = v.wrapping_shl(1) | (self.p & 0x01);
-                self.update_status_carry(v & 0x80 != 0);
-                self.update_status_zero(self.a);
-                self.update_status_negative(self.a);
+                let v0 = self.load(a, &mut l);
+                let v1 = v0.wrapping_shl(1) | (self.p & 0x01);
+                self.store(a, v1, None);
+                self.update_status_carry(v0 & 0x80 != 0);
+                self.update_status_zero(v1);
+                self.update_status_negative(v1);
             },
             Command::ROR(a) => {
-                let v = self.load(a, &mut l);
-                self.a = v.wrapping_shr(1) | ((self.p & 0x01) << 7);
-                self.update_status_carry(v & 0x01 != 0);
-                self.update_status_zero(self.a);
-                self.update_status_negative(self.a);
+                let v0 = self.load(a, &mut l);
+                let v1 = v0.wrapping_shr(1) | ((self.p & 0x01) << 7);
+                self.store(a, v1, None);
+                self.update_status_carry(v0 & 0x01 != 0);
+                self.update_status_zero(v1);
+                self.update_status_negative(v1);
             },
             Command::ADC(addr) => {
                 let a = self.a;
