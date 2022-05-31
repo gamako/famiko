@@ -563,11 +563,11 @@ impl CPU {
             Command::LSR(a) => {
                 let v = self.load(a, &mut l);
                 self.update_status_carry(v & 0x01 != 0);
-                self.a = v.wrapping_shr(1);
+                let v = v.wrapping_shr(1);
                 let mut d : String = "".to_string();
                 self.store(a, v, &mut d);
-                self.update_status_zero(self.a);
-                self.update_status_negative(self.a);
+                self.update_status_zero(v);
+                self.update_status_negative(v);
             },
             Command::ROL(a) => {
                 let v = self.load(a, &mut l);
@@ -863,7 +863,7 @@ impl CPU {
 
     fn store(&mut self, addr_mode: &AddressingMode, v : u8, l: &mut String) {
         match *addr_mode {
-            AddressingMode::Accumelator => panic!("store Accumelator error"),
+            AddressingMode::Accumelator => self.a = v,
             AddressingMode::Imm(_) => self.a = v,
             AddressingMode::ZeroPage(addr) => {
                 let old = self.read_byte(addr as u16);
