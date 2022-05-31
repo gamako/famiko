@@ -555,9 +555,11 @@ impl CPU {
             Command::ASL(a) => {
                 let v = self.load(a, &mut l);
                 self.update_status_carry(v & 0x80 != 0);
-                self.a = v.wrapping_shl(1);
-                self.update_status_zero(self.a);
-                self.update_status_negative(self.a);
+                let v = v.wrapping_shl(1);
+                let mut d : String = "".to_string();
+                self.store(a, v, &mut d);
+                self.update_status_zero(v);
+                self.update_status_negative(v);
                 
             },
             Command::LSR(a) => {
