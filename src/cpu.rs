@@ -402,6 +402,11 @@ impl CPU {
             0xbe => self.new_command(op, Command::LDX, Self::new_absolute_y),
 
             0xa0 => self.new_command(op, Command::LDY, Self::new_imm),
+            0xa4 => self.new_command(op, Command::LDY, Self::new_zero_page),
+            0xb4 => self.new_command(op, Command::LDY, Self::new_zero_page_x),
+            0xac => self.new_command(op, Command::LDY, Self::new_absolute),
+            0xbc => self.new_command(op, Command::LDY, Self::new_absolute_x),
+
             0xca => (Command::DEX, vec![op]),
             0x88 => (Command::DEY, vec![op]),
 
@@ -559,6 +564,8 @@ impl CPU {
                 let v = self.load(a, &mut l);
                 self.update_status_carry(v & 0x01 != 0);
                 self.a = v.wrapping_shr(1);
+                let mut d : String = "".to_string();
+                self.store(a, v, &mut d);
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
             },
@@ -857,7 +864,7 @@ impl CPU {
     fn store(&mut self, addr_mode: &AddressingMode, v : u8, l: &mut String) {
         match *addr_mode {
             AddressingMode::Accumelator => panic!("store Accumelator error"),
-            AddressingMode::Imm(_) => { panic!("store imm error"); },
+            AddressingMode::Imm(_) => self.a = v,
             AddressingMode::ZeroPage(addr) => {
                 let old = self.read_byte(addr as u16);
                 write!(l, "${:02X} = {:02X}", addr, old).unwrap();
