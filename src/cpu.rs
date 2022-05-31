@@ -722,6 +722,11 @@ impl CPU {
         let h = self.read_byte(addr + 1);
         (h as u16) << 8 | l as u16
     }
+    fn read_word_zeropage(&mut self, addr: u8) -> u16 {
+        let l = self.read_byte(addr as u16);
+        let h = self.read_byte(addr.wrapping_add(1) as u16);
+        (h as u16) << 8 | l as u16
+    }
 
     fn read_word_pc(&mut self) -> u16 {
         let v = self.read_word(self.pc);
@@ -839,7 +844,7 @@ impl CPU {
             AddressingMode::Indirect(h) => panic!("load indirect"),
             AddressingMode::IndirectX(m) => {
                 let addr = m.wrapping_add(self.x);
-                let addr1 = self.read_word(addr as u16);
+                let addr1 = self.read_word_zeropage(addr);
                 let v = self.read_byte(addr1);
                 write!(l, "(${:02X},X) @ {:02X} = {:04X} = {:02X}", m, addr, addr1, v).unwrap();
                 v
