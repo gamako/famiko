@@ -484,9 +484,9 @@ impl CPU {
         
         write!(l, "{} ", command.type_name()).unwrap();
         match command {
-            Command::STA(a) => { self.store(a, self.a, &mut l) },
-            Command::STX(a) => { self.store(a, self.x, &mut l) },
-            Command::STY(a) => { self.store(a, self.y, &mut l) },
+            Command::STA(a) => { self.store(a, self.a, Some(&mut l)) },
+            Command::STX(a) => { self.store(a, self.x, Some(&mut l)) },
+            Command::STY(a) => { self.store(a, self.y, Some(&mut l)) },
             Command::LDA(a) => {
                 let v = self.load(a, &mut l);
                 self.a = v;
@@ -556,8 +556,7 @@ impl CPU {
                 let v = self.load(a, &mut l);
                 self.update_status_carry(v & 0x80 != 0);
                 let v = v.wrapping_shl(1);
-                let mut d : String = "".to_string();
-                self.store(a, v, &mut d);
+                self.store(a, v, None);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
                 
@@ -566,8 +565,7 @@ impl CPU {
                 let v = self.load(a, &mut l);
                 self.update_status_carry(v & 0x01 != 0);
                 let v = v.wrapping_shr(1);
-                let mut d : String = "".to_string();
-                self.store(a, v, &mut d);
+                self.store(a, v, None);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
             },
@@ -863,13 +861,15 @@ impl CPU {
         }
     }
 
-    fn store(&mut self, addr_mode: &AddressingMode, v : u8, l: &mut String) {
+    fn store(&mut self, addr_mode: &AddressingMode, v : u8, l: Option<&mut String>) {
         match *addr_mode {
             AddressingMode::Accumelator => self.a = v,
             AddressingMode::Imm(_) => self.a = v,
             AddressingMode::ZeroPage(addr) => {
                 let old = self.read_byte(addr as u16);
-                write!(l, "${:02X} = {:02X}", addr, old).unwrap();
+                if let Some(l) = l {
+                    write!(l, "${:02X} = {:02X}", addr, old).unwrap();
+                }
                 self.write_byte(addr as u16, v)
             }
             AddressingMode::ZeroPageX(addr) => self.write_byte(addr as u16 + self.x as u16, v),
@@ -877,7 +877,9 @@ impl CPU {
             AddressingMode::Absolute(addr) => {
                 let old = self.read_byte(addr as u16);
                 self.write_byte(addr, v);
-                write!(l, "${:04X} = {:02X}", addr, old).unwrap();
+                if let Some(l) = l {
+                    write!(l, "${:04X} = {:02X}", addr, old).unwrap();
+                }
             },
             AddressingMode::AbsoluteX(addr) => self.write_byte(addr + self.x as u16, v),
             AddressingMode::AbsoluteY(addr) => self.write_byte(addr + self.y as u16, v),
@@ -886,7 +888,9 @@ impl CPU {
                 let addr = m.wrapping_add(self.x);
                 let addr1 = self.read_word_zeropage(addr);
                 let old_v = self.read_byte(addr1);
-                write!(l, "(${:02X},X) @ {:02X} = {:04X} = {:02X}", m, addr, addr1, old_v).unwrap();
+                if let Some(l) = l {
+                    write!(l, "(${:02X},X) @ {:02X} = {:04X} = {:02X}", m, addr, addr1, old_v).unwrap();
+                }
 
                 self.write_byte(addr1, v)
             },
