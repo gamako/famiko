@@ -172,8 +172,10 @@ enum Command {
     TXA,
     TXS,
     TYA,
+    DEC(AddressingMode),
     DEX,
     DEY,
+    INC(AddressingMode),
     INX,
     INY,
     AND(AddressingMode),
@@ -407,9 +409,6 @@ impl CPU {
             0xac => self.new_command(op, Command::LDY, Self::new_absolute),
             0xbc => self.new_command(op, Command::LDY, Self::new_absolute_x),
 
-            0xca => (Command::DEX, vec![op]),
-            0x88 => (Command::DEY, vec![op]),
-
             0xc1 => self.new_command(op, Command::CMP, Self::new_indirect_x),
             0xc5 => self.new_command(op, Command::CMP, Self::new_zero_page),
             0xc9 => self.new_command(op, Command::CMP, Self::new_imm),
@@ -425,6 +424,16 @@ impl CPU {
             0xc4 => self.new_command(op, Command::CPY, Self::new_zero_page),
             0xcc => self.new_command(op, Command::CPY, Self::new_absolute),
 
+            0xc6 => self.new_command(op, Command::DEC, Self::new_zero_page),
+            0xd6 => self.new_command(op, Command::DEC, Self::new_zero_page_x),
+            0xce => self.new_command(op, Command::DEC, Self::new_absolute),
+            0xde => self.new_command(op, Command::DEC, Self::new_absolute_x),
+            0xca => (Command::DEX, vec![op]),
+            0x88 => (Command::DEY, vec![op]),
+            0xe6 => self.new_command(op, Command::INC, Self::new_zero_page),
+            0xf6 => self.new_command(op, Command::INC, Self::new_zero_page_x),
+            0xee => self.new_command(op, Command::INC, Self::new_absolute),
+            0xfe => self.new_command(op, Command::INC, Self::new_absolute_x),
             0xe8 => (Command::INX, vec![op]),
             0xc8 => (Command::INY, vec![op]),
 
@@ -611,6 +620,13 @@ impl CPU {
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
             },
+            Command::DEC(a) => {
+                let v0 = self.load(a, &mut l);
+                let v1 = v0.wrapping_sub(1);
+                self.store(a, v1, None);
+                self.update_status_zero(v1);
+                self.update_status_negative(v1);
+            }
             Command::DEX => {
                 self.x = self.x.wrapping_sub(1u8);
                 self.update_status_zero(self.x);
@@ -621,6 +637,13 @@ impl CPU {
                 self.update_status_zero(self.y);
                 self.update_status_negative(self.y);
             },
+            Command::INC(a) => {
+                let v0 = self.load(a, &mut l);
+                let v1 = v0.wrapping_add(1);
+                self.store(a, v1, None);
+                self.update_status_zero(v1);
+                self.update_status_negative(v1);
+            }
             Command::INX => {
                 self.x = self.x.wrapping_add(1u8);
                 self.update_status_zero(self.x);
