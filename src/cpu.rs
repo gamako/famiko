@@ -925,7 +925,16 @@ impl CPU {
 
                 self.write_byte(addr1, v)
             },
-            AddressingMode::IndirectY(h) => self.write_byte((h as u16) << 8 + self.y as u16, v),
+            AddressingMode::IndirectY(m) => {
+                let addr0 = self.read_word_zeropage(m);
+                let addr1 = addr0.wrapping_add(self.y as u16);
+                let old_v = self.read_byte(addr1);
+                if let Some(l) = l {
+                    write!(l, "(${:02X}),Y = {:04X} @ {:04X} = {:02X}", m, addr0, addr1, old_v).unwrap();
+                }
+                self.write_byte(addr1, v)
+
+            },
             AddressingMode::Relative(_) => panic!("store rel"),
         }
     }
