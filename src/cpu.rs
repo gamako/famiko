@@ -881,7 +881,13 @@ impl CPU {
                 write!(l, "(${:02X},X) @ {:02X} = {:04X} = {:02X}", m, addr, addr1, v).unwrap();
                 v
             },
-            AddressingMode::IndirectY(h) => self.read_byte((h as u16) << 8 + self.y as u16),
+            AddressingMode::IndirectY(m) => {
+                let addr0 = self.read_word_zeropage(m);
+                let addr1 = addr0.wrapping_add(self.y as u16);
+                let v = self.read_byte(addr1);
+                write!(l, "(${:02X}),Y = {:04X} @ {:04X} = {:02X}", m, addr0, addr1, v).unwrap();
+                v
+            },
             AddressingMode::Relative(rel) => panic!("load rel"),
         }
     }
