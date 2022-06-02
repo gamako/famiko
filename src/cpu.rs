@@ -830,11 +830,11 @@ impl CPU {
     }
 
     fn new_zero_page_x(&mut self) -> (AddressingMode, Vec<u8>) {
-        self.new_addr_and_u8(AddressingMode::ZeroPage)
+        self.new_addr_and_u8(AddressingMode::ZeroPageX)
     }
 
     fn new_zero_page_y(&mut self) -> (AddressingMode, Vec<u8>) {
-        self.new_addr_and_u8(AddressingMode::ZeroPage)
+        self.new_addr_and_u8(AddressingMode::ZeroPageY)
     }
 
     fn new_absolute(&mut self) -> (AddressingMode, Vec<u8>) {
@@ -880,8 +880,18 @@ impl CPU {
                 write!(l, "${:02X} = {:02X}", addr, v).unwrap();
                 v
             }
-            AddressingMode::ZeroPageX(addr) => self.read_byte(addr as u16 + self.x as u16),
-            AddressingMode::ZeroPageY(addr) => self.read_byte(addr as u16 + self.y as u16),
+            AddressingMode::ZeroPageX(addr) => {
+                let addr1 = addr.wrapping_add(self.x) as u16;
+                let v = self.read_byte(addr1);
+                write!(l, "${:02X},X @ {:02X} = {:02X}", addr, addr1, v).unwrap();
+                v
+            },
+            AddressingMode::ZeroPageY(addr) => {
+                let addr1 = addr.wrapping_add(self.y) as u16;
+                let v = self.read_byte(addr1);
+                write!(l, "${:02X},Y @ {:02X} = {:02X}", addr, addr1, v).unwrap();
+                v
+            },
             AddressingMode::Absolute(addr) => {
                 let v = self.read_byte(addr);
                 write!(l, "${:04X} = {:02X}", addr, v).unwrap();
@@ -924,8 +934,22 @@ impl CPU {
                 }
                 self.write_byte(addr as u16, v)
             }
-            AddressingMode::ZeroPageX(addr) => self.write_byte(addr as u16 + self.x as u16, v),
-            AddressingMode::ZeroPageY(addr) => self.write_byte(addr as u16 + self.y as u16, v),
+            AddressingMode::ZeroPageX(addr) => {
+                let addr1 = addr.wrapping_add(self.x) as u16;
+                let old_v = self.read_byte(addr1);
+                self.write_byte(addr1, v);
+                if let Some(l) = l {
+                    write!(l, "${:02X},X @ {:02X} = {:02X}", addr, addr1, old_v).unwrap();
+                }
+            },
+            AddressingMode::ZeroPageY(addr) => {
+                let addr1 = addr.wrapping_add(self.y) as u16;
+                let old_v = self.read_byte(addr1);
+                self.write_byte(addr1, v);
+                if let Some(l) = l {
+                    write!(l, "${:02X},Y @ {:02X} = {:02X}", addr, addr1, old_v).unwrap();
+                }
+            },
             AddressingMode::Absolute(addr) => {
                 let old = self.read_byte(addr as u16);
                 self.write_byte(addr, v);
