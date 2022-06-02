@@ -88,7 +88,7 @@ enum AddressingMode {
     Absolute(u16),
     AbsoluteX(u16),
     AbsoluteY(u16),
-    Indirect(u16),
+    Indirect(u8, u8),
     IndirectX(u8),
     IndirectY(u8),
     Relative(u8),
@@ -105,7 +105,7 @@ impl AddressingMode {
             AddressingMode::Absolute(_) => 2,
             AddressingMode::AbsoluteX(_) => 1,
             AddressingMode::AbsoluteY(_) => 1,
-            AddressingMode::Indirect(_) => 2,
+            AddressingMode::Indirect(_, _) => 2,
             AddressingMode::IndirectX(_) => 1,
             AddressingMode::IndirectY(_) => 1,
             AddressingMode::Relative(_) => 1,
@@ -125,7 +125,7 @@ impl fmt::Debug for AddressingMode {
             AddressingMode::Absolute(addr) => write!(f, "{:02X}", addr),
             AddressingMode::AbsoluteX(addr) => write!(f, "[{:02X} + x]", addr),
             AddressingMode::AbsoluteY(addr) => write!(f, "[{:02X} + y]", addr),
-            AddressingMode::Indirect(addr) => write!(f, "({:04X} , x)", addr),
+            AddressingMode::Indirect(h, l) => write!(f, "({:02X}{:02X})", h, l),
             AddressingMode::IndirectX(h) => write!(f, "({:02X} , x)", h),
             AddressingMode::IndirectY(h) => write!(f, "({:02X} , y)", h),
             AddressingMode::Relative(rel) => write!(f, "({:02X} , y)", rel),
@@ -688,7 +688,11 @@ impl CPU {
                 write!(l, "${:04X}", addr).unwrap();
                 self.pc = *addr
             }
-            Command::JMP(AddressingMode::Indirect(addr)) => self.pc = self.read_word(*addr),
+            Command::JMP(AddressingMode::Indirect(a_h, a_l)) => {
+                let addr1 = self.read_word_in_page(*a_h, *a_l);
+                write!(l, "(${:02X}{:02X}) = {:04X}", *a_h, *a_l, addr1).unwrap();
+                self.pc = addr1
+            },
             Command::JSR(AddressingMode::Absolute(addr)) => {
                 write!(l, "${:04X}", addr).unwrap();
                 self.push_stack_word(self.pc-1);
@@ -754,6 +758,13 @@ impl CPU {
         let h = self.read_byte(addr + 1);
         (h as u16) << 8 | l as u16
     }
+    fn read_word_in_page(&mut self, addr_h: u8, addr_l: u8) -> u16 {
+        let addr_h = (addr_h as u16) << 8;
+        let addr_l = addr_l as u16;
+        let l = self.read_byte(addr_h | addr_l);
+        let h = self.read_byte(addr_h | ((addr_l + 1) & 0xffu16));
+        (h as u16) << 8 | l as u16
+    }
     fn read_word_zeropage(&mut self, addr: u8) -> u16 {
         let l = self.read_byte(addr as u16);
         let h = self.read_byte(addr.wrapping_add(1) as u16);
@@ -798,6 +809,11 @@ impl CPU {
         let v = self.read_byte_pc();
         (f(v), vec![v])
     }
+    fn new_addr_and_u8_2<F: FnOnce(u8, u8) -> AddressingMode>(&mut self, f : F) -> (AddressingMode, Vec<u8>) {
+        let l = self.read_byte_pc();
+        let h = self.read_byte_pc();
+        (f(h, l), vec![l, h])
+    }
     fn new_addr_and_u16<F: FnOnce(u16) -> AddressingMode>(&mut self, f : F) -> (AddressingMode, Vec<u8>) {
         let l = self.read_byte_pc();
         let h = self.read_byte_pc();
@@ -834,7 +850,7 @@ impl CPU {
     }
 
     fn new_indirect(&mut self) -> (AddressingMode, Vec<u8>) {
-        self.new_addr_and_u16(AddressingMode::Indirect)
+        self.new_addr_and_u8_2(AddressingMode::Indirect)
     }
 
     fn new_indirect_x(&mut self) -> (AddressingMode, Vec<u8>) {
@@ -873,7 +889,7 @@ impl CPU {
             },
             AddressingMode::AbsoluteX(addr) => self.read_byte(addr + self.x as u16),
             AddressingMode::AbsoluteY(addr) => self.read_byte(addr + self.y as u16),
-            AddressingMode::Indirect(h) => panic!("load indirect"),
+            AddressingMode::Indirect(h, l) => panic!("load indirect"),
             AddressingMode::IndirectX(m) => {
                 let addr = m.wrapping_add(self.x);
                 let addr1 = self.read_word_zeropage(addr);
@@ -914,7 +930,7 @@ impl CPU {
             },
             AddressingMode::AbsoluteX(addr) => self.write_byte(addr + self.x as u16, v),
             AddressingMode::AbsoluteY(addr) => self.write_byte(addr + self.y as u16, v),
-            AddressingMode::Indirect(h) => panic!("store indirect"),
+            AddressingMode::Indirect(h, l) => panic!("store indirect"),
             AddressingMode::IndirectX(m) => {
                 let addr = m.wrapping_add(self.x);
                 let addr1 = self.read_word_zeropage(addr);
