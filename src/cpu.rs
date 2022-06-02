@@ -888,7 +888,12 @@ impl CPU {
                 v
             },
             AddressingMode::AbsoluteX(addr) => self.read_byte(addr + self.x as u16),
-            AddressingMode::AbsoluteY(addr) => self.read_byte(addr + self.y as u16),
+            AddressingMode::AbsoluteY(addr) => {
+                let addr1 = addr.wrapping_add(self.y as u16);
+                let v = self.read_byte(addr1);
+                write!(l, "${:04X},Y @ {:04X} = {:02X}", addr, addr1, v).unwrap();
+                v
+            },
             AddressingMode::Indirect(h, l) => panic!("load indirect"),
             AddressingMode::IndirectX(m) => {
                 let addr = m.wrapping_add(self.x);
@@ -929,7 +934,14 @@ impl CPU {
                 }
             },
             AddressingMode::AbsoluteX(addr) => self.write_byte(addr + self.x as u16, v),
-            AddressingMode::AbsoluteY(addr) => self.write_byte(addr + self.y as u16, v),
+            AddressingMode::AbsoluteY(addr) => {
+                let addr1 = addr.wrapping_add(self.y as u16);
+                let old_v = self.read_byte(addr1);
+                if let Some(l) = l {
+                    write!(l, "${:04X},Y @ {:04X} = {:02X}", addr, addr1, old_v).unwrap();
+                }
+                self.write_byte(addr1, v);
+            },
             AddressingMode::Indirect(h, l) => panic!("store indirect"),
             AddressingMode::IndirectX(m) => {
                 let addr = m.wrapping_add(self.x);
