@@ -416,7 +416,7 @@ impl CPU {
             0xd5 => self.new_command(op, Command::CMP, Self::new_zero_page_x),
             0xdd => self.new_command(op, Command::CMP, Self::new_absolute_x),
             0xd9 => self.new_command(op, Command::CMP, Self::new_absolute_y),
-            0xd1 => self.new_command(op, Command::CMP, Self::new_indirect_x),
+            0xd1 => self.new_command(op, Command::CMP, Self::new_indirect_y),
             0xe0 => self.new_command(op, Command::CPX, Self::new_imm),
             0xe4 => self.new_command(op, Command::CPX, Self::new_zero_page),
             0xec => self.new_command(op, Command::CPX, Self::new_absolute),
