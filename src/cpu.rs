@@ -210,6 +210,9 @@ enum Command {
     PLA,
     PLP,
     NOP,
+    NOP_,
+    DOP(AddressingMode),
+    TOP(AddressingMode),
 }
 impl Command {
     fn type_name(&self) -> String {
@@ -261,6 +264,9 @@ impl Command {
             Command::BIT(_) => "BIT".to_string(),
             Command::PHA => "PHA".to_string(),
             Command::PHP => "PHP".to_string(),
+            Command::NOP_ => "*NOP".to_string(),
+            Command::DOP(_) => "*NOP".to_string(),
+            Command::TOP(_) => "*NOP".to_string(),
             _ => self.to_string(),
         }
     
@@ -468,6 +474,31 @@ impl CPU {
             0x68 => (Command::PLA, vec![op]),
             0x28 => (Command::PLP, vec![op]),
             0xea => (Command::NOP, vec![op]),
+            0x1a => (Command::NOP_, vec![op]),
+            0x3a => (Command::NOP_, vec![op]),
+            0x5a => (Command::NOP_, vec![op]),
+            0x7a => (Command::NOP_, vec![op]),
+            0xda => (Command::NOP_, vec![op]),
+            0xfa => (Command::NOP_, vec![op]),
+            0x04 => self.new_command(op, Command::DOP, Self::new_zero_page),
+            0x44 => self.new_command(op, Command::DOP, Self::new_zero_page),
+            0x64 => self.new_command(op, Command::DOP, Self::new_zero_page),
+            0x14 => self.new_command(op, Command::DOP, Self::new_zero_page_x),
+            0x34 => self.new_command(op, Command::DOP, Self::new_zero_page_x),
+            0x54 => self.new_command(op, Command::DOP, Self::new_zero_page_x),
+            0x74 => self.new_command(op, Command::DOP, Self::new_zero_page_x),
+            0xd4 => self.new_command(op, Command::DOP, Self::new_zero_page_x),
+            0xf4 => self.new_command(op, Command::DOP, Self::new_zero_page_x),
+            0x80 => self.new_command(op, Command::DOP, Self::new_imm),
+            0x82 => self.new_command(op, Command::DOP, Self::new_imm),
+            0x92 => self.new_command(op, Command::DOP, Self::new_imm),
+            0x0c => self.new_command(op, Command::TOP, Self::new_absolute),
+            0x1c => self.new_command(op, Command::TOP, Self::new_absolute_x),
+            0x3c => self.new_command(op, Command::TOP, Self::new_absolute_x),
+            0x5c => self.new_command(op, Command::TOP, Self::new_absolute_x),
+            0x7c => self.new_command(op, Command::TOP, Self::new_absolute_x),
+            0xdc => self.new_command(op, Command::TOP, Self::new_absolute_x),
+            0xfc => self.new_command(op, Command::TOP, Self::new_absolute_x),
             _ => {
                 println!("not impl {:#02x}", op);
                 panic!("not impl error");
@@ -491,7 +522,7 @@ impl CPU {
     fn exec_command(&mut self, command: &Command) -> String {
         let mut l = String::new();
         
-        write!(l, "{} ", command.type_name()).unwrap();
+        write!(l, "{:>4} ", command.type_name()).unwrap();
         match command {
             Command::STA(a) => { self.store(a, self.a, Some(&mut l)) },
             Command::STX(a) => { self.store(a, self.x, Some(&mut l)) },
@@ -737,6 +768,13 @@ impl CPU {
                 self.update_status_negative(v);
             },
             Command::NOP => {}
+            Command::NOP_ => {}
+            Command::DOP(a) => {
+                let _ = self.load(a, &mut l);
+            }
+            Command::TOP(a) => {
+                let _ = self.load(a, &mut l);
+            }
             _ => { panic!("xx") }
         };
         return l;
@@ -1076,7 +1114,7 @@ impl CpuDebugLog {
     }
     fn log(&self) {
         println!(
-            "{:04X}  {: <9} {: <31} {}",
+            "{:04X}  {: <9}{: <32} {}",
             self.addr.unwrap(),
             dump_bytes(&self.bytes.as_ref().unwrap()),
             self.command.as_ref().unwrap(),
