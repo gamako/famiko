@@ -897,7 +897,12 @@ impl CPU {
                 write!(l, "${:04X} = {:02X}", addr, v).unwrap();
                 v
             },
-            AddressingMode::AbsoluteX(addr) => self.read_byte(addr + self.x as u16),
+            AddressingMode::AbsoluteX(addr) => {
+                let addr1 = addr.wrapping_add(self.x as u16);
+                let v = self.read_byte(addr1);
+                write!(l, "${:04X},X @ {:04X} = {:02X}", addr, addr1, v).unwrap();
+                v
+            },
             AddressingMode::AbsoluteY(addr) => {
                 let addr1 = addr.wrapping_add(self.y as u16);
                 let v = self.read_byte(addr1);
@@ -957,7 +962,14 @@ impl CPU {
                     write!(l, "${:04X} = {:02X}", addr, old).unwrap();
                 }
             },
-            AddressingMode::AbsoluteX(addr) => self.write_byte(addr + self.x as u16, v),
+            AddressingMode::AbsoluteX(addr) => {
+                let addr1 = addr.wrapping_add(self.x as u16);
+                let old_v = self.read_byte(addr1);
+                if let Some(l) = l {
+                    write!(l, "${:04X},X @ {:04X} = {:02X}", addr, addr1, old_v).unwrap();
+                }
+                self.write_byte(addr1, v);
+            },
             AddressingMode::AbsoluteY(addr) => {
                 let addr1 = addr.wrapping_add(self.y as u16);
                 let old_v = self.read_byte(addr1);
