@@ -216,6 +216,7 @@ enum Command {
     LAX(AddressingMode),
     SAX(AddressingMode),
     SBC_(AddressingMode),
+    DCP(AddressingMode),
 }
 impl Command {
     fn type_name(&self) -> String {
@@ -273,6 +274,7 @@ impl Command {
             Command::LAX(_) => "*LAX".to_string(),
             Command::SAX(_) => "*SAX".to_string(),
             Command::SBC_(_) => "*SBC".to_string(),
+            Command::DCP(_) => "*DCP".to_string(),
             _ => self.to_string(),
         }
     
@@ -520,6 +522,14 @@ impl CPU {
 
             0xeb => self.new_command(op, Command::SBC_, Self::new_imm),
             
+            0xc7 => self.new_command(op, Command::DCP, Self::new_zero_page),
+            0xd7 => self.new_command(op, Command::DCP, Self::new_zero_page_x),
+            0xcf => self.new_command(op, Command::DCP, Self::new_absolute),
+            0xdf => self.new_command(op, Command::DCP, Self::new_absolute_x),
+            0xdb => self.new_command(op, Command::DCP, Self::new_absolute_y),
+            0xc3 => self.new_command(op, Command::DCP, Self::new_indirect_x),
+            0xd3 => self.new_command(op, Command::DCP, Self::new_indirect_y),
+
             _ => {
                 println!("not impl {:#02x}", op);
                 panic!("not impl error");
@@ -820,6 +830,13 @@ impl CPU {
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
             },
+            Command::DCP(a) => {
+                let m = self.load(a, &mut l).wrapping_sub(1);
+                let (v, b) = self.a.overflowing_sub(m);
+                self.update_status_carry(self.a >= m);
+                self.update_status_zero(v);
+                self.update_status_negative(v);
+            }
             _ => { panic!("xx") }
         };
         return l;
