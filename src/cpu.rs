@@ -215,6 +215,7 @@ enum Command {
     TOP(AddressingMode),
     LAX(AddressingMode),
     SAX(AddressingMode),
+    SBC_(AddressingMode),
 }
 impl Command {
     fn type_name(&self) -> String {
@@ -271,6 +272,7 @@ impl Command {
             Command::TOP(_) => "*NOP".to_string(),
             Command::LAX(_) => "*LAX".to_string(),
             Command::SAX(_) => "*SAX".to_string(),
+            Command::SBC_(_) => "*SBC".to_string(),
             _ => self.to_string(),
         }
     
@@ -515,6 +517,8 @@ impl CPU {
             0x97 => self.new_command(op, Command::SAX, Self::new_zero_page_y),
             0x83 => self.new_command(op, Command::SAX, Self::new_indirect_x),
             0x8f => self.new_command(op, Command::SAX, Self::new_absolute),
+
+            0xeb => self.new_command(op, Command::SBC_, Self::new_imm),
             
             _ => {
                 println!("not impl {:#02x}", op);
@@ -802,6 +806,19 @@ impl CPU {
             Command::SAX(a) => {
                 let v1 = self.a & self.x;
                 self.store(a, v1, Some(&mut l));
+            },
+            Command::SBC_(addr) => {
+                let a = self.a;
+                let b = self.load(addr, &mut l);
+                let c = self.p & P_MASK_CARRY;
+                let d = (a as u16).wrapping_sub(b  as u16).wrapping_sub((1 - c) as u16);
+                self.a = (d & 0xff) as u8;
+
+                self.update_status_carry(!d > 0xff);
+                self.update_status_overflow_of((a ^ b) & 0x80 != 0 && (self.a ^ a) & 0x80 != 0);
+
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
             },
             _ => { panic!("xx") }
         };
