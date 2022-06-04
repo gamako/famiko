@@ -214,6 +214,7 @@ enum Command {
     DOP(AddressingMode),
     TOP(AddressingMode),
     LAX(AddressingMode),
+    SAX(AddressingMode),
 }
 impl Command {
     fn type_name(&self) -> String {
@@ -269,6 +270,7 @@ impl Command {
             Command::DOP(_) => "*NOP".to_string(),
             Command::TOP(_) => "*NOP".to_string(),
             Command::LAX(_) => "*LAX".to_string(),
+            Command::SAX(_) => "*SAX".to_string(),
             _ => self.to_string(),
         }
     
@@ -509,6 +511,11 @@ impl CPU {
             0xa3 => self.new_command(op, Command::LAX, Self::new_indirect_x),
             0xb3 => self.new_command(op, Command::LAX, Self::new_indirect_y),
 
+            0x87 => self.new_command(op, Command::SAX, Self::new_zero_page),
+            0x97 => self.new_command(op, Command::SAX, Self::new_zero_page_y),
+            0x83 => self.new_command(op, Command::SAX, Self::new_indirect_x),
+            0x8f => self.new_command(op, Command::SAX, Self::new_absolute),
+            
             _ => {
                 println!("not impl {:#02x}", op);
                 panic!("not impl error");
@@ -791,7 +798,10 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-
+            },
+            Command::SAX(a) => {
+                let v1 = self.a & self.x;
+                self.store(a, v1, Some(&mut l));
             },
             _ => { panic!("xx") }
         };
