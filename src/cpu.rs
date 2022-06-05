@@ -221,6 +221,7 @@ enum Command {
     SLO(AddressingMode),
     RLA(AddressingMode),
     SRE(AddressingMode),
+    RRA(AddressingMode),
 }
 impl Command {
     fn type_name(&self) -> String {
@@ -283,6 +284,7 @@ impl Command {
             Command::SLO(_) => "*SLO".to_string(),
             Command::RLA(_) => "*RLA".to_string(),
             Command::SRE(_) => "*SRE".to_string(),
+            Command::RRA(_) => "*RRA".to_string(),
             _ => self.to_string(),
         }
     
@@ -569,6 +571,14 @@ impl CPU {
             0x5b => self.new_command(op, Command::SRE, Self::new_absolute_y),
             0x43 => self.new_command(op, Command::SRE, Self::new_indirect_x),
             0x53 => self.new_command(op, Command::SRE, Self::new_indirect_y),
+
+            0x67 => self.new_command(op, Command::RRA, Self::new_zero_page),
+            0x77 => self.new_command(op, Command::RRA, Self::new_zero_page_x),
+            0x6f => self.new_command(op, Command::RRA, Self::new_absolute),
+            0x7f => self.new_command(op, Command::RRA, Self::new_absolute_x),
+            0x7b => self.new_command(op, Command::RRA, Self::new_absolute_y),
+            0x63 => self.new_command(op, Command::RRA, Self::new_indirect_x),
+            0x73 => self.new_command(op, Command::RRA, Self::new_indirect_y),
 
             _ => {
                 println!("not impl {:#02x}", op);
@@ -918,6 +928,24 @@ impl CPU {
                 self.store(addr, v, None);
 
                 self.a = v ^ self.a;
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
+            }
+            Command::RRA(addr) => {
+                let v0 = self.load(addr, &mut l);
+                let v1 = v0.wrapping_shr(1) | ((self.p & 0x01) << 7);
+                self.store(addr, v1, None);
+                self.update_status_carry(v0 & 0x01 != 0);
+
+                let a = self.a;
+                let b = v1;
+                let c = self.p & P_MASK_CARRY;
+                let d = a  as u16 + b  as u16 + c  as u16;
+                self.a = (d & 0xff) as u8;
+
+                self.update_status_carry(d > 0xff);
+                self.update_status_overflow_of((a ^ b) & 0x80 == 0 && (self.a ^ a) & 0x80 != 0);
+
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
             }
