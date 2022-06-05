@@ -220,6 +220,7 @@ enum Command {
     ISB(AddressingMode),
     SLO(AddressingMode),
     RLA(AddressingMode),
+    SRE(AddressingMode),
 }
 impl Command {
     fn type_name(&self) -> String {
@@ -281,6 +282,7 @@ impl Command {
             Command::ISB(_) => "*ISB".to_string(),
             Command::SLO(_) => "*SLO".to_string(),
             Command::RLA(_) => "*RLA".to_string(),
+            Command::SRE(_) => "*SRE".to_string(),
             _ => self.to_string(),
         }
     
@@ -559,6 +561,14 @@ impl CPU {
             0x3b => self.new_command(op, Command::RLA, Self::new_absolute_y),
             0x23 => self.new_command(op, Command::RLA, Self::new_indirect_x),
             0x33 => self.new_command(op, Command::RLA, Self::new_indirect_y),
+
+            0x47 => self.new_command(op, Command::SRE, Self::new_zero_page),
+            0x57 => self.new_command(op, Command::SRE, Self::new_zero_page_x),
+            0x4f => self.new_command(op, Command::SRE, Self::new_absolute),
+            0x5f => self.new_command(op, Command::SRE, Self::new_absolute_x),
+            0x5b => self.new_command(op, Command::SRE, Self::new_absolute_y),
+            0x43 => self.new_command(op, Command::SRE, Self::new_indirect_x),
+            0x53 => self.new_command(op, Command::SRE, Self::new_indirect_y),
 
             _ => {
                 println!("not impl {:#02x}", op);
@@ -898,6 +908,16 @@ impl CPU {
                 self.update_status_carry(v0 & 0x80 != 0);
 
                 self.a = v1 & self.a;
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
+            }
+            Command::SRE(addr) => {
+                let v = self.load(addr, &mut l);
+                self.update_status_carry(v & 0x01 != 0);
+                let v = v.wrapping_shr(1);
+                self.store(addr, v, None);
+
+                self.a = v ^ self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
             }
