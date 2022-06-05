@@ -218,6 +218,7 @@ enum Command {
     SBC_(AddressingMode),
     DCP(AddressingMode),
     ISB(AddressingMode),
+    SLO(AddressingMode),
 }
 impl Command {
     fn type_name(&self) -> String {
@@ -277,6 +278,7 @@ impl Command {
             Command::SBC_(_) => "*SBC".to_string(),
             Command::DCP(_) => "*DCP".to_string(),
             Command::ISB(_) => "*ISB".to_string(),
+            Command::SLO(_) => "*SLO".to_string(),
             _ => self.to_string(),
         }
     
@@ -540,6 +542,14 @@ impl CPU {
             0xe3 => self.new_command(op, Command::ISB, Self::new_indirect_x),
             0xf3 => self.new_command(op, Command::ISB, Self::new_indirect_y),
 
+            0x07 => self.new_command(op, Command::SLO, Self::new_zero_page),
+            0x17 => self.new_command(op, Command::SLO, Self::new_zero_page_x),
+            0x0f => self.new_command(op, Command::SLO, Self::new_absolute),
+            0x1f => self.new_command(op, Command::SLO, Self::new_absolute_x),
+            0x1b => self.new_command(op, Command::SLO, Self::new_absolute_y),
+            0x03 => self.new_command(op, Command::SLO, Self::new_indirect_x),
+            0x13 => self.new_command(op, Command::SLO, Self::new_indirect_y),
+
             _ => {
                 println!("not impl {:#02x}", op);
                 panic!("not impl error");
@@ -640,7 +650,6 @@ impl CPU {
                 self.store(a, v, None);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                
             },
             Command::LSR(a) => {
                 let v = self.load(a, &mut l);
@@ -859,6 +868,16 @@ impl CPU {
                 self.update_status_carry(!d > 0xff);
                 self.update_status_overflow_of((a ^ b) & 0x80 != 0 && (self.a ^ a) & 0x80 != 0);
 
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
+            }
+            Command::SLO(addr) => {
+                let v = self.load(addr, &mut l);
+                self.update_status_carry(v & 0x80 != 0);
+                let v = v.wrapping_shl(1);
+                self.store(addr, v, None);
+
+                self.a = v | self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
             }
