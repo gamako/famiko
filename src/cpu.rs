@@ -832,7 +832,8 @@ impl CPU {
             },
             Command::DCP(a) => {
                 let m = self.load(a, &mut l).wrapping_sub(1);
-                let (v, b) = self.a.overflowing_sub(m);
+                self.store(a, m, None);
+                let (v, _) = self.a.overflowing_sub(m);
                 self.update_status_carry(self.a >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
