@@ -219,6 +219,7 @@ enum Command {
     DCP(AddressingMode),
     ISB(AddressingMode),
     SLO(AddressingMode),
+    RLA(AddressingMode),
 }
 impl Command {
     fn type_name(&self) -> String {
@@ -279,6 +280,7 @@ impl Command {
             Command::DCP(_) => "*DCP".to_string(),
             Command::ISB(_) => "*ISB".to_string(),
             Command::SLO(_) => "*SLO".to_string(),
+            Command::RLA(_) => "*RLA".to_string(),
             _ => self.to_string(),
         }
     
@@ -549,6 +551,14 @@ impl CPU {
             0x1b => self.new_command(op, Command::SLO, Self::new_absolute_y),
             0x03 => self.new_command(op, Command::SLO, Self::new_indirect_x),
             0x13 => self.new_command(op, Command::SLO, Self::new_indirect_y),
+
+            0x27 => self.new_command(op, Command::RLA, Self::new_zero_page),
+            0x37 => self.new_command(op, Command::RLA, Self::new_zero_page_x),
+            0x2f => self.new_command(op, Command::RLA, Self::new_absolute),
+            0x3f => self.new_command(op, Command::RLA, Self::new_absolute_x),
+            0x3b => self.new_command(op, Command::RLA, Self::new_absolute_y),
+            0x23 => self.new_command(op, Command::RLA, Self::new_indirect_x),
+            0x33 => self.new_command(op, Command::RLA, Self::new_indirect_y),
 
             _ => {
                 println!("not impl {:#02x}", op);
@@ -878,6 +888,16 @@ impl CPU {
                 self.store(addr, v, None);
 
                 self.a = v | self.a;
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
+            }
+            Command::RLA(addr) => {
+                let v0 = self.load(addr, &mut l);
+                let v1 = v0.wrapping_shl(1) | (self.p & 0x01);
+                self.store(addr, v1, None);
+                self.update_status_carry(v0 & 0x80 != 0);
+
+                self.a = v1 & self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
             }
