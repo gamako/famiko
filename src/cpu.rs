@@ -217,6 +217,7 @@ enum Command {
     SAX(AddressingMode),
     SBC_(AddressingMode),
     DCP(AddressingMode),
+    ISB(AddressingMode),
 }
 impl Command {
     fn type_name(&self) -> String {
@@ -275,6 +276,7 @@ impl Command {
             Command::SAX(_) => "*SAX".to_string(),
             Command::SBC_(_) => "*SBC".to_string(),
             Command::DCP(_) => "*DCP".to_string(),
+            Command::ISB(_) => "*ISB".to_string(),
             _ => self.to_string(),
         }
     
@@ -529,6 +531,14 @@ impl CPU {
             0xdb => self.new_command(op, Command::DCP, Self::new_absolute_y),
             0xc3 => self.new_command(op, Command::DCP, Self::new_indirect_x),
             0xd3 => self.new_command(op, Command::DCP, Self::new_indirect_y),
+
+            0xe7 => self.new_command(op, Command::ISB, Self::new_zero_page),
+            0xf7 => self.new_command(op, Command::ISB, Self::new_zero_page_x),
+            0xef => self.new_command(op, Command::ISB, Self::new_absolute),
+            0xff => self.new_command(op, Command::ISB, Self::new_absolute_x),
+            0xfb => self.new_command(op, Command::ISB, Self::new_absolute_y),
+            0xe3 => self.new_command(op, Command::ISB, Self::new_indirect_x),
+            0xf3 => self.new_command(op, Command::ISB, Self::new_indirect_y),
 
             _ => {
                 println!("not impl {:#02x}", op);
@@ -837,6 +847,20 @@ impl CPU {
                 self.update_status_carry(self.a >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
+            }
+            Command::ISB(addr) => {
+                let a = self.a;
+                let b = self.load(addr, &mut l).wrapping_add(1);
+                self.store(addr, b, None);
+                let c = self.p & P_MASK_CARRY;
+                let d = (a as u16).wrapping_sub(b  as u16).wrapping_sub((1 - c) as u16);
+                self.a = (d & 0xff) as u8;
+
+                self.update_status_carry(!d > 0xff);
+                self.update_status_overflow_of((a ^ b) & 0x80 != 0 && (self.a ^ a) & 0x80 != 0);
+
+                self.update_status_zero(self.a);
+                self.update_status_negative(self.a);
             }
             _ => { panic!("xx") }
         };
