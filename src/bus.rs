@@ -24,7 +24,14 @@ impl Bus {
                 let addr = addr & 0x7fff;
                 self.ram[addr as usize]
             }
+            0x2000 => 0xff,
+            0x2001 => 0xff,
             0x2002 => self.ppu.read_status(),
+            0x2003 => 0xff,
+            0x2004 => { println!("cant read {:#02x}", addr); panic!("not impl write addr"); },
+            0x2005 => 0xff,
+            0x2006 => 0xff,
+            0x2007 => { println!("cant read {:#02x}", addr); panic!("not impl write addr"); },
             0x4000 ..= 0x4017 => {
                 0xff
             }
