@@ -31,7 +31,7 @@ impl Bus {
             0x2004 => { println!("cant read {:#02x}", addr); panic!("not impl write addr"); },
             0x2005 => 0xff,
             0x2006 => 0xff,
-            0x2007 => { println!("cant read {:#02x}", addr); panic!("not impl write addr"); },
+            0x2007 => { self.ppu.read_ppudata() },
             0x4000 ..= 0x4017 => {
                 0xff
             }
