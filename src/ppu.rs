@@ -69,7 +69,6 @@ impl PPU {
 
     // https://www.nesdev.org/wiki/PPU_memory_map
     pub fn read_ppudata(&mut self) -> u8 {
-        println!(" ppu read {:04x}", self.addr);
         match self.addr {
             0x2000 ..= 0x2fff => {
                 let v = self.name_table[self.addr as usize - 0x2000];
@@ -78,35 +77,34 @@ impl PPU {
             }
             0x3f00 ..= 0x3f1f => {
                 let v = self.palette_ram[self.addr as usize - 0x3f00];
-                println!(" write palette_ram: {:#04x} {:02X}", self.addr, v);
+                println!(" write palette_ram: {:04x} {:02X}", self.addr, v);
                 v
             }
             _ => {
-                println!(" ppu cant read {:#02x}", self.addr);
+                println!(" ppu cant read {:04X}", self.addr);
                 panic!("not impl ppu read addr");
             }
         }
     }
 
     pub fn write_ppudata(&mut self, v : u8) {
-        println!(" ppu write {:04x} {:02x}", self.addr, v);
         match self.addr {
             0x2000 ..= 0x2fff => {
                 let a = self.addr as usize - 0x2000;
                 let v0 = self.name_table[a];
-                println!(" write nametable: {:#04x} {:#02x} {:#02x}", self.addr, v0, v);
+                println!(" write nametable: {:04x} {:02X} {:02X}", self.addr, v0, v);
                 self.name_table[a] = v;
                 self.addr += 1;
             }
             0x3f00 ..= 0x3f1f => {
                 let a = self.addr as usize - 0x3f00;
                 let v0 = self.palette_ram[a];
-                println!(" write palette_ram: {:#04x} {:#02x} {:#02x}", self.addr, v0, v);
+                println!(" write palette_ram: {:04x} {:02X} {:02X}", self.addr, v0, v);
                 self.palette_ram[a] = v;
                 self.addr += 1;
             }
             _ => {
-                println!(" ppu cant write {:#02x}", self.addr);
+                println!(" ppu cant write {:04x} {:02X}", self.addr, v);
                 panic!("not impl ppu write addr");
             }
         }
