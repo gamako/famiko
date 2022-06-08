@@ -75,9 +75,10 @@ impl PPU {
                 println!(" read nametable: {:#04x} {:02X}", self.addr, v);
                 v
             }
-            0x3f00 ..= 0x3f1f => {
-                let v = self.palette_ram[self.addr as usize - 0x3f00];
-                println!(" write palette_ram: {:04x} {:02X}", self.addr, v);
+            0x3f00 ..= 0x3fff => {
+                let a = (self.addr & 0x001f) as usize;
+                let v = self.palette_ram[a];
+                println!(" write palette_ram: {:04x} {:02X}", a, v);
                 v
             }
             _ => {
@@ -96,10 +97,10 @@ impl PPU {
                 self.name_table[a] = v;
                 self.addr += 1;
             }
-            0x3f00 ..= 0x3f1f => {
-                let a = self.addr as usize - 0x3f00;
+            0x3f00 ..= 0x3fff => {
+                let a = (self.addr & 0x001f) as usize;
                 let v0 = self.palette_ram[a];
-                println!(" write palette_ram: {:04x} {:02X} {:02X}", self.addr, v0, v);
+                println!(" write palette_ram: {:04x} {:02X} {:02X}", a, v0, v);
                 self.palette_ram[a] = v;
                 self.addr += 1;
             }
