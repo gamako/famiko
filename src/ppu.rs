@@ -125,7 +125,7 @@ impl PPU {
                 (true,false) => 4,
                 (false,false) => 6,
             };
-            let palette_index = (attribute_table[attribute_table_index as usize] >> bit) as usize;
+            let palette_index = ((attribute_table[attribute_table_index as usize] >> bit) & 3) as usize;
 
             let name_index = (x / 8 + y / 8 * 32) as usize;
             let pattern_index = self.name_table[name_index] as usize;
