@@ -55,7 +55,7 @@ impl PPU {
     }
 
     pub fn write_ppuscroll(&mut self, v : u8) {
-        println!(" write scroll: {:#02x}", v);
+        println!(" write scroll: {:02x}", v);
         match self.scroll_next_y {
             false => { self.scroll_x = v }
             true => { self.scroll_y = v }
@@ -71,8 +71,9 @@ impl PPU {
     pub fn read_ppudata(&mut self) -> u8 {
         match self.addr {
             0x2000 ..= 0x2fff => {
-                let v = self.name_table[self.addr as usize - 0x2000];
-                println!(" read nametable: {:#04x} {:02X}", self.addr, v);
+                let a = self.addr as usize - 0x2000;
+                let v = self.name_table[a];
+                println!(" read nametable: {:04x} {:02X}", a, v);
                 v
             }
             0x3f00 ..= 0x3fff => {
@@ -93,7 +94,7 @@ impl PPU {
             0x2000 ..= 0x2fff => {
                 let a = self.addr as usize - 0x2000;
                 let v0 = self.name_table[a];
-                println!(" write nametable: {:04x} {:02X} {:02X}", self.addr, v0, v);
+                println!(" write nametable: {:04x} {:02X} {:02X}", a, v0, v);
                 self.name_table[a] = v;
                 self.addr += 1;
             }
