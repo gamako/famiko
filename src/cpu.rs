@@ -110,7 +110,6 @@ impl AddressingMode {
             AddressingMode::IndirectY(_) => 1,
             AddressingMode::Relative(_) => 1,
         }
-
     }
 }
 
@@ -613,14 +612,12 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                //format!("{}", "STA")
             },
             Command::LDX(a) => {
                 let v = self.load(a, &mut l);
                 self.x = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-
             },
             Command::LDY(a) => {
                 let v = self.load(a, &mut l);
@@ -824,7 +821,6 @@ impl CPU {
                 self.update_status_zero(r);
                 self.update_status_overflow(m);
                 self.update_status_negative(m);
-
             }
             Command::PHA => {
                 self.bus.write(self.s as u16 + 0x0100, self.a);
