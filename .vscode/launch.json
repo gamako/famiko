@@ -39,14 +39,14 @@
             },
             "args": ["./rom/nestest.nes"],
             "cwd": "${workspaceFolder}"
-        },        {
+        },
+        {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'famiko'",
+            "name": "palette",
             "cargo": {
                 "args": [
-                    "test",
-                    "--no-run",
+                    "build",
                     "--bin=famiko",
                     "--package=famiko"
                 ],
@@ -55,7 +55,7 @@
                     "kind": "bin"
                 }
             },
-            "args": [],
+            "args": ["./rom/palette.nes"],
             "cwd": "${workspaceFolder}"
         }
     ]
