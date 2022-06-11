@@ -1271,6 +1271,9 @@ struct CpuDebugLog {
     bytes : Option<Vec<u8>>,
     command : Option<String>,
     cpu_register : Option<String>,
+    ppu_line: usize,
+    ppu_x: usize,
+    cpu_cycle: usize,
 }
 
 impl CpuDebugLog {
@@ -1279,16 +1282,23 @@ impl CpuDebugLog {
             addr: None,
             bytes: None,
             command: None,
-            cpu_register: None
+            cpu_register: None,
+            ppu_line: 0,
+            ppu_x: 0,
+            cpu_cycle: 0,
         }
     }
     fn log(&self) {
         println!(
-            "{:04X}  {: <9}{: <32} {}",
+            "{:04X}  {: <9}{: <32} {} PPU:{: <3},{: <3} CYC:{}",
             self.addr.unwrap(),
             dump_bytes(&self.bytes.as_ref().unwrap()),
             self.command.as_ref().unwrap(),
-            self.cpu_register.as_ref().unwrap());
+            self.cpu_register.as_ref().unwrap(),
+            self.ppu_line,
+            self.ppu_x,
+            self.cpu_cycle
+        );
 
     }
 }
