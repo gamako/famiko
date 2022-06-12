@@ -11,7 +11,7 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
 
-use famiko::cpu::CPU;
+use famiko::cpu::{CPU, CpuDebugLog};
 use famiko::bus::Bus;
 use famiko::ppu::{WIDTH, HEIGHT};
 
@@ -48,11 +48,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     thread::spawn(move ||{
 
         // 電源ON
-        cpu.int_reset();
+        // cpu.int_reset();
+
+        // nestest用にc000から始める
+        cpu.init_pc(0xc000, 7);
+        cpu.bus.ppu.step(7*3);
 
         let mut time = Instant::now();
+
         loop {
-            cpu.step_next();
+            let mut log = CpuDebugLog::new();
+            log.ppu_line = cpu.bus.ppu.y_();
+            log.ppu_x = cpu.bus.ppu.x_();
+            let cycle = cpu.step_next(&mut log);
+            log.log();
+            cpu.bus.ppu.step(cycle*3);
+
             let mut frame = [0].repeat((WIDTH * HEIGHT * 4) as usize);
             
             if time.elapsed().as_micros() > (1000 * 1000 / 60) {

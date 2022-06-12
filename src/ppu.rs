@@ -22,7 +22,10 @@ pub struct PPU {
     scroll_next_y : bool,
     palette_ram : [u8; 0x20],
     name_table : [u8; 0x400 * 4],
-    pattern_table : Vec<u8>
+    pattern_table : Vec<u8>,
+    
+    x : usize,
+    y : usize,
 }
 
 impl PPU {
@@ -44,7 +47,17 @@ impl PPU {
             palette_ram: [0; 0x20],
             name_table: [0; 0x400 * 4],
             pattern_table: chr,
+            x: 0,
+            y: 0,
          }
+    }
+
+    pub fn x_(&self) -> usize {
+        self.x
+    }
+
+    pub fn y_(&self) -> usize {
+        self.y
     }
 
     pub fn read_status(&mut self) -> u8 {
@@ -108,6 +121,19 @@ impl PPU {
             _ => {
                 println!(" ppu cant write {:04x} {:02X}", self.addr, v);
                 panic!("not impl ppu write addr");
+            }
+        }
+    }
+
+    pub fn step(&mut self, cycle : usize) {
+        for _ in 0..cycle {
+
+            self.x += 1;
+            if self.x > 341 {
+                self.y += 1;
+                if self.y > 262 {
+                    self.y = 0;
+                }
             }
         }
     }
