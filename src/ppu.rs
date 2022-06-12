@@ -129,7 +129,8 @@ impl PPU {
         for _ in 0..cycle {
 
             self.x += 1;
-            if self.x > 341 {
+            if self.x >= 341 {
+                self.x = 0;
                 self.y += 1;
                 if self.y > 262 {
                     self.y = 0;

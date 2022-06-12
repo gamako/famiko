@@ -664,7 +664,7 @@ impl CPU {
                 write!(l, "${:04X}", addr).unwrap();
                 if cond(self.p) {
                     cycle += 1;
-                    if self.pc & 0xff00 == addr & 0xff00 {
+                    if self.pc & 0xff00 != addr & 0xff00 {
                         cycle += 2;
                     }
                     self.pc = addr;
@@ -688,52 +688,52 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()
+                a.len() + 1
             },
             Command::LDX(a) => {
                 let v = self.load(a, &mut l);
                 self.x = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()
+                a.len()+ 1
             },
             Command::LDY(a) => {
                 let v = self.load(a, &mut l);
                 self.y = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()
+                a.len()+ 1
             },
             Command::TSX => {
                 self.x = self.s;
                 self.update_status_zero(self.x);
                 self.update_status_negative(self.x);
-                1
+                2
             },
             Command::TAX => {
                 self.x = self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                1
+                2
             },
             Command::TAY => {
                 self.y = self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                1
+                2
             },
             Command::TXA => {
                 self.a = self.x;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                1
+                2
             },
-            Command::TXS => {self.s = self.x; 1},
+            Command::TXS => {self.s = self.x; 2},
             Command::TYA => {
                 self.a = self.y;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                1
+                2
             },
             
             Command::AND(a) => {
@@ -741,21 +741,21 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()
+                a.len()+1
             },
             Command::ORA(a) => {
                 let v = self.load(a, &mut l) | self.a;
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()
+                a.len()+1
             },
             Command::EOR(a) => {
                 let v = self.load(a, &mut l) ^ self.a;
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()
+                a.len()+1
             },
             Command::ASL(a) => {
                 let v = self.load(a, &mut l);
@@ -764,7 +764,7 @@ impl CPU {
                 self.store(a, v, None);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()
+                a.len()+1
             },
             Command::LSR(a) => {
                 let v = self.load(a, &mut l);
@@ -773,7 +773,7 @@ impl CPU {
                 self.store(a, v, None);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()
+                a.len()+1
             },
             Command::ROL(a) => {
                 let v0 = self.load(a, &mut l);
@@ -782,7 +782,7 @@ impl CPU {
                 self.update_status_carry(v0 & 0x80 != 0);
                 self.update_status_zero(v1);
                 self.update_status_negative(v1);
-                a.len()
+                a.len()+1
             },
             Command::ROR(a) => {
                 let v0 = self.load(a, &mut l);
@@ -791,7 +791,7 @@ impl CPU {
                 self.update_status_carry(v0 & 0x01 != 0);
                 self.update_status_zero(v1);
                 self.update_status_negative(v1);
-                a.len()
+                a.len()+1
             },
             Command::ADC(addr) => {
                 let a = self.a;
@@ -805,7 +805,7 @@ impl CPU {
 
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                addr.len()
+                addr.len()+1
             },
             Command::SBC(addr) => {
                 let a = self.a;
@@ -819,7 +819,7 @@ impl CPU {
 
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                addr.len()
+                addr.len()+1
             },
             Command::DEC(a) => {
                 let v0 = self.load(a, &mut l);
@@ -827,19 +827,19 @@ impl CPU {
                 self.store(a, v1, None);
                 self.update_status_zero(v1);
                 self.update_status_negative(v1);
-                a.len()
+                a.len()+1
             }
             Command::DEX => {
                 self.x = self.x.wrapping_sub(1u8);
                 self.update_status_zero(self.x);
                 self.update_status_negative(self.x);
-                1
+                2
             },
             Command::DEY => {
                 self.y = self.y.wrapping_sub(1u8);
                 self.update_status_zero(self.y);
                 self.update_status_negative(self.y);
-                1
+                2
             },
             Command::INC(a) => {
                 let v0 = self.load(a, &mut l);
@@ -847,19 +847,19 @@ impl CPU {
                 self.store(a, v1, None);
                 self.update_status_zero(v1);
                 self.update_status_negative(v1);
-                a.len()
+                a.len()+1
             }
             Command::INX => {
                 self.x = self.x.wrapping_add(1u8);
                 self.update_status_zero(self.x);
                 self.update_status_negative(self.x);
-                1
+                2
             },
             Command::INY => {
                 self.y = self.y.wrapping_add(1u8);
                 self.update_status_zero(self.y);
                 self.update_status_negative(self.y);
-                1
+                2
             },
             Command::CMP(a) => {
                 let m = self.load(a, &mut l);
@@ -867,7 +867,7 @@ impl CPU {
                 self.update_status_carry(self.a >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()
+                a.len()+1
             }
             Command::CPX(a) => {
                 let m = self.load(a, &mut l);
@@ -875,7 +875,7 @@ impl CPU {
                 self.update_status_carry(self.x >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()
+                a.len()+1
             }
             Command::CPY(a) => {
                 let m = self.load(a, &mut l);
@@ -883,7 +883,7 @@ impl CPU {
                 self.update_status_carry(self.y >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()
+                a.len()+1
             }
             Command::BPL(a) => self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) == 0}, a, &mut l),
             Command::BMI(a) => self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) != 0}, a, &mut l),
@@ -928,24 +928,24 @@ impl CPU {
                 self.update_status_zero(r);
                 self.update_status_overflow(m);
                 self.update_status_negative(m);
-                a.len()
+                a.len() + 2
             }
             Command::PHA => {
                 self.bus.write(self.s as u16 + 0x0100, self.a);
                 self.s -= 1;
-                2
+                3
             },
             Command::PHP => {
                 let v = self.p | P_MASK_BREAK_COMMAND;
                 self.bus.write(self.s as u16 + 0x0100, v);
                 self.s -= 1;
-                2
+                3
             },
             Command::PLP => {
                 self.s += 1;
                 let v = self.bus.read(self.s as u16 + 0x0100);
                 self.p = (self.p & 0x30) | (v & 0xcf);
-                2
+                4
             },
             Command::PLA => {
                 self.s += 1;
@@ -953,7 +953,7 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                2
+                4
             },
             Command::NOP => 2,
             Command::NOP_ => 2,
