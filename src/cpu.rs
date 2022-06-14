@@ -303,59 +303,7 @@ impl Command {
             Command::SRE(_) => "*SRE".to_string(),
             Command::RRA(_) => "*RRA".to_string(),
             _ => self.to_string(),
-        }
-    
-    }
-    fn cycle(&self) -> usize {
-        match self {
-            Command::STA(a) => a.len(),
-            Command::STX(a) => a.len(),
-            Command::STY(a) => a.len(),
-            Command::LDA(a) => a.len(),
-            Command::LDX(a) => a.len(),
-            Command::LDY(a) => a.len(),
-            Command::AND(a) => a.len(),
-            Command::EOR(a) => a.len(),
-            Command::LSR(a) => a.len(),
-            Command::ADC(a) => a.len(),
-            Command::ROL(a) => a.len(),
-            Command::ROR(a) => a.len(),
-            Command::SBC(a) => a.len(),
-            Command::ORA(a) => a.len(),
-            Command::CMP(a) => a.len(),
-            Command::CPX(a) => a.len(),
-            Command::CPY(a) => a.len(),
-            Command::BPL(a) => a.len(),
-            Command::BMI(a) => a.len(),
-            Command::BNE(a) => a.len(),
-            Command::BEQ(a) => a.len(),
-            Command::BCC(a) => a.len(),
-            Command::BCS(a) => a.len(),
-            Command::BVS(a) => a.len(),
-            Command::BVC(a) => a.len(),
-            Command::JMP(a) => a.len(),
-            Command::JSR(a) => a.len(),
-            Command::CL(_) => 2,
-            Command::SE(_) => 2,
-            Command::BIT(a) => a.len(),
-            Command::DOP(a) => a.len(),
-            Command::TOP(a) => a.len(),
-            Command::LAX(a) => a.len(),
-            Command::SAX(a) => a.len(),
-            Command::SBC_(a) => a.len(),
-            Command::DCP(a) => a.len(),
-            Command::ISB(a) => a.len(),
-            Command::SLO(a) => a.len(),
-            Command::RLA(a) => a.len(),
-            Command::SRE(a) => a.len(),
-            Command::RRA(a) => a.len(),
-            Command::TAX => 2,
-            Command::TAY => 2,
-            Command::PHA => 3,
-            Command::PHP => 3,
-            Command::NOP_ => 1,
-            _ => 2,
-        }
+        }   
     }
 }
 
@@ -659,7 +607,7 @@ impl CPU {
     fn exec_branch<F : Fn(u8) -> bool>(&mut self, cond : F, addr : &AddressingMode, l: &mut String) -> usize {
         match addr {
             AddressingMode::Relative(a) => {
-                let mut cycle = 2;
+                let mut cycle = 0;
                 let addr = self.pc.wrapping_add(*a as i8 as u16);
                 write!(l, "${:04X}", addr).unwrap();
                 if cond(self.p) {
@@ -688,7 +636,7 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len() + 1
+                cycle
             },
             Command::LDX(a) => {
                 let (v, cycle) = self.load(a, &mut l);
@@ -702,38 +650,38 @@ impl CPU {
                 self.y = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()+ 1
+                cycle
             },
             Command::TSX => {
                 self.x = self.s;
                 self.update_status_zero(self.x);
                 self.update_status_negative(self.x);
-                2
+                1
             },
             Command::TAX => {
                 self.x = self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                2
+                1
             },
             Command::TAY => {
                 self.y = self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                2
+                1
             },
             Command::TXA => {
                 self.a = self.x;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                2
+                1
             },
-            Command::TXS => {self.s = self.x; 2},
+            Command::TXS => {self.s = self.x; 1},
             Command::TYA => {
                 self.a = self.y;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                2
+                1
             },
             
             Command::AND(a) => {
@@ -742,7 +690,7 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()+1
+                cycle
             },
             Command::ORA(a) => {
                 let (v, cycle) = self.load(a, &mut l);
@@ -750,7 +698,7 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()+1
+                cycle
             },
             Command::EOR(a) => {
                 let (v, cycle) = self.load(a, &mut l);
@@ -758,43 +706,43 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()+1
+                cycle
             },
             Command::ASL(a) => {
-                let (v, cycle) = self.load(a, &mut l);
+                let (v, load_cycle) = self.load(a, &mut l);
                 self.update_status_carry(v & 0x80 != 0);
                 let v = v.wrapping_shl(1);
-                self.store(a, v, None);
+                let store_cycle = self.store(a, v, None);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()+1
+                load_cycle + store_cycle + 1
             },
             Command::LSR(a) => {
-                let (v, cycle) = self.load(a, &mut l);
+                let (v, load_cycle) = self.load(a, &mut l);
                 self.update_status_carry(v & 0x01 != 0);
                 let v = v.wrapping_shr(1);
-                self.store(a, v, None);
+                let store_cycle = self.store(a, v, None);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()+1
+                load_cycle + store_cycle + 1
             },
             Command::ROL(a) => {
-                let (v0, cycle) = self.load(a, &mut l);
+                let (v0, load_cycle) = self.load(a, &mut l);
                 let v1 = v0.wrapping_shl(1) | (self.p & 0x01);
-                self.store(a, v1, None);
+                let store_cycle = self.store(a, v1, None);
                 self.update_status_carry(v0 & 0x80 != 0);
                 self.update_status_zero(v1);
                 self.update_status_negative(v1);
-                a.len()+1
+                load_cycle + store_cycle + 1
             },
             Command::ROR(a) => {
-                let (v0, cycle) = self.load(a, &mut l);
+                let (v0, load_cycle) = self.load(a, &mut l);
                 let v1 = v0.wrapping_shr(1) | ((self.p & 0x01) << 7);
-                self.store(a, v1, None);
+                let store_cycle = self.store(a, v1, None);
                 self.update_status_carry(v0 & 0x01 != 0);
                 self.update_status_zero(v1);
                 self.update_status_negative(v1);
-                a.len()+1
+                load_cycle + store_cycle + 1
             },
             Command::ADC(addr) => {
                 let a = self.a;
@@ -808,7 +756,7 @@ impl CPU {
 
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                addr.len()+1
+                cycle
             },
             Command::SBC(addr) => {
                 let a = self.a;
@@ -822,55 +770,55 @@ impl CPU {
 
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                addr.len()+1
+                cycle
             },
             Command::DEC(a) => {
-                let (v0, cycle) = self.load(a, &mut l);
+                let (v0, load_cycle) = self.load(a, &mut l);
                 let v1 = v0.wrapping_sub(1);
-                self.store(a, v1, None);
+                let store_cycle = self.store(a, v1, None);
                 self.update_status_zero(v1);
                 self.update_status_negative(v1);
-                a.len()+1
+                load_cycle + store_cycle + 1
             }
             Command::DEX => {
                 self.x = self.x.wrapping_sub(1u8);
                 self.update_status_zero(self.x);
                 self.update_status_negative(self.x);
-                2
+                1
             },
             Command::DEY => {
                 self.y = self.y.wrapping_sub(1u8);
                 self.update_status_zero(self.y);
                 self.update_status_negative(self.y);
-                2
+                1
             },
             Command::INC(a) => {
-                let (v0, cycle) = self.load(a, &mut l);
+                let (v0, load_cycle) = self.load(a, &mut l);
                 let v1 = v0.wrapping_add(1);
-                self.store(a, v1, None);
+                let store_cycle = self.store(a, v1, None);
                 self.update_status_zero(v1);
                 self.update_status_negative(v1);
-                a.len()+1
+                load_cycle + store_cycle + 1
             }
             Command::INX => {
                 self.x = self.x.wrapping_add(1u8);
                 self.update_status_zero(self.x);
                 self.update_status_negative(self.x);
-                2
+                1
             },
             Command::INY => {
                 self.y = self.y.wrapping_add(1u8);
                 self.update_status_zero(self.y);
                 self.update_status_negative(self.y);
-                2
+                1
             },
             Command::CMP(a) => {
                 let (m, cycle) = self.load(a, &mut l);
-                let (v, b) = self.a.overflowing_sub(m);
+                let v = self.a.wrapping_sub(m);
                 self.update_status_carry(self.a >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()+1
+                cycle
             }
             Command::CPX(a) => {
                 let (m, cycle) = self.load(a, &mut l);
@@ -878,7 +826,7 @@ impl CPU {
                 self.update_status_carry(self.x >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()+1
+                cycle
             }
             Command::CPY(a) => {
                 let (m, cycle) = self.load(a, &mut l);
@@ -886,7 +834,7 @@ impl CPU {
                 self.update_status_carry(self.y >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()+1
+                cycle
             }
             Command::BPL(a) => self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) == 0}, a, &mut l),
             Command::BMI(a) => self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) != 0}, a, &mut l),
@@ -912,43 +860,43 @@ impl CPU {
                 write!(l, "${:04X}", addr).unwrap();
                 self.push_stack_word(self.pc-1);
                 self.pc = *addr;
-                6
+                3
             }
             Command::RTS => {
                 self.pc = self.pop_stack_word()+1;
-                6
+                5
             }
             Command::RTI => {
                 self.p = self.pop_stack() | 0x20u8;
                 self.pc = self.pop_stack_word();
-                6
+                5
             }
-            Command::CL(f) => {self.p &= !f.mask(); 2},
-            Command::SE(f) => {self.p |= f.mask(); 2},
+            Command::CL(f) => {self.p &= !f.mask(); 1},
+            Command::SE(f) => {self.p |= f.mask(); 1},
             Command::BIT(a) => {
                 let (m, cycle) = self.load(a, &mut l);
                 let r = m & self.a;
                 self.update_status_zero(r);
                 self.update_status_overflow(m);
                 self.update_status_negative(m);
-                a.len() + 2
+                cycle
             }
             Command::PHA => {
                 self.bus.write(self.s as u16 + 0x0100, self.a);
                 self.s -= 1;
-                3
+                2
             },
             Command::PHP => {
                 let v = self.p | P_MASK_BREAK_COMMAND;
                 self.bus.write(self.s as u16 + 0x0100, v);
                 self.s -= 1;
-                3
+                2
             },
             Command::PLP => {
                 self.s += 1;
                 let v = self.bus.read(self.s as u16 + 0x0100);
                 self.p = (self.p & 0x30) | (v & 0xcf);
-                4
+                3
             },
             Command::PLA => {
                 self.s += 1;
@@ -956,17 +904,17 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                4
+                3
             },
-            Command::NOP => 2,
-            Command::NOP_ => 2,
+            Command::NOP => 1,
+            Command::NOP_ => 1,
             Command::DOP(a) => {
                 let _ = self.load(a, &mut l);
-                2
+                1
             }
             Command::TOP(a) => {
                 let _ = self.load(a, &mut l);
-                3
+                1
             }
             Command::LAX(a) => {
                 let (v, cycle) = self.load(a, &mut l);
@@ -974,12 +922,11 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()
+                cycle
             },
             Command::SAX(a) => {
                 let v1 = self.a & self.x;
-                self.store(a, v1, Some(&mut l));
-                a.len()
+                self.store(a, v1, Some(&mut l))
             },
             Command::SBC_(addr) => {
                 let a = self.a;
@@ -993,7 +940,7 @@ impl CPU {
 
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                addr.len()
+                cycle
             },
             Command::DCP(a) => {
                 let (m, cycle) = self.load(a, &mut l);
@@ -1003,7 +950,7 @@ impl CPU {
                 self.update_status_carry(self.a >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                a.len()
+                cycle
             }
             Command::ISB(addr) => {
                 let a = self.a;
@@ -1019,7 +966,7 @@ impl CPU {
 
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                addr.len()
+                cycle
             }
             Command::SLO(addr) => {
                 let (v, cycle) = self.load(addr, &mut l);
@@ -1030,7 +977,7 @@ impl CPU {
                 self.a = v | self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                addr.len()
+                cycle
             }
             Command::RLA(addr) => {
                 let (v0, cycle) = self.load(addr, &mut l);
@@ -1041,7 +988,7 @@ impl CPU {
                 self.a = v1 & self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                addr.len()
+                cycle
             }
             Command::SRE(addr) => {
                 let (v, cycle) = self.load(addr, &mut l);
@@ -1052,7 +999,7 @@ impl CPU {
                 self.a = v ^ self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                addr.len()
+                cycle
             }
             Command::RRA(addr) => {
                 let (v0, cycle) = self.load(addr, &mut l);
@@ -1071,7 +1018,7 @@ impl CPU {
 
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                addr.len()
+                cycle
             }
             _ => { panic!("xx") }
         };
@@ -1251,7 +1198,7 @@ impl CPU {
                 let addr1 = self.read_word_zeropage(addr);
                 let v = self.read_byte(addr1);
                 write!(l, "(${:02X},X) @ {:02X} = {:04X} = {:02X}", m, addr, addr1, v).unwrap();
-                (v, 3)
+                (v, 4)
             },
             AddressingMode::IndirectY(m) => {
                 let addr0 = self.read_word_zeropage(m);
@@ -1260,20 +1207,21 @@ impl CPU {
                 write!(l, "(${:02X}),Y = {:04X} @ {:04X} = {:02X}", m, addr0, addr1, v).unwrap();
                 (v, 3)
             },
-            AddressingMode::Relative(rel) => panic!("load rel"),
+            AddressingMode::Relative(_) => panic!("load rel"),
         }
     }
 
     fn store(&mut self, addr_mode: &AddressingMode, v : u8, l: Option<&mut String>) -> usize {
         match *addr_mode {
-            AddressingMode::Accumelator => self.a = v,
-            AddressingMode::Imm(_) => self.a = v,
+            AddressingMode::Accumelator => { self.a = v; 0 },
+            AddressingMode::Imm(_) => { self.a = v; 0 },
             AddressingMode::ZeroPage(addr) => {
                 let old = self.read_byte(addr as u16);
                 if let Some(l) = l {
                     write!(l, "${:02X} = {:02X}", addr, old).unwrap();
                 }
-                self.write_byte(addr as u16, v)
+                self.write_byte(addr as u16, v);
+                1
             }
             AddressingMode::ZeroPageX(addr) => {
                 let addr1 = addr.wrapping_add(self.x) as u16;
@@ -1282,6 +1230,7 @@ impl CPU {
                 if let Some(l) = l {
                     write!(l, "${:02X},X @ {:02X} = {:02X}", addr, addr1, old_v).unwrap();
                 }
+                2
             },
             AddressingMode::ZeroPageY(addr) => {
                 let addr1 = addr.wrapping_add(self.y) as u16;
@@ -1290,6 +1239,7 @@ impl CPU {
                 if let Some(l) = l {
                     write!(l, "${:02X},Y @ {:02X} = {:02X}", addr, addr1, old_v).unwrap();
                 }
+                2
             },
             AddressingMode::Absolute(addr) => {
                 let old = self.read_byte(addr as u16);
@@ -1297,6 +1247,7 @@ impl CPU {
                 if let Some(l) = l {
                     write!(l, "${:04X} = {:02X}", addr, old).unwrap();
                 }
+                1
             },
             AddressingMode::AbsoluteX(addr) => {
                 let addr1 = addr.wrapping_add(self.x as u16);
@@ -1305,6 +1256,7 @@ impl CPU {
                     write!(l, "${:04X},X @ {:04X} = {:02X}", addr, addr1, old_v).unwrap();
                 }
                 self.write_byte(addr1, v);
+                2
             },
             AddressingMode::AbsoluteY(addr) => {
                 let addr1 = addr.wrapping_add(self.y as u16);
@@ -1313,6 +1265,7 @@ impl CPU {
                     write!(l, "${:04X},Y @ {:04X} = {:02X}", addr, addr1, old_v).unwrap();
                 }
                 self.write_byte(addr1, v);
+                2
             },
             AddressingMode::Indirect(h, l) => panic!("store indirect"),
             AddressingMode::IndirectX(m) => {
@@ -1323,7 +1276,8 @@ impl CPU {
                     write!(l, "(${:02X},X) @ {:02X} = {:04X} = {:02X}", m, addr, addr1, old_v).unwrap();
                 }
 
-                self.write_byte(addr1, v)
+                self.write_byte(addr1, v);
+                4
             },
             AddressingMode::IndirectY(m) => {
                 let addr0 = self.read_word_zeropage(m);
@@ -1332,12 +1286,11 @@ impl CPU {
                 if let Some(l) = l {
                     write!(l, "(${:02X}),Y = {:04X} @ {:04X} = {:02X}", m, addr0, addr1, old_v).unwrap();
                 }
-                self.write_byte(addr1, v)
-
+                self.write_byte(addr1, v);
+                4
             },
             AddressingMode::Relative(_) => panic!("store rel"),
-        };
-        addr_mode.cycle() + 1
+        }
     }
 
     pub fn step_next(&mut self, log : &mut CpuDebugLog) -> usize{
