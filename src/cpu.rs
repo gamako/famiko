@@ -577,7 +577,7 @@ impl CPU {
                 write!(l, "${:04X}", addr).unwrap();
                 if cond(self.p) {
                     cycle += 1;
-                    if self.pc & 0xff00 != addr & 0xff00 {
+                    if self.pc.page() != addr.page() {
                         cycle += 2;
                     }
                     self.pc = addr;
@@ -819,7 +819,7 @@ impl CPU {
                 let addr1 = self.read_word_in_page(*a_h, *a_l);
                 write!(l, "(${:02X}{:02X}) = {:04X}", *a_h, *a_l, addr1).unwrap();
                 self.pc = addr1;
-                5
+                2
             },
             Command::JSR(AddressingMode::Absolute(addr)) => {
                 write!(l, "${:04X}", addr).unwrap();
@@ -1132,13 +1132,13 @@ impl CPU {
                 let addr1 = addr.wrapping_add(self.x) as u16;
                 let v = self.read_byte(addr1);
                 write!(l, "${:02X},X @ {:02X} = {:02X}", addr, addr1, v).unwrap();
-                (v, 1)
+                (v, 2)
             },
             AddressingMode::ZeroPageY(addr) => {
                 let addr1 = addr.wrapping_add(self.y) as u16;
                 let v = self.read_byte(addr1);
                 write!(l, "${:02X},Y @ {:02X} = {:02X}", addr, addr1, v).unwrap();
-                (v, 1)
+                (v, 2)
             },
             AddressingMode::Absolute(addr) => {
                 let v = self.read_byte(addr);
@@ -1149,13 +1149,13 @@ impl CPU {
                 let addr1 = addr.wrapping_add(self.x as u16);
                 let v = self.read_byte(addr1);
                 write!(l, "${:04X},X @ {:04X} = {:02X}", addr, addr1, v).unwrap();
-                (v, 1)
+                (v, if addr.page() == addr1.page() {1} else {2})
             },
             AddressingMode::AbsoluteY(addr) => {
                 let addr1 = addr.wrapping_add(self.y as u16);
                 let v = self.read_byte(addr1);
                 write!(l, "${:04X},Y @ {:04X} = {:02X}", addr, addr1, v).unwrap();
-                (v, 1)
+                (v, if addr.page() == addr1.page() {1} else {2})
             },
             AddressingMode::Indirect(h, l) => panic!("load indirect"),
             AddressingMode::IndirectX(m) => {
@@ -1170,7 +1170,9 @@ impl CPU {
                 let addr1 = addr0.wrapping_add(self.y as u16);
                 let v = self.read_byte(addr1);
                 write!(l, "(${:02X}),Y = {:04X} @ {:04X} = {:02X}", m, addr0, addr1, v).unwrap();
-                (v, 3)
+                
+                (v, if addr0.page() == addr1.page() {3} else {4})
+
             },
             AddressingMode::Relative(_) => panic!("load rel"),
         }
@@ -1347,5 +1349,14 @@ impl CpuDebugLog {
             self.cpu_cycle
         );
 
+    }
+}
+
+trait Address {
+    fn page(&self) -> u8;
+}
+impl Address for u16 {
+    fn page(&self) -> u8 {
+        (*self >> 8) as u8
     }
 }
