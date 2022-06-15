@@ -96,41 +96,6 @@ enum AddressingMode {
     Relative(u8),
 }
 
-impl AddressingMode {
-    fn len(&self) -> usize {
-        match self {
-            AddressingMode::Accumelator => 0,
-            AddressingMode::Imm(_) => 1,
-            AddressingMode::ZeroPage(_) => 1,
-            AddressingMode::ZeroPageX(_) => 1,
-            AddressingMode::ZeroPageY(_) => 1,
-            AddressingMode::Absolute(_) => 2,
-            AddressingMode::AbsoluteX(_) => 1,
-            AddressingMode::AbsoluteY(_) => 1,
-            AddressingMode::Indirect(_, _) => 2,
-            AddressingMode::IndirectX(_) => 1,
-            AddressingMode::IndirectY(_) => 1,
-            AddressingMode::Relative(_) => 1,
-        }
-    }
-    fn cycle(&self) -> usize {
-        self.len() + match self {
-            AddressingMode::Accumelator => 1,
-            AddressingMode::Imm(_) => 0,
-            AddressingMode::ZeroPage(_) => 1,
-            AddressingMode::ZeroPageX(_) => 1,
-            AddressingMode::ZeroPageY(_) => 1,
-            AddressingMode::Absolute(_) => 1,
-            AddressingMode::AbsoluteX(_) => 1,
-            AddressingMode::AbsoluteY(_) => 1,
-            AddressingMode::Indirect(_, _) => 1,
-            AddressingMode::IndirectX(_) => 3,
-            AddressingMode::IndirectY(_) => 2,
-            AddressingMode::Relative(_) => 1,
-        }
-    }
-}
-
 impl fmt::Debug for AddressingMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
