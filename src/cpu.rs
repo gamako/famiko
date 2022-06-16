@@ -895,7 +895,7 @@ impl CPU {
             },
             Command::SBC_(addr) => {
                 let a = self.a;
-                let (b, addr1, cycle) = self.load(addr, &mut l);
+                let (b, _, cycle) = self.load(addr, &mut l);
                 let c = self.p & P_MASK_CARRY;
                 let d = (a as u16).wrapping_sub(b  as u16).wrapping_sub((1 - c) as u16);
                 self.a = (d & 0xff) as u8;
@@ -905,12 +905,12 @@ impl CPU {
 
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                cycle + 1
+                cycle
             },
             Command::DCP(a) => {
                 let (m, addr1, load_cycle) = self.load(a, &mut l);
                 let m = m.wrapping_sub(1);
-                let store_cycle = self.store(a, m, None);
+                let store_cycle = self.store(&addr1, m, None);
                 let (v, _) = self.a.overflowing_sub(m);
                 self.update_status_carry(self.a >= m);
                 self.update_status_zero(v);
@@ -921,7 +921,7 @@ impl CPU {
                 let a = self.a;
                 let (b, addr1, load_cycle) = self.load(addr, &mut l);
                 let b = b.wrapping_add(1);
-                let store_cycle = self.store(addr, b, None);
+                let store_cycle = self.store(&addr1, b, None);
                 let c = self.p & P_MASK_CARRY;
                 let d = (a as u16).wrapping_sub(b  as u16).wrapping_sub((1 - c) as u16);
                 self.a = (d & 0xff) as u8;
@@ -937,7 +937,7 @@ impl CPU {
                 let (v, addr1, load_cycle) = self.load(addr, &mut l);
                 self.update_status_carry(v & 0x80 != 0);
                 let v = v.wrapping_shl(1);
-                let store_cycle = self.store(addr, v, None);
+                let store_cycle = self.store(&addr1, v, None);
 
                 self.a = v | self.a;
                 self.update_status_zero(self.a);
@@ -947,7 +947,7 @@ impl CPU {
             Command::RLA(addr) => {
                 let (v0,addr1,  load_cycle) = self.load(addr, &mut l);
                 let v1 = v0.wrapping_shl(1) | (self.p & 0x01);
-                let store_cycle = self.store(addr, v1, None);
+                let store_cycle = self.store(&addr1, v1, None);
                 self.update_status_carry(v0 & 0x80 != 0);
 
                 self.a = v1 & self.a;
