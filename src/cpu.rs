@@ -597,21 +597,21 @@ impl CPU {
             Command::STX(a) => { self.store(a, self.x, Some(&mut l)) },
             Command::STY(a) => { self.store(a, self.y, Some(&mut l)) },
             Command::LDA(a) => {
-                let (v, cycle) = self.load(a, &mut l);
+                let (v, _, cycle) = self.load(a, &mut l);
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
                 cycle
             },
             Command::LDX(a) => {
-                let (v, cycle) = self.load(a, &mut l);
+                let (v, _, cycle) = self.load(a, &mut l);
                 self.x = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
                 cycle
             },
             Command::LDY(a) => {
-                let (v, cycle) = self.load(a, &mut l);
+                let (v, _, cycle) = self.load(a, &mut l);
                 self.y = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
@@ -650,7 +650,7 @@ impl CPU {
             },
             
             Command::AND(a) => {
-                let (v, cycle) = self.load(a, &mut l);
+                let (v, _, cycle) = self.load(a, &mut l);
                 let v = v & self.a;
                 self.a = v;
                 self.update_status_zero(v);
@@ -658,7 +658,7 @@ impl CPU {
                 cycle
             },
             Command::ORA(a) => {
-                let (v, cycle) = self.load(a, &mut l);
+                let (v, _, cycle) = self.load(a, &mut l);
                 let v = v | self.a;
                 self.a = v;
                 self.update_status_zero(v);
@@ -666,7 +666,7 @@ impl CPU {
                 cycle
             },
             Command::EOR(a) => {
-                let (v, cycle) = self.load(a, &mut l);
+                let (v, _, cycle) = self.load(a, &mut l);
                 let v = v ^ self.a;
                 self.a = v;
                 self.update_status_zero(v);
@@ -674,36 +674,36 @@ impl CPU {
                 cycle
             },
             Command::ASL(a) => {
-                let (v, load_cycle) = self.load(a, &mut l);
+                let (v, addr1, load_cycle) = self.load_(a, &mut l, true);
                 self.update_status_carry(v & 0x80 != 0);
                 let v = v.wrapping_shl(1);
-                let store_cycle = self.store(a, v, None);
+                let store_cycle = self.store(&addr1, v, None);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
                 load_cycle + store_cycle + 1
             },
             Command::LSR(a) => {
-                let (v, load_cycle) = self.load(a, &mut l);
+                let (v, addr1, load_cycle) = self.load_(a, &mut l, true);
                 self.update_status_carry(v & 0x01 != 0);
                 let v = v.wrapping_shr(1);
-                let store_cycle = self.store(a, v, None);
+                let store_cycle = self.store(&addr1, v, None);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
                 load_cycle + store_cycle + 1
             },
             Command::ROL(a) => {
-                let (v0, load_cycle) = self.load(a, &mut l);
+                let (v0, addr1, load_cycle) = self.load_(a, &mut l, true);
                 let v1 = v0.wrapping_shl(1) | (self.p & 0x01);
-                let store_cycle = self.store(a, v1, None);
+                let store_cycle = self.store(&addr1, v1, None);
                 self.update_status_carry(v0 & 0x80 != 0);
                 self.update_status_zero(v1);
                 self.update_status_negative(v1);
                 load_cycle + store_cycle + 1
             },
             Command::ROR(a) => {
-                let (v0, load_cycle) = self.load(a, &mut l);
+                let (v0, addr1, load_cycle) = self.load_(a, &mut l, true);
                 let v1 = v0.wrapping_shr(1) | ((self.p & 0x01) << 7);
-                let store_cycle = self.store(a, v1, None);
+                let store_cycle = self.store(&addr1, v1, None);
                 self.update_status_carry(v0 & 0x01 != 0);
                 self.update_status_zero(v1);
                 self.update_status_negative(v1);
@@ -711,7 +711,7 @@ impl CPU {
             },
             Command::ADC(addr) => {
                 let a = self.a;
-                let (b, cycle) = self.load(addr, &mut l);
+                let (b, _, cycle) = self.load(addr, &mut l);
                 let c = self.p & P_MASK_CARRY;
                 let d = a  as u16 + b  as u16 + c  as u16;
                 self.a = (d & 0xff) as u8;
@@ -725,7 +725,7 @@ impl CPU {
             },
             Command::SBC(addr) => {
                 let a = self.a;
-                let (b, cycle) = self.load(addr, &mut l);
+                let (b, _, cycle) = self.load(addr, &mut l);
                 let c = self.p & P_MASK_CARRY;
                 let d = (a as u16).wrapping_sub(b  as u16).wrapping_sub((1 - c) as u16);
                 self.a = (d & 0xff) as u8;
@@ -738,9 +738,9 @@ impl CPU {
                 cycle
             },
             Command::DEC(a) => {
-                let (v0, load_cycle) = self.load(a, &mut l);
+                let (v0, addr1, load_cycle) = self.load_(a, &mut l, true);
                 let v1 = v0.wrapping_sub(1);
-                let store_cycle = self.store(a, v1, None);
+                let store_cycle = self.store(&addr1, v1, None);
                 self.update_status_zero(v1);
                 self.update_status_negative(v1);
                 load_cycle + store_cycle + 1
@@ -758,9 +758,9 @@ impl CPU {
                 1
             },
             Command::INC(a) => {
-                let (v0, load_cycle) = self.load(a, &mut l);
+                let (v0, addr1, load_cycle) = self.load_(a, &mut l, true);
                 let v1 = v0.wrapping_add(1);
-                let store_cycle = self.store(a, v1, None);
+                let store_cycle = self.store(&addr1, v1, None);
                 self.update_status_zero(v1);
                 self.update_status_negative(v1);
                 load_cycle + store_cycle + 1
@@ -778,7 +778,7 @@ impl CPU {
                 1
             },
             Command::CMP(a) => {
-                let (m, cycle) = self.load(a, &mut l);
+                let (m, _, cycle) = self.load(a, &mut l);
                 let v = self.a.wrapping_sub(m);
                 self.update_status_carry(self.a >= m);
                 self.update_status_zero(v);
@@ -786,7 +786,7 @@ impl CPU {
                 cycle
             }
             Command::CPX(a) => {
-                let (m, cycle) = self.load(a, &mut l);
+                let (m, _, cycle) = self.load(a, &mut l);
                 let (v, b) = self.x.overflowing_sub(m);
                 self.update_status_carry(self.x >= m);
                 self.update_status_zero(v);
@@ -794,7 +794,7 @@ impl CPU {
                 cycle
             }
             Command::CPY(a) => {
-                let (m, cycle) = self.load(a, &mut l);
+                let (m, _, cycle) = self.load(a, &mut l);
                 let (v, _) = self.y.overflowing_sub(m);
                 self.update_status_carry(self.y >= m);
                 self.update_status_zero(v);
@@ -839,7 +839,7 @@ impl CPU {
             Command::CL(f) => {self.p &= !f.mask(); 1},
             Command::SE(f) => {self.p |= f.mask(); 1},
             Command::BIT(a) => {
-                let (m, cycle) = self.load(a, &mut l);
+                let (m, _, cycle) = self.load(a, &mut l);
                 let r = m & self.a;
                 self.update_status_zero(r);
                 self.update_status_overflow(m);
@@ -874,15 +874,15 @@ impl CPU {
             Command::NOP => 1,
             Command::NOP_ => 1,
             Command::DOP(a) => {
-                let _ = self.load(a, &mut l);
-                1
+                let (_, _, cycle) = self.load(a, &mut l);
+                cycle
             }
             Command::TOP(a) => {
-                let _ = self.load(a, &mut l);
-                1
+                let (_, _, cycle) = self.load(a, &mut l);
+                cycle
             }
             Command::LAX(a) => {
-                let (v, cycle) = self.load(a, &mut l);
+                let (v, _, cycle) = self.load(a, &mut l);
                 self.x = v;
                 self.a = v;
                 self.update_status_zero(v);
@@ -895,7 +895,7 @@ impl CPU {
             },
             Command::SBC_(addr) => {
                 let a = self.a;
-                let (b, cycle) = self.load(addr, &mut l);
+                let (b, addr1, cycle) = self.load(addr, &mut l);
                 let c = self.p & P_MASK_CARRY;
                 let d = (a as u16).wrapping_sub(b  as u16).wrapping_sub((1 - c) as u16);
                 self.a = (d & 0xff) as u8;
@@ -905,23 +905,23 @@ impl CPU {
 
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                cycle
+                cycle + 1
             },
             Command::DCP(a) => {
-                let (m, cycle) = self.load(a, &mut l);
+                let (m, addr1, load_cycle) = self.load(a, &mut l);
                 let m = m.wrapping_sub(1);
-                self.store(a, m, None);
+                let store_cycle = self.store(a, m, None);
                 let (v, _) = self.a.overflowing_sub(m);
                 self.update_status_carry(self.a >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                cycle
+                load_cycle + store_cycle + 1
             }
             Command::ISB(addr) => {
                 let a = self.a;
-                let (b, cycle) = self.load(addr, &mut l);
+                let (b, addr1, load_cycle) = self.load(addr, &mut l);
                 let b = b.wrapping_add(1);
-                self.store(addr, b, None);
+                let store_cycle = self.store(addr, b, None);
                 let c = self.p & P_MASK_CARRY;
                 let d = (a as u16).wrapping_sub(b  as u16).wrapping_sub((1 - c) as u16);
                 self.a = (d & 0xff) as u8;
@@ -931,45 +931,45 @@ impl CPU {
 
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                cycle
+                load_cycle + store_cycle + 1
             }
             Command::SLO(addr) => {
-                let (v, cycle) = self.load(addr, &mut l);
+                let (v, addr1, load_cycle) = self.load(addr, &mut l);
                 self.update_status_carry(v & 0x80 != 0);
                 let v = v.wrapping_shl(1);
-                self.store(addr, v, None);
+                let store_cycle = self.store(addr, v, None);
 
                 self.a = v | self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                cycle
+                load_cycle + store_cycle + 1
             }
             Command::RLA(addr) => {
-                let (v0, cycle) = self.load(addr, &mut l);
+                let (v0,addr1,  load_cycle) = self.load(addr, &mut l);
                 let v1 = v0.wrapping_shl(1) | (self.p & 0x01);
-                self.store(addr, v1, None);
+                let store_cycle = self.store(addr, v1, None);
                 self.update_status_carry(v0 & 0x80 != 0);
 
                 self.a = v1 & self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                cycle
+                load_cycle + store_cycle + 1
             }
             Command::SRE(addr) => {
-                let (v, cycle) = self.load(addr, &mut l);
+                let (v, addr1, load_cycle) = self.load(addr, &mut l);
                 self.update_status_carry(v & 0x01 != 0);
                 let v = v.wrapping_shr(1);
-                self.store(addr, v, None);
+                let store_cycle = self.store(&addr1, v, None);
 
                 self.a = v ^ self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                cycle
+                load_cycle + store_cycle + 1
             }
             Command::RRA(addr) => {
-                let (v0, cycle) = self.load(addr, &mut l);
+                let (v0, addr1, load_cycle) = self.load(addr, &mut l);
                 let v1 = v0.wrapping_shr(1) | ((self.p & 0x01) << 7);
-                self.store(addr, v1, None);
+                let store_cycle = self.store(&addr1, v1, None);
                 self.update_status_carry(v0 & 0x01 != 0);
 
                 let a = self.a;
@@ -983,7 +983,7 @@ impl CPU {
 
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
-                cycle
+                load_cycle + store_cycle + 1
             }
             _ => { panic!("xx") }
         };
@@ -1113,49 +1113,55 @@ impl CPU {
         self.new_addr_and_u8(AddressingMode::Relative)
     }
 
-    fn load(&mut self, addr_mode: &AddressingMode, l: &mut String) -> (u8, usize) {
+    fn load(&mut self, addr_mode: &AddressingMode, l: &mut String) -> (u8, AddressingMode, usize) {
+        self.load_(addr_mode, l, false)
+    }
+
+    fn load_(&mut self, addr_mode: &AddressingMode, l: &mut String, is_store: bool) -> (u8, AddressingMode, usize) {
         match *addr_mode {
             AddressingMode::Accumelator => {
                 write!(l, "A").unwrap();
-                (self.a, 0)
+                (self.a, AddressingMode::Accumelator, 0)
             },
             AddressingMode::Imm(v) => {
                 write!(l, "#${:02X}", v).unwrap();
-                (v, 0)
+                (v, AddressingMode::Accumelator, 0)
             }
             AddressingMode::ZeroPage(addr) => {
-                let v = self.read_byte(addr as u16);
+                let addr = addr as u16;
+                let v = self.read_byte(addr);
                 write!(l, "${:02X} = {:02X}", addr, v).unwrap();
-                (v, 1)
+                (v, AddressingMode::Absolute(addr), 1)
             }
             AddressingMode::ZeroPageX(addr) => {
                 let addr1 = addr.wrapping_add(self.x) as u16;
                 let v = self.read_byte(addr1);
                 write!(l, "${:02X},X @ {:02X} = {:02X}", addr, addr1, v).unwrap();
-                (v, 2)
+                (v, AddressingMode::Absolute(addr1), 2)
             },
             AddressingMode::ZeroPageY(addr) => {
                 let addr1 = addr.wrapping_add(self.y) as u16;
                 let v = self.read_byte(addr1);
                 write!(l, "${:02X},Y @ {:02X} = {:02X}", addr, addr1, v).unwrap();
-                (v, 2)
+                (v, AddressingMode::Absolute(addr1), 2)
             },
             AddressingMode::Absolute(addr) => {
                 let v = self.read_byte(addr);
                 write!(l, "${:04X} = {:02X}", addr, v).unwrap();
-                (v, 1)
+                (v, AddressingMode::Absolute(addr), 1)
             },
             AddressingMode::AbsoluteX(addr) => {
                 let addr1 = addr.wrapping_add(self.x as u16);
                 let v = self.read_byte(addr1);
                 write!(l, "${:04X},X @ {:04X} = {:02X}", addr, addr1, v).unwrap();
-                (v, if addr.page() == addr1.page() {1} else {2})
+                
+                (v, AddressingMode::Absolute(addr1), if addr.page() == addr1.page() && !is_store {1} else {2})
             },
             AddressingMode::AbsoluteY(addr) => {
                 let addr1 = addr.wrapping_add(self.y as u16);
                 let v = self.read_byte(addr1);
                 write!(l, "${:04X},Y @ {:04X} = {:02X}", addr, addr1, v).unwrap();
-                (v, if addr.page() == addr1.page() {1} else {2})
+                (v, AddressingMode::Absolute(addr1), if addr.page() == addr1.page() && !is_store {1} else {2})
             },
             AddressingMode::Indirect(h, l) => panic!("load indirect"),
             AddressingMode::IndirectX(m) => {
@@ -1163,7 +1169,7 @@ impl CPU {
                 let addr1 = self.read_word_zeropage(addr);
                 let v = self.read_byte(addr1);
                 write!(l, "(${:02X},X) @ {:02X} = {:04X} = {:02X}", m, addr, addr1, v).unwrap();
-                (v, 4)
+                (v, AddressingMode::Absolute(addr1), 4)
             },
             AddressingMode::IndirectY(m) => {
                 let addr0 = self.read_word_zeropage(m);
@@ -1171,7 +1177,7 @@ impl CPU {
                 let v = self.read_byte(addr1);
                 write!(l, "(${:02X}),Y = {:04X} @ {:04X} = {:02X}", m, addr0, addr1, v).unwrap();
                 
-                (v, if addr0.page() == addr1.page() {3} else {4})
+                (v, AddressingMode::Absolute(addr1), if addr0.page() == addr1.page() {3} else {4})
 
             },
             AddressingMode::Relative(_) => panic!("load rel"),
