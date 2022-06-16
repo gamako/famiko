@@ -578,7 +578,7 @@ impl CPU {
                 if cond(self.p) {
                     cycle += 1;
                     if self.pc.page() != addr.page() {
-                        cycle += 2;
+                        cycle += 1;
                     }
                     self.pc = addr;
                 }
