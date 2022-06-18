@@ -5,7 +5,7 @@ use std::string::ToString;
 use std::fmt::Write as FmtWrite;
 
 static CPU_CLOCK_HZ : u128 = 1789773;
-static CPU_CLOCK_UNIT_NSEC : u128 = 1 * 1000 * 1000 * 1000 / CPU_CLOCK_HZ;
+pub static CPU_CLOCK_UNIT_NSEC : u128 = 1 * 1000 * 1000 * 1000 / CPU_CLOCK_HZ;
 
 #[derive(Debug)]
 pub struct Clock {

@@ -1,8 +1,8 @@
 use std::fs::File;
 use std::io::Read;
 use std::sync::mpsc;
-use std::thread;
-use std::time::Instant;
+use std::thread::{self, sleep};
+use std::time::{Instant, Duration};
 
 use pixels::{Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
@@ -11,9 +11,9 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
 
-use famiko::cpu::{CPU, CpuDebugLog};
+use famiko::cpu::{CPU, CpuDebugLog, CPU_CLOCK_UNIT_NSEC};
 use famiko::bus::Bus;
-use famiko::ppu::{WIDTH, HEIGHT};
+use famiko::ppu::{WIDTH, HEIGHT, FRAME_SIZE};
 
 #[derive(Debug)]
 enum RenderEvent {
@@ -62,15 +62,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             log.ppu_x = cpu.bus.ppu.x_();
             let cycle = cpu.step_next(&mut log);
             log.log();
-            cpu.bus.ppu.step(cycle*3);
+            let frame_ = cpu.bus.ppu.step(cycle*3);
 
-            let mut frame = [0].repeat((WIDTH * HEIGHT * 4) as usize);
-            
-            if time.elapsed().as_micros() > (1000 * 1000 / 60) {
+            if let Some(f) = frame_ {
                 time = Instant::now();
-                cpu.bus.ppu.draw(frame.as_mut_slice());
-                render_sender.send(RenderEvent::Render(frame)).unwrap();
+                render_sender.send(RenderEvent::Render(*f)).unwrap();
             }
+            let t = (cycle * (CPU_CLOCK_UNIT_NSEC as usize)) as u64;
+            sleep(Duration::from_nanos(t));
         };
     });
 
@@ -91,7 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut pixels = {
         let window_size = window.inner_size();
         let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
-        Pixels::new(WIDTH, HEIGHT, surface_texture)?
+        Pixels::new(WIDTH as u32, HEIGHT as u32, surface_texture)?
     };
 
     event_loop.run(move |event, _, control_flow| {
