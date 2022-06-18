@@ -48,11 +48,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     thread::spawn(move ||{
 
         // 電源ON
-        // cpu.int_reset();
+        cpu.int_reset();
 
         // nestest用にc000から始める
-        cpu.init_pc(0xc000, 7);
-        cpu.bus.ppu.step(7*3);
+        // cpu.init_pc(0xc000, 7);
+        // cpu.bus.ppu.step(7*3);
 
         let mut time = Instant::now();
 
