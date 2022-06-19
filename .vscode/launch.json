@@ -37,7 +37,7 @@
                     "kind": "bin"
                 }
             },
-            "args": ["./rom/nestest.nes"],
+            "args": ["--start_addr","c000","./rom/nestest.nes"],
             "cwd": "${workspaceFolder}"
         },
         {

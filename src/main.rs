@@ -14,6 +14,8 @@ use winit_input_helper::WinitInputHelper;
 use famiko::cpu::{CPU, CpuDebugLog, CPU_CLOCK_UNIT_NSEC};
 use famiko::bus::Bus;
 use famiko::ppu::{WIDTH, HEIGHT, FRAME_SIZE};
+use clap::{arg, command, Command};
+use hex;
 
 #[derive(Debug)]
 enum RenderEvent {
@@ -21,7 +23,26 @@ enum RenderEvent {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let file = std::env::args().nth(1).expect("famiko <NES file path>");
+    let matches = Command::new("famiko")
+        .arg(arg!(--start_addr <addr> "開始アドレス"))
+        .arg(
+            arg!(
+                -d --debug "Turn debugging information on"
+            ),
+        )
+        .arg(arg!([rom] "rom"))
+        .get_matches();
+    
+    // You can check the value provided by positional arguments, or option arguments
+    let start_addr = if let Some(data) = matches.get_one::<String>("start_addr") {
+        let v = hex::decode(data).unwrap();
+        let addr = ((v[0] as u16) << 8) | (v[1] as u16);
+        Some(addr)
+    } else {
+        None
+    };
+    let file = matches.get_one::<String>("rom").unwrap();
+
     let mut file = File::open(file)?;
     let mut rom = Vec::new();
     
@@ -48,11 +69,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     thread::spawn(move ||{
 
         // 電源ON
-        cpu.int_reset();
-
-        // nestest用にc000から始める
-        // cpu.init_pc(0xc000, 7);
-        // cpu.bus.ppu.step(7*3);
+        if let Some(start_addr) = start_addr {
+            // nestest用にc000から始める
+            println!("start addr {start_addr:04x}");
+            cpu.init_pc(start_addr, 7);
+            cpu.bus.ppu.step(7*3);
+        } else {
+            cpu.int_reset();
+        }
 
         let mut time = Instant::now();
 
