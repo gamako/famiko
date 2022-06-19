@@ -24,7 +24,7 @@ enum RenderEvent {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new("famiko")
-        .arg(arg!(--start_addr <addr> "開始アドレス"))
+        .arg(arg!(--start_addr [addr] "開始アドレス"))
         .arg(
             arg!(
                 -d --debug "Turn debugging information on"
