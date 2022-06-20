@@ -64,10 +64,21 @@ impl PPU {
         self.y
     }
 
+    fn read_vblank(&self) -> bool {
+        self.ppustatus & 0x80 != 0
+    }
+
+    fn update_vblank(&mut self, b: bool) {
+        self.ppustatus = if b {
+            self.ppustatus | (1u8 << 7)
+        } else {
+            self.ppustatus & !(1u8 << 7)
+        }
+    }
+
     pub fn read_status(&mut self) -> u8 {
         let status = self.ppustatus;
-
-        self.ppustatus |= 1 << 7;
+        self.update_vblank(false);
         status
     }
 
@@ -169,6 +180,11 @@ impl PPU {
             if self.x >= 341 {
                 self.x = 0;
                 self.y += 1;
+                if self.y == 241 {
+                    self.update_vblank(true);
+                } else if self.y == 261 {
+                    self.update_vblank(false);
+                }
                 if self.y > 262 {
                     self.y = 0;
                     ret = Some(Box::new(self.frame.clone()));
