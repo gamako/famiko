@@ -18,12 +18,14 @@ pub struct PPU {
     pub oamdma: u8,
 
     addr: u16,
+    sprite_addr : u8,
     scroll_x : u8,
     scroll_y : u8,
     scroll_next_y : bool,
     palette_ram : [u8; 0x20],
     name_table : [u8; 0x400 * 4],
     pattern_table : Vec<u8>,
+    sprite_ram : [u8; 0x100],
     
     x : usize,
     y : usize,
@@ -44,12 +46,14 @@ impl PPU {
             ppudata: 0,
             oamdma: 0,
             addr: 0,
+            sprite_addr: 0,
             scroll_x: 0,
             scroll_y: 0,
             scroll_next_y: true,
             palette_ram: [0; 0x20],
             name_table: [0; 0x400 * 4],
             pattern_table: chr,
+            sprite_ram: [0; 0x100],
             x: 0,
             y: 0,
             frame: [0].repeat(FRAME_SIZE),
@@ -117,6 +121,13 @@ impl PPU {
         }
     }
 
+    pub fn write_ppu_sprite_addr(&mut self, v: u8) {
+        self.sprite_addr = v;
+    }
+    pub fn write_ppu_sprite_data(&mut self, v: u8) {
+        self.sprite_ram[self.sprite_addr as usize] = v;
+    }
+
     pub fn write_ppudata(&mut self, v : u8) {
         match self.addr {
             0x2000 ..= 0x2fff => {
@@ -172,6 +183,7 @@ impl PPU {
 
                 let i = (x + y * WIDTH) * 4;
                 let pixel = & mut self.frame[i..i+4];
+
                 pixel[0..3].copy_from_slice(&rgb);
                 pixel[3] = 0xff;
             }
@@ -194,6 +206,13 @@ impl PPU {
         }
         ret
     }
+
+    // パレット番号を返す
+    // fn sprite_pixel(&self, x: usize, y: usize) -> usize {
+    //     for i in 0..64 {
+
+    //     }
+    // }
 
     pub fn draw(&self, frame: &mut [u8]) {
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {

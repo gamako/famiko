@@ -73,6 +73,12 @@ impl Bus {
             0x2001 => {
                 self.ppu.ppumask = value;
             }
+            0x2003 => {
+                self.ppu.write_ppu_sprite_addr(value);
+            }
+            0x2004 => {
+                self.ppu.write_ppu_sprite_data(value);
+            }
             0x2005 => {
                 self.ppu.write_ppuscroll(value);
             }
