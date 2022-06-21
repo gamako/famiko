@@ -42,6 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
     let file = matches.get_one::<String>("rom").unwrap();
+    let debug = matches.get_one::<bool>("debug").map_or(false, |v| *v);
 
     let mut file = File::open(file)?;
     let mut rom = Vec::new();
@@ -85,7 +86,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             log.ppu_line = cpu.bus.ppu.y_();
             log.ppu_x = cpu.bus.ppu.x_();
             let cycle = cpu.step_next(&mut log);
-            log.log();
+            if debug {
+                log.log();
+            }
             let frame_ = cpu.bus.ppu.step(cycle*3);
 
             if let Some(f) = frame_ {
