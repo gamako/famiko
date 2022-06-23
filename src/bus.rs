@@ -102,6 +102,12 @@ impl Bus {
 
     }
 
+    pub fn read_nmi(&mut self) -> bool {
+        let v = self.ppu.nmi;
+        self.ppu.nmi = false;
+        v
+    }
+
     pub fn debug_prg_bytes(&mut self, addr: u16, l: usize) -> String {
         (addr .. (addr + (l as u16)))
             .map(|v|{ self.read(v) })

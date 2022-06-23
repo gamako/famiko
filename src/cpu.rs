@@ -285,6 +285,26 @@ impl CPU {
         self.pc = addr;
     }
 
+    pub fn int_nmi(&mut self) -> usize {       
+        self.intrrupt(0xfffa)
+    }
+
+    pub fn intrrupt(&mut self, addr: u16) -> usize {
+        let l = self.bus.read(addr);
+        let h = self.bus.read(addr+1);
+        let handler = (h as u16) << 8 | l as u16;
+
+        let sp = self.s as u16 + 0x0100;
+        let sp = sp -1;
+        self.bus.write(sp, (self.pc >> 0 & 0xff) as u8);
+        let sp = sp -1;
+        self.bus.write(sp, (self.pc >> 8 & 0xff) as u8);
+        self.s = (sp & 0xff) as u8;
+
+        self.pc = handler;
+        4
+    }
+
     pub fn init_pc(&mut self, addr : u16, cycle: usize) {
         self.pc = addr;
         self.cycle = cycle;
@@ -1266,7 +1286,12 @@ impl CPU {
         }
     }
 
-    pub fn step_next(&mut self, log : &mut CpuDebugLog) -> usize{
+    pub fn step_next(&mut self, log : &mut CpuDebugLog) -> usize {
+        if self.bus.read_nmi() {
+            println!("interruption nmi");
+            return self.int_nmi();
+        }
+
         log.addr = Some(self.pc);
         log.cpu_register = Some(format!("{}", self.log_str()));
         log.cpu_cycle = self.cycle;

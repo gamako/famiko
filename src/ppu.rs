@@ -30,6 +30,8 @@ pub struct PPU {
     x : usize,
     y : usize,
 
+    pub nmi : bool,
+
     frame: Vec<u8>,
 }
 
@@ -54,6 +56,7 @@ impl PPU {
             name_table: [0; 0x400 * 4],
             pattern_table: chr,
             sprite_ram: [0; 0x100],
+            nmi : false,
             x: 0,
             y: 0,
             frame: [0].repeat(FRAME_SIZE),
@@ -125,6 +128,7 @@ impl PPU {
         self.sprite_addr = v;
     }
     pub fn write_ppu_sprite_data(&mut self, v: u8) {
+        println!(" write sprite data: {:02x} {:02X}", self.sprite_addr, v);
         self.sprite_ram[self.sprite_addr as usize] = v;
     }
 
@@ -151,7 +155,8 @@ impl PPU {
         }
     }
 
-    pub fn step(&mut self, cycle : usize) -> Option<Box<Vec<u8>>>{
+    // 戻り値は描画フレーム
+    pub fn step(&mut self, cycle : usize) -> Option<Box<Vec<u8>>> {
         let mut ret : Option<Box<Vec<u8>>> =  None;
         for _ in 0..cycle {
             let x = self.x;
@@ -194,6 +199,9 @@ impl PPU {
                 self.y += 1;
                 if self.y == 241 {
                     self.update_vblank(true);
+                    if self.ppuctrl & (1 << 7) != 0 {
+                        self.nmi = true;
+                    }
                 } else if self.y == 261 {
                     self.update_vblank(false);
                 }
@@ -207,12 +215,25 @@ impl PPU {
         ret
     }
 
-    // パレット番号を返す
-    // fn sprite_pixel(&self, x: usize, y: usize) -> usize {
-    //     for i in 0..64 {
+    //　スプライトのパレット番号を返す
+    fn sprite_pixel(&self, x: usize, y: usize) -> Option<usize> {
+        for i in 0..64 {
+            let sprite = &self.sprite_ram[i*4..i*4+4];
+            let sprite_y = sprite[0] as usize ;
+            let sprite_tile = sprite[1];
+            let sprite_attr = sprite[2];
+            let sprite_x = sprite[3] as usize ;
 
-    //     }
-    // }
+            if x >= sprite_x && x < sprite_x + 8 && 
+            y >= sprite_y && y < sprite_y + 8 {
+                let x_ = x - sprite_x;
+                let y_ = y - sprite_y;
+
+                
+            }
+        }   
+        None
+    }
 
     pub fn draw(&self, frame: &mut [u8]) {
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
