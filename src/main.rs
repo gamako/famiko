@@ -14,7 +14,7 @@ use winit_input_helper::WinitInputHelper;
 use famiko::cpu::{CPU, CpuDebugLog, CPU_CLOCK_UNIT_NSEC};
 use famiko::bus::Bus;
 use famiko::ppu::{WIDTH, HEIGHT, FRAME_SIZE};
-use clap::{arg, command, Command};
+use clap::{arg, Command, Arg, ArgAction};
 use hex;
 
 #[derive(Debug)]
@@ -26,9 +26,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new("famiko")
         .arg(arg!(--start_addr [addr] "開始アドレス"))
         .arg(
-            arg!(
-                -d --debug "Turn debugging information on"
-            ),
+            Arg::new("debug")
+                .short('d')
+                .long("debug")
+                .action(ArgAction::SetTrue)
         )
         .arg(arg!([rom] "rom"))
         .get_matches();
