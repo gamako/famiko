@@ -285,7 +285,7 @@ impl CPU {
         self.pc = addr;
     }
 
-    pub fn int_nmi(&mut self) -> usize {       
+    pub fn int_nmi(&mut self) -> usize {
         self.intrrupt(0xfffa)
     }
 
