@@ -1369,6 +1369,9 @@ impl CpuDebugLog {
         }
     }
     pub fn log(&self) {
+        if let None = self.addr {
+            return;
+        }
         println!(
             "{:04X}  {: <9}{: <32} {} PPU:{: >3},{: >3} CYC:{}",
             self.addr.unwrap(),
