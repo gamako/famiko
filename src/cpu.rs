@@ -274,15 +274,11 @@ impl Command {
 
 impl CPU {
     pub fn new(bus : Bus) -> Self {
-        CPU { a: 0, x: 0, y: 0, p: 0x24, s: 0xfd, pc: 0, bus: bus, clock: Clock::new(), cycle: 0 }
+        CPU { a: 0, x: 0, y: 0, p: 0x24, s: 0xff, pc: 0, bus: bus, clock: Clock::new(), cycle: 0 }
     }
 
-    pub fn int_reset(&mut self) {
-        let l = self.bus.read(0xFFFC);
-        let h = self.bus.read(0xFFFD);
-        let addr = (h as u16) << 8 | l as u16;
-
-        self.pc = addr;
+    pub fn int_reset(&mut self) -> usize {
+        self.intrrupt(0xfffc)
     }
 
     pub fn int_nmi(&mut self) -> usize {
@@ -294,15 +290,21 @@ impl CPU {
         let h = self.bus.read(addr+1);
         let handler = (h as u16) << 8 | l as u16;
 
+        self.jmp_int_handler(handler)
+
+    }
+
+    pub fn jmp_int_handler(&mut self, handler: u16) -> usize {
         let sp = self.s as u16 + 0x0100;
         let sp = sp -1;
         self.bus.write(sp, (self.pc >> 0 & 0xff) as u8);
         let sp = sp -1;
         self.bus.write(sp, (self.pc >> 8 & 0xff) as u8);
         self.s = (sp & 0xff) as u8;
-
+        
+        self.cycle += 7;
         self.pc = handler;
-        4
+        7
     }
 
     pub fn init_pc(&mut self, addr : u16, cycle: usize) {

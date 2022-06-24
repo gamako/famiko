@@ -72,13 +72,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // 電源ON
         if let Some(start_addr) = start_addr {
-            // nestest用にc000から始める
             println!("start addr {start_addr:04x}");
-            cpu.init_pc(start_addr, 7);
-            cpu.bus.ppu.step(7*3);
+            cpu.jmp_int_handler(start_addr);
         } else {
             cpu.int_reset();
         }
+        cpu.bus.ppu.step(7*3);
 
         let mut time = Instant::now();
 
