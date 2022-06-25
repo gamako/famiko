@@ -13,7 +13,7 @@ impl Bus {
         Bus { 
             prg: prg,
             ppu: PPU::new(chr),
-            ram: [0].repeat(0x800),
+            ram: [0,0,0,0,0xff,0xff,0xff,0xff].repeat(0x100),
         }
     }
 

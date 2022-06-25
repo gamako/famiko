@@ -296,10 +296,12 @@ impl CPU {
 
     pub fn jmp_int_handler(&mut self, handler: u16) -> usize {
         let sp = self.s as u16 + 0x0100;
+        self.bus.write(sp, (self.pc >> 8 & 0xff) as u8);
         let sp = sp -1;
         self.bus.write(sp, (self.pc >> 0 & 0xff) as u8);
         let sp = sp -1;
-        self.bus.write(sp, (self.pc >> 8 & 0xff) as u8);
+        self.bus.write(sp, self.p);
+        let sp = sp -1;
         self.s = (sp & 0xff) as u8;
         
         self.cycle += 7;
