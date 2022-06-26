@@ -154,6 +154,10 @@ impl PPU {
             }
         }
     }
+    
+    pub fn write_dma(&mut self, data : &[u8]) {
+        self.sprite_ram.clone_from_slice(data)
+    }
 
     // 戻り値は描画フレーム
     pub fn step(&mut self, cycle : usize) -> Option<Box<Vec<u8>>> {

@@ -90,6 +90,11 @@ impl Bus {
                 println!(" write ppudata: {:#02x}", value);
                 self.ppu.write_ppudata(value);
             }
+            0x4014 => {
+                // スプライトDMA
+                let addr = (value as usize) << 8;
+                self.ppu.write_dma(&self.ram[addr..addr+0x100])
+            }
             0x4000 ..= 0x4017 => {
                 println!(" write apu register: {:#02x}", value);
             }
