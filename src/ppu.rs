@@ -33,6 +33,10 @@ pub struct PPU {
     pub nmi : bool,
 
     frame: Vec<u8>,
+
+    frame_sprite_fg: Vec<u8>,
+    frame_sprite_bg: Vec<u8>,
+    frame_bg: Vec<u8>,
 }
 
 impl PPU {
@@ -60,6 +64,9 @@ impl PPU {
             x: 0,
             y: 0,
             frame: [0].repeat(FRAME_SIZE),
+            frame_sprite_bg: [0].repeat(FRAME_SIZE),
+            frame_sprite_fg: [0].repeat(FRAME_SIZE),
+            frame_bg: [0].repeat(FRAME_SIZE),
          }
     }
 
@@ -238,6 +245,70 @@ impl PPU {
         }   
         None
     }
+
+    pub fn init_frame(&mut self) {
+        _ = self.frame_bg.iter_mut().map(|v|*v=0u8);
+        _ = self.frame_sprite_bg.iter_mut().map(|v|*v=0u8);
+        _ = self.frame_sprite_fg.iter_mut().map(|v|*v=0u8);
+    }
+
+
+    pub fn write_frame_bg(&mut self) {
+
+        let attribute_table = &self.name_table[0x3c0..0x3c0 + 64];
+
+        // 属性テーブルは32x32px単位で
+        // https://www.nesdev.org/wiki/PPU_attribute_tables
+        // https://taotao54321.hatenablog.com/entry/2017/04/11/115205
+        for attr_y in 0..8 {
+            for attr_x in 0..8 {
+                let attribute = attribute_table[attr_y * 8 + attr_x];
+                let mut shift_bit = 0;
+
+                // nameテーブルは8x8px単位
+                // https://www.nesdev.org/wiki/PPU_nametables
+                // https://taotao54321.hatenablog.com/entry/2017/04/11/115205
+                let name_y_base = attr_y * 4;
+                let name_x_base = attr_x * 4;
+                for name_y in name_y_base..name_y_base + 4 {
+                    for name_x in name_x_base..name_x_base + 4 {
+                        let palette_index = (attribute as usize >> shift_bit) & 3;
+
+                        let name_index = (name_x + name_y * 32) as usize;
+                        let pattern_index = self.name_table[name_index] as usize;
+
+                        let y_base = name_y * 8;
+                        let x_base = name_x * 8;
+                        for y in y_base..y_base+8 {
+                            for x in x_base..x_base+8 {
+                                let pattern_y = (y % 8) as usize;
+
+                                let pattern0 = self.pattern_table[pattern_index * 16 + pattern_y];
+                                let pattern1 = self.pattern_table[pattern_index * 16 + pattern_y + 8];
+
+                                let pattern_bit = (7 - (x % 8)) as usize;
+                                let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
+
+                                let color = self.palette_ram[palette_index * 4 + palette_num];
+                                let rgb = COLORS[color as usize];
+                
+                                let i = (x + y * WIDTH) * 4;
+                                let pixel = & mut self.frame[i..i+4];
+
+                                pixel[0..3].copy_from_slice(&rgb);
+                                pixel[3] = 0xff;
+
+                            }
+                        }
+
+                        shift_bit += 2;
+                    }
+                }
+
+            }
+        }
+    }
+
 
     pub fn draw(&self, frame: &mut [u8]) {
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
