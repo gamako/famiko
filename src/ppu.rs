@@ -309,6 +309,57 @@ impl PPU {
         }
     }
 
+    pub fn write_sprite(&mut self) {
+        for i in 0..64 {
+            let sprite = &self.sprite_ram[i*4..i*4+4];
+            let y = sprite[0] as usize;
+            let tile = sprite[1] as usize;
+            let attr = sprite[2] as usize;
+            let x = sprite[3] as usize;
+
+            // size : 8x8
+            let pattern_table_base = if self.ppuctrl & 0x08 != 0 { 0x0000usize } else { 0x1000usize };
+            let pattern_base = pattern_table_base + tile * 16;
+            let pattern_table = &self.pattern_table[pattern_base..pattern_base+16];
+            let palette_type = attr & 3;
+            let palette_base = palette_type * 4 + 0x10;
+
+            for y in 0..8usize {
+                for x in 0..8usize {
+                    let pattern0 = pattern_table[y];
+                    let pattern1 = pattern_table[y + 8];
+
+                    let pattern_bit = 7 - x;
+                    let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
+
+                    let color = palette_to_color;
+                    
+
+                }
+            }
+
+
+
+
+
+
+        }
+    }
+
+    fn palette_to_color(palette_ram: &[u8;32], i: usize) -> &'static [u8;4] {
+        if i % 4 == 0 {
+            &'static {0,0,0,0}
+        }
+        let c : usize = match i {
+            0x0 | 0x10 => palette_ram[0],
+            0x4 | 0x14 => palette_ram[4],
+            0x8 | 0x18 => palette_ram[8],
+            0xc | 0x1c => palette_ram[8],
+            i => palette_ram[i],
+        } as usize;
+
+        &COLORS[c]
+    }
 
     pub fn draw(&self, frame: &mut [u8]) {
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
