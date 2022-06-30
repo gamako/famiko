@@ -7,32 +7,6 @@ use std::fmt::Write as FmtWrite;
 static CPU_CLOCK_HZ : u128 = 1789773;
 pub static CPU_CLOCK_UNIT_NSEC : u128 = 1 * 1000 * 1000 * 1000 / CPU_CLOCK_HZ;
 
-#[derive(Debug)]
-pub struct Clock {
-    start: Instant,
-    speed_nsec : u128
-}
-
-impl Clock {
-    pub fn new() -> Self {
-        Clock { start: Instant::now(), speed_nsec: CPU_CLOCK_UNIT_NSEC }
-    }
-
-    pub fn new_with(speed_nsec: u128) -> Self {
-        Clock { start: Instant::now(), speed_nsec }
-    }
-
-    // 次のクロック時間まで待つ
-    pub fn wait(&mut self, n: usize) {
-        let now = Instant::now();
-        let spend = (now - self.start).as_nanos();
-
-        let wait_time = self.speed_nsec - (spend % self.speed_nsec);
-        // println!("wait_time : {} {}", spend / self.speed_nsec , wait_time);
-        sleep(Duration::from_nanos(wait_time as u64));
-    }
-}
-
 pub struct CPU {
     a: u8,
     x: u8,
@@ -42,8 +16,6 @@ pub struct CPU {
     pc: u16,
 
     pub bus : Bus,
-
-    clock: Clock,
 
     cycle : usize
 }
@@ -274,7 +246,7 @@ impl Command {
 
 impl CPU {
     pub fn new(bus : Bus) -> Self {
-        CPU { a: 0, x: 0, y: 0, p: 0x24, s: 0xff, pc: 0, bus: bus, clock: Clock::new(), cycle: 0 }
+        CPU { a: 0, x: 0, y: 0, p: 0x24, s: 0xff, pc: 0, bus: bus, cycle: 0 }
     }
 
     pub fn int_reset(&mut self) -> usize {
@@ -1015,7 +987,6 @@ impl CPU {
     }
 
     fn read_byte(&mut self, addr: u16) -> u8 {
-        self.clock.wait(1);
         self.bus.read(addr)
     }
 
@@ -1050,7 +1021,6 @@ impl CPU {
     }
 
     fn write_byte(&mut self, addr: u16, v: u8) {
-        self.clock.wait(1);
         self.bus.write(addr, v);
     }
 
