@@ -309,13 +309,15 @@ impl PPU {
         }
     }
 
-    pub fn write_sprite(&mut self) {
+    
+
+    pub fn write_sprite(&mut self, out_fg: &mut [u8], out_bg: &mut [u8]) {
         for i in 0..64 {
             let sprite = &self.sprite_ram[i*4..i*4+4];
-            let y = sprite[0] as usize;
+            let sprite_y = sprite[0] as usize;
             let tile = sprite[1] as usize;
             let attr = sprite[2] as usize;
-            let x = sprite[3] as usize;
+            let sprite_x = sprite[3] as usize;
 
             // size : 8x8
             let pattern_table_base = if self.ppuctrl & 0x08 != 0 { 0x0000usize } else { 0x1000usize };
@@ -332,33 +334,19 @@ impl PPU {
                     let pattern_bit = 7 - x;
                     let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
 
-                    let color = palette_to_color;
+                    let color = self.palette_to_color(&self.palette_ram, palette_base + palette_num);
                     
-
+                    out[((sprite_y + y) * WIDTH + sprite_x + x) as usize] = color;
                 }
             }
-
-
-
-
-
-
         }
     }
 
-    fn palette_to_color(palette_ram: &[u8;32], i: usize) -> &'static [u8;4] {
+    fn palette_to_color(&self, palette_ram: &[u8;32], i: usize) -> u8 {
         if i % 4 == 0 {
-            &'static {0,0,0,0}
+            return 0xff
         }
-        let c : usize = match i {
-            0x0 | 0x10 => palette_ram[0],
-            0x4 | 0x14 => palette_ram[4],
-            0x8 | 0x18 => palette_ram[8],
-            0xc | 0x1c => palette_ram[8],
-            i => palette_ram[i],
-        } as usize;
-
-        &COLORS[c]
+        palette_ram[i]
     }
 
     pub fn draw(&self, frame: &mut [u8]) {
