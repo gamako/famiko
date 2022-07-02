@@ -228,18 +228,41 @@ impl PPU {
     
     pub fn step_(&mut self, cycle : usize) -> Option<Box<Vec<u8>>> {
         let mut ret : Option<Box<Vec<u8>>> =  None;
-        if self.x == WIDTH -1 {
-            // lineの最後で描画する
-            if self.y == 0 {
-                self.init_frame();
-                self.write_sprite();
-                self.write_frame_bg();
-                
+        for _ in 0..cycle {
+            if self.x == 340 {
+                // lineの最後で描画する
+                if self.y == 0 {
+                    // 最初にそれぞれのフレームを描く
+                    self.init_frame();
+                    self.write_sprite();
+                    self.write_frame_bg();
+                }
+
+                if self.y < HEIGHT {
+                    // 1ラインずつコピーしていく
+                    self.write_line(self.y);
+                }
             }
 
-
+            self.x += 1;
+            if self.x >= 341 {
+                self.x = 0;
+                self.y += 1;
+                if self.y == 241 {
+                    self.update_vblank(true);
+                    if self.ppuctrl & (1 << 7) != 0 {
+                        self.nmi = true;
+                    }
+                } else if self.y == 261 {
+                    self.update_vblank(false);
+                }
+                if self.y > 262 {
+                    self.y = 0;
+                    ret = Some(Box::new(self.frame.clone()));
+                    self.frame.iter_mut().for_each(|v| *v = 0);
+                }
+            }
         }
-
         ret
     } 
 
@@ -339,17 +362,17 @@ impl PPU {
         }
     }
 
-    pub fn write_line(&self, out: &mut [u8], line: usize, sprite_fg: &[u8], sprite_bg: &[u8], bg: &[u8]) {
+    pub fn write_line(&mut self, line: usize) {
         for x in 0..WIDTH {
             let p = x + line * WIDTH;
-            let out_pixel = &mut out[p*4..p*4+4];
-            let mut c = sprite_fg[p];
+            let mut c = self.frame_sprite_fg[p];
             if c == 0xff {
-                c = bg[p];
+                c = self.frame_bg[p];
             }
             if c == 0xff {
-                c = sprite_bg[p];
+                c = self.frame_sprite_bg[p];
             }
+            let out_pixel = &mut self.frame[p*4..p*4+4];
             if c == 0xff {
                 out_pixel.clone_from_slice(&[0x0, 0x0, 0x0, 0xff]);
             } else {
