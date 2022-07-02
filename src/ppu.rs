@@ -1,5 +1,3 @@
-use std::borrow::BorrowMut;
-
 
 pub const WIDTH: usize = 256;
 pub const HEIGHT: usize = 240;
@@ -227,6 +225,23 @@ impl PPU {
         }
         ret
     }
+    
+    pub fn step_(&mut self, cycle : usize) -> Option<Box<Vec<u8>>> {
+        let mut ret : Option<Box<Vec<u8>>> =  None;
+        if self.x == WIDTH -1 {
+            // lineの最後で描画する
+            if self.y == 0 {
+                self.init_frame();
+                self.write_sprite();
+                self.write_frame_bg();
+                
+            }
+
+
+        }
+
+        ret
+    } 
 
     pub fn init_frame(&mut self) {
         _ = self.frame_bg.iter_mut().map(|v|*v=0u8);
@@ -235,7 +250,6 @@ impl PPU {
     }
 
     pub fn write_frame_bg(&mut self) {
-
         let attribute_table = &self.name_table[0x3c0..0x3c0 + 64];
 
         // 属性テーブルは32x32px単位で
@@ -271,14 +285,10 @@ impl PPU {
                                 let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
 
                                 let color = self.palette_ram[palette_index * 4 + palette_num];
-                                let rgb = COLORS[color as usize];
                 
-                                let i = (x + y * WIDTH) * 4;
-                                let pixel = & mut self.frame[i..i+4];
+                                let i = x + y * WIDTH;
 
-                                pixel[0..3].copy_from_slice(&rgb);
-                                pixel[3] = 0xff;
-
+                                self.frame_bg[i] = color;
                             }
                         }
 
@@ -290,7 +300,7 @@ impl PPU {
         }
     }
 
-    pub fn write_sprite(&mut self, out_fg: &mut [u8], out_bg: &mut [u8]) {
+    pub fn write_sprite(&mut self) {
         for i in 0..64 {
             let sprite = &self.sprite_ram[i*4..i*4+4];
             let sprite_y = sprite[0] as usize;
@@ -308,7 +318,6 @@ impl PPU {
             let palette_type = attr & 3;
             let palette_base = palette_type * 4 + 0x10;
 
-            let out = if is_fg { out_fg.borrow_mut() } else { out_bg.borrow_mut() };
             for y in 0..8usize {
                 for x in 0..8usize {
                     let pattern0 = pattern_table[y];
@@ -317,9 +326,14 @@ impl PPU {
                     let pattern_bit = 7 - x;
                     let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
 
-                    let color = self.palette_to_color(&self.palette_ram, palette_base + palette_num);
+                    let color = self.palette_to_color(palette_base + palette_num);
                     
-                    out[((sprite_y + y) * WIDTH + sprite_x + x) as usize] = color;
+                    if is_fg {
+                         self.frame_sprite_fg[((sprite_y + y) * WIDTH + sprite_x + x) as usize] = color;
+                    } else {
+                         self.frame_sprite_bg[((sprite_y + y) * WIDTH + sprite_x + x) as usize] = color;
+                    };
+
                 }
             }
         }
@@ -347,11 +361,11 @@ impl PPU {
 
 
 
-    fn palette_to_color(&self, palette_ram: &[u8;32], i: usize) -> u8 {
+    fn palette_to_color(&self, i: usize) -> u8 {
         if i % 4 == 0 {
             return 0xff
         }
-        palette_ram[i]
+        self.palette_ram[i]
     }
 
     pub fn draw(&self, frame: &mut [u8]) {
