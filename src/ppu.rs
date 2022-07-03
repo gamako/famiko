@@ -167,7 +167,7 @@ impl PPU {
     }
 
     // 戻り値は描画フレーム
-    pub fn step(&mut self, cycle : usize) -> Option<Box<Vec<u8>>> {
+    pub fn step__(&mut self, cycle : usize) -> Option<Box<Vec<u8>>> {
         let mut ret : Option<Box<Vec<u8>>> =  None;
         for _ in 0..cycle {
             let x = self.x;
@@ -226,7 +226,7 @@ impl PPU {
         ret
     }
     
-    pub fn step_(&mut self, cycle : usize) -> Option<Box<Vec<u8>>> {
+    pub fn step(&mut self, cycle : usize) -> Option<Box<Vec<u8>>> {
         let mut ret : Option<Box<Vec<u8>>> =  None;
         for _ in 0..cycle {
             if self.x == 340 {
@@ -267,9 +267,9 @@ impl PPU {
     } 
 
     pub fn init_frame(&mut self) {
-        _ = self.frame_bg.iter_mut().map(|v|*v=0u8);
-        _ = self.frame_sprite_bg.iter_mut().map(|v|*v=0u8);
-        _ = self.frame_sprite_fg.iter_mut().map(|v|*v=0u8);
+        _ = self.frame_bg.iter_mut().map(|v|*v=0xffu8).count();
+        _ = self.frame_sprite_bg.iter_mut().map(|v|*v=0xffu8).count();
+        _ = self.frame_sprite_fg.iter_mut().map(|v|*v=0xffu8).count();
     }
 
     pub fn write_frame_bg(&mut self) {
@@ -309,9 +309,11 @@ impl PPU {
 
                                 let color = self.palette_ram[palette_index * 4 + palette_num];
                 
-                                let i = x + y * WIDTH;
+                                if x < WIDTH && y < HEIGHT {
+                                    let i = x + y * WIDTH;
 
-                                self.frame_bg[i] = color;
+                                    self.frame_bg[i] = color;
+                                }
                             }
                         }
 
@@ -351,12 +353,16 @@ impl PPU {
 
                     let color = self.palette_to_color(palette_base + palette_num);
                     
-                    if is_fg {
-                         self.frame_sprite_fg[((sprite_y + y) * WIDTH + sprite_x + x) as usize] = color;
-                    } else {
-                         self.frame_sprite_bg[((sprite_y + y) * WIDTH + sprite_x + x) as usize] = color;
-                    };
-
+                    let x_ = sprite_x + x;
+                    let y_ = sprite_y + y;
+                    if x_ < WIDTH && y_ < HEIGHT {
+                        let i = (y_ * WIDTH + x_) as usize;
+                        if is_fg {
+                            self.frame_sprite_fg[i] = color;
+                        } else {
+                            self.frame_sprite_bg[i] = color;
+                        }
+                    }
                 }
             }
         }
@@ -376,7 +382,7 @@ impl PPU {
             if c == 0xff {
                 out_pixel.clone_from_slice(&[0x0, 0x0, 0x0, 0xff]);
             } else {
-                out_pixel.clone_from_slice(&COLORS[c as usize]);
+                out_pixel[0..3].clone_from_slice(&COLORS[c as usize]);
                 out_pixel[3] = 0xff;
             }
         }
