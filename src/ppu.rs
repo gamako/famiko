@@ -166,66 +166,6 @@ impl PPU {
         self.sprite_ram.clone_from_slice(data)
     }
 
-    // 戻り値は描画フレーム
-    pub fn step__(&mut self, cycle : usize) -> Option<Box<Vec<u8>>> {
-        let mut ret : Option<Box<Vec<u8>>> =  None;
-        for _ in 0..cycle {
-            let x = self.x;
-            let y = self.y;
-            if x < WIDTH && y < HEIGHT {
-                let attribute_table = &self.name_table[960..960 + 64];
-                let attribute_table_index = x / 32 + y / 32 * 8;
-                let bit = match (x%32 < 16, y%32 < 16) {
-                    (true,true) => 0,
-                    (false,true) => 2,
-                    (true,false) => 4,
-                    (false,false) => 6,
-                };
-                let palette_index = ((attribute_table[attribute_table_index as usize] >> bit) & 3) as usize;
-    
-                let name_index = (x / 8 + y / 8 * 32) as usize;
-                let pattern_index = self.name_table[name_index] as usize;
-    
-                let pattern_y = (y % 8) as usize;
-    
-                let pattern0 = self.pattern_table[pattern_index * 16 + pattern_y];
-                let pattern1 = self.pattern_table[pattern_index * 16 + pattern_y + 8];
-                let pattern_bit = (7 - (x % 8)) as usize;
-                let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
-    
-                let color = self.palette_ram[palette_index * 4 + palette_num];
-    
-                let rgb = COLORS[color as usize];
-
-                let i = (x + y * WIDTH) * 4;
-                let pixel = & mut self.frame[i..i+4];
-
-                pixel[0..3].copy_from_slice(&rgb);
-                pixel[3] = 0xff;
-            }
-
-            self.x += 1;
-            if self.x >= 341 {
-                self.x = 0;
-                self.y += 1;
-                if self.y == 241 {
-                    self.update_vblank(true);
-                    if self.ppuctrl & (1 << 7) != 0 {
-                        self.nmi = true;
-                    }
-                } else if self.y == 261 {
-                    self.update_vblank(false);
-                }
-                if self.y > 262 {
-                    self.y = 0;
-                    ret = Some(Box::new(self.frame.clone()));
-                    self.frame.iter_mut().for_each(|v| *v = 0);
-                }
-            }
-        }
-        ret
-    }
-    
     pub fn step(&mut self, cycle : usize) -> Option<Box<Vec<u8>>> {
         let mut ret : Option<Box<Vec<u8>>> =  None;
         for _ in 0..cycle {
