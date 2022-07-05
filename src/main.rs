@@ -7,13 +7,13 @@ use std::time::{Instant, Duration};
 use pixels::{Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::WindowBuilder;
+use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
+use winit::window::{WindowBuilder, Window};
 use winit_input_helper::WinitInputHelper;
 
 use famiko::cpu::{CPU, CpuDebugLog, CPU_CLOCK_UNIT_NSEC};
 use famiko::bus::Bus;
-use famiko::ppu::{WIDTH, HEIGHT, FRAME_SIZE};
+use famiko::ppu::{WIDTH, HEIGHT};
 use clap::{arg, Command, Arg, ArgAction};
 use hex;
 
@@ -31,6 +31,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .long("debug")
                 .action(ArgAction::SetTrue)
         )
+        .arg(
+            Arg::new("show-chr-table")
+                .long("show-chr-table")
+                .action(ArgAction::SetTrue)
+        )
+        .arg(
+            Arg::new("show-name-table")
+                .long("show-name-table")
+                .action(ArgAction::SetTrue)
+        )
         .arg(arg!([rom] "rom"))
         .get_matches();
     
@@ -44,6 +54,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let file = matches.get_one::<String>("rom").unwrap();
     let debug = matches.get_one::<bool>("debug").map_or(false, |v| *v);
+    let show_chr_table = matches.get_one::<bool>("show-chr-table").map_or(false, |v| *v);
+    let show_name_table = matches.get_one::<bool>("show-name-table").map_or(false, |v| *v);
 
     let mut file = File::open(file)?;
     let mut rom = Vec::new();
@@ -120,6 +132,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Pixels::new(WIDTH as u32, HEIGHT as u32, surface_texture)?
     };
 
+    // デバッグ用表示
+    let chr_table_window = if show_chr_table {
+        Some(create_window("chr_table".into(), 100f64, 100f64, &event_loop)?)
+    } else {
+        None
+    };
+    let name_table_window = if show_name_table {
+        Some(create_window("name_table".into(), 100f64, 100f64, &event_loop)?)
+    } else {
+        None
+    };
+
     event_loop.run(move |event, _, control_flow| {
 
         match event {
@@ -159,10 +183,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Update internal state and request a redraw
             window.request_redraw();
+            if let Some((w, _)) = &name_table_window { 
+                (*w).request_redraw();
+            }
+            if let Some((w, _)) = &chr_table_window { 
+                (*w).request_redraw();
+            }
         }
     });
 
 
+}
+
+fn create_window<T>(
+    title: String,
+     w: f64,
+     h: f64,
+     target: &EventLoopWindowTarget<T>) -> Result<(Window, Pixels), pixels::Error> where T: 'static, {
+
+    let size = LogicalSize::new(w, h);
+    let w = WindowBuilder::new()
+        .with_title(title)
+        .with_inner_size(size)
+        .with_min_inner_size(size)
+        .build(&target).unwrap();
+    
+    let window_size = w.inner_size();
+    let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &w);
+    let p = Pixels::new(WIDTH as u32, HEIGHT as u32, surface_texture)?;
+
+    Ok((w, p))
 }
 
 #[allow(dead_code)]
