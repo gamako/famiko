@@ -183,16 +183,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Update internal state and request a redraw
             window.request_redraw();
-            if let Some((w, _)) = &name_table_window { 
-                (*w).request_redraw();
-            }
-            if let Some((w, _)) = &chr_table_window { 
-                (*w).request_redraw();
-            }
+            name_table_window.as_ref().map(|(x, _)| { x.request_redraw() });
+            chr_table_window.as_ref().map(|(x, _)| { x.request_redraw() });
         }
     });
-
-
 }
 
 fn create_window<T>(
