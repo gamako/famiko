@@ -123,18 +123,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 画面表示
     let event_loop = EventLoop::new();
-    let event_loop1 = EventLoop::new();
-    let event_loop2 = EventLoop::new();
     let mut input = WinitInputHelper::new();
 
     // デバッグ用表示
     let mut chr_table_window = if show_chr_table {
-        Some(create_window("chr_table".into(), 128, 128, &event_loop1)?)
+        Some(create_window("chr_table".into(), 128, 128, &event_loop)?)
     } else {
         None
     };
     let name_table_window = if show_name_table {
-        Some(create_window("name_table".into(), 100, 100, &event_loop2)?)
+        Some(create_window("name_table".into(), 100, 100, &event_loop)?)
     } else {
         None
     };
@@ -151,8 +149,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             } => {
                 *control_flow = ControlFlow::Exit;
             }
-            Event::RedrawRequested(_) => {
-                pixels.render().unwrap();
+            Event::RedrawRequested(win_id) => {
+                if win_id == window.id() {
+                    pixels.render().unwrap();
+                }
+                if let Some((w, p)) = chr_table_window.borrow_mut() {
+                    if win_id == w.id() {
+                        p.render().unwrap();
+                    }
+                }
             }
             Event::MainEventsCleared => {
                 match render_receiver.try_recv() {
@@ -186,7 +191,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 *control_flow = ControlFlow::Exit;
                 return;
             }
-
+            
             // Resize the window
             if let Some(size) = input.window_resized() {
                 pixels.resize_surface(size.width, size.height);
@@ -195,9 +200,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Update internal state and request a redraw
             window.request_redraw();
             name_table_window.as_ref().map(|(x, _)| { x.request_redraw() });
-            chr_table_window.as_ref().map(|(x, _)| { 
-                x.request_redraw()
-             });
+            chr_table_window.as_ref().map(|(x, _)| { x.request_redraw() });
         }
     });
 }

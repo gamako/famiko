@@ -396,7 +396,6 @@ impl PPU {
                         3 => &COLORS[3],
                         _ => &COLORS[0],
                     };
-                    let c = &[0xff, 0x00, 0x00];
                     frame[base..base+3].clone_from_slice(c);
                     frame[base+3] = 0xff;
                 }
