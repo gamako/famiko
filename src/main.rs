@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use std::fs::File;
 use std::io::Read;
 use std::sync::mpsc;
@@ -79,6 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 画面情報をUIスレッドに転送するチャネル
     let (render_sender, render_receiver) = mpsc::channel::<RenderEvent>();
+    let (render_sender_chr, render_receiver_chr) = mpsc::channel::<RenderEvent>();
 
     thread::spawn(move ||{
 
@@ -106,6 +108,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(f) = frame_ {
                 time = Instant::now();
                 render_sender.send(RenderEvent::Render(*f)).unwrap();
+
+                if show_chr_table {
+                    let mut draw_chr_frame = [0u8].repeat(128*128*4);
+                    cpu.bus.ppu.draw_chr(draw_chr_frame.as_mut_slice());
+                    render_sender_chr.send(RenderEvent::Render(draw_chr_frame)).unwrap();
+                }
             }
             let t = (cycle * (CPU_CLOCK_UNIT_NSEC as usize)) as u64;
             sleep(Duration::from_nanos(t));
@@ -115,34 +123,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 画面表示
     let event_loop = EventLoop::new();
+    let event_loop1 = EventLoop::new();
+    let event_loop2 = EventLoop::new();
     let mut input = WinitInputHelper::new();
-    let window = {
-        let size = LogicalSize::new(WIDTH as f64, HEIGHT as f64);
-        WindowBuilder::new()
-            .with_title("Famiko")
-            .with_inner_size(size)
-            .with_min_inner_size(size)
-            .build(&event_loop)
-            .unwrap()
-    };
-
-    let mut pixels = {
-        let window_size = window.inner_size();
-        let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
-        Pixels::new(WIDTH as u32, HEIGHT as u32, surface_texture)?
-    };
 
     // デバッグ用表示
-    let chr_table_window = if show_chr_table {
-        Some(create_window("chr_table".into(), 100f64, 100f64, &event_loop)?)
+    let mut chr_table_window = if show_chr_table {
+        Some(create_window("chr_table".into(), 128, 128, &event_loop1)?)
     } else {
         None
     };
     let name_table_window = if show_name_table {
-        Some(create_window("name_table".into(), 100f64, 100f64, &event_loop)?)
+        Some(create_window("name_table".into(), 100, 100, &event_loop2)?)
     } else {
         None
     };
+
+    let (window, mut pixels) = create_window("Famiko".into(), WIDTH as u32, HEIGHT as u32, &event_loop).unwrap();
+
 
     event_loop.run(move |event, _, control_flow| {
 
@@ -156,13 +154,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Event::RedrawRequested(_) => {
                 pixels.render().unwrap();
             }
-            Event::MainEventsCleared => match render_receiver.try_recv() {
-                Ok(event) => match event {
-                    RenderEvent::Render(buffer) => {
-                        pixels.get_frame().copy_from_slice(buffer.as_slice());
+            Event::MainEventsCleared => {
+                match render_receiver.try_recv() {
+                    Ok(event) => match event {
+                        RenderEvent::Render(buffer) => {
+                            pixels.get_frame().copy_from_slice(buffer.as_slice());
+                        }
+                    },
+                    _ => {}
+                }
+                if let Some((_, x)) = chr_table_window.borrow_mut() {
+                    match render_receiver_chr.try_recv() {
+                        Ok(event) => match event {
+                            RenderEvent::Render(buffer) => {
+                                let a = x.get_frame();
+                                a.copy_from_slice(buffer.as_slice());
+                            }
+                        },
+                        _ => {}
                     }
-                },
-                _ => {}
+                }
             },
             _ => {}
         }
@@ -184,29 +195,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Update internal state and request a redraw
             window.request_redraw();
             name_table_window.as_ref().map(|(x, _)| { x.request_redraw() });
-            chr_table_window.as_ref().map(|(x, _)| { x.request_redraw() });
+            chr_table_window.as_ref().map(|(x, _)| { 
+                x.request_redraw()
+             });
         }
     });
 }
 
 fn create_window<T>(
     title: String,
-     w: f64,
-     h: f64,
+     w: u32,
+     h: u32,
      target: &EventLoopWindowTarget<T>) -> Result<(Window, Pixels), pixels::Error> where T: 'static, {
 
     let size = LogicalSize::new(w, h);
-    let w = WindowBuilder::new()
+    let win = WindowBuilder::new()
         .with_title(title)
         .with_inner_size(size)
         .with_min_inner_size(size)
         .build(&target).unwrap();
     
-    let window_size = w.inner_size();
-    let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &w);
-    let p = Pixels::new(WIDTH as u32, HEIGHT as u32, surface_texture)?;
+    let window_size = win.inner_size();
+    let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &win);
+    let p = Pixels::new(w, h, surface_texture)?;
 
-    Ok((w, p))
+    Ok((win, p))
 }
 
 #[allow(dead_code)]

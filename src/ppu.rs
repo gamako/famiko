@@ -370,6 +370,42 @@ impl PPU {
             pixel[3] = 0xff;
         }
     }
+
+    // debug
+    pub fn draw_chr(&self, frame: &mut [u8]) {
+        for i in 0..256 {
+            let base = i * 16;
+            let pattern0 = &self.pattern_table[base .. (base + 8)];
+            let pattern1 = &self.pattern_table[(base + 8).. (base + 16)];
+
+            for y_pattern in 0..8 {
+                let line0 = pattern0[y_pattern];
+                let line1 = pattern1[y_pattern];
+
+                for x_pattern in 0..8 {
+                    let pattern_bit = (7 - (x_pattern % 8)) as usize;
+                    let palette_num = ((line0 >> pattern_bit) & 1 | ((line1 >> pattern_bit) & 1) << 1) as usize;
+
+                    let x_base = (i % 16);
+                    let y_base = (i / 16);
+                    
+                    let base = ((y_base * 8 + y_pattern) * 128 + x_base * 8 + x_pattern) * 4;
+                    let c = match palette_num {
+                        1 => &COLORS[1],
+                        2 => &COLORS[2],
+                        3 => &COLORS[3],
+                        _ => &COLORS[0],
+                    };
+                    let c = &[0xff, 0x00, 0x00];
+                    frame[base..base+3].clone_from_slice(c);
+                    frame[base+3] = 0xff;
+                }
+            }
+
+
+
+        }
+    }
 }
 
 static COLORS : [[u8;3];64]= [
