@@ -125,6 +125,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
 
+    let (window, mut pixels) = create_window("Famiko".into(), WIDTH as u32, HEIGHT as u32, &event_loop).unwrap();
+
     // デバッグ用表示
     let mut chr_table_window = if show_chr_table {
         Some(create_window("chr_table".into(), 128, 128, &event_loop)?)
@@ -137,9 +139,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
 
-    let (window, mut pixels) = create_window("Famiko".into(), WIDTH as u32, HEIGHT as u32, &event_loop).unwrap();
-
-
     event_loop.run(move |event, _, control_flow| {
 
         match event {
@@ -148,6 +147,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ..
             } => {
                 *control_flow = ControlFlow::Exit;
+            }
+            Event::WindowEvent { event:  WindowEvent::Resized(size), window_id: win_id  } => {
+                println!("resize {:?} {:?}", win_id, size);
+
+                if win_id == window.id() {
+                    pixels.resize_surface(size.width, size.height);
+                }
+                if let Some((w, p)) = chr_table_window.borrow_mut() {
+                    if win_id == w.id() {
+                        p.resize_surface(size.width, size.height);
+                    }
+                }
             }
             Event::RedrawRequested(win_id) => {
                 if win_id == window.id() {
@@ -192,11 +203,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return;
             }
             
-            // Resize the window
-            if let Some(size) = input.window_resized() {
-                pixels.resize_surface(size.width, size.height);
-            }
-
             // Update internal state and request a redraw
             window.request_redraw();
             name_table_window.as_ref().map(|(x, _)| { x.request_redraw() });
