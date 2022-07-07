@@ -392,8 +392,8 @@ impl PPU {
                     let base = ((y_base * 8 + y_pattern) * 128 + x_base * 8 + x_pattern) * 4;
                     let c = match palette_num {
                         1 => &COLORS[1],
-                        2 => &COLORS[2],
-                        3 => &COLORS[3],
+                        2 => &COLORS[3],
+                        3 => &COLORS[6],
                         _ => &COLORS[0],
                     };
                     frame[base..base+3].clone_from_slice(c);
