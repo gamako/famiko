@@ -140,7 +140,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     event_loop.run(move |event, _, control_flow| {
-
         match event {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
@@ -148,50 +147,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             } => {
                 *control_flow = ControlFlow::Exit;
             }
-            Event::WindowEvent { event:  WindowEvent::Resized(size), window_id: win_id  } => {
-                println!("resize {:?} {:?}", win_id, size);
-
-                if win_id == window.id() {
-                    pixels.resize_surface(size.width, size.height);
-                }
-                if let Some((w, p)) = chr_table_window.borrow_mut() {
-                    if win_id == w.id() {
-                        p.resize_surface(size.width, size.height);
-                    }
-                }
+            Event::WindowEvent { event:  WindowEvent::Resized(size), window_id: win_id } if win_id == window.id() => {
+                pixels.resize_surface(size.width, size.height);
             }
-            Event::RedrawRequested(win_id) => {
-                if win_id == window.id() {
-                    pixels.render().unwrap();
-                }
-                if let Some((w, p)) = chr_table_window.borrow_mut() {
-                    if win_id == w.id() {
-                        p.render().unwrap();
-                    }
-                }
+            Event::RedrawRequested(win_id) if win_id == window.id() => {
+                pixels.render().unwrap();
             }
             Event::MainEventsCleared => {
-                match render_receiver.try_recv() {
-                    Ok(event) => match event {
-                        RenderEvent::Render(buffer) => {
-                            pixels.get_frame().copy_from_slice(buffer.as_slice());
-                        }
-                    },
-                    _ => {}
-                }
-                if let Some((_, x)) = chr_table_window.borrow_mut() {
-                    match render_receiver_chr.try_recv() {
-                        Ok(event) => match event {
-                            RenderEvent::Render(buffer) => {
-                                let a = x.get_frame();
-                                a.copy_from_slice(buffer.as_slice());
-                            }
-                        },
-                        _ => {}
-                    }
+                if let Ok(RenderEvent::Render(buffer)) = render_receiver.try_recv() {
+                    pixels.get_frame().copy_from_slice(buffer.as_slice());
                 }
             },
             _ => {}
+        }
+        if let Some((w, p)) = chr_table_window.borrow_mut() {
+            match event {
+                Event::WindowEvent { event:  WindowEvent::Resized(size), window_id: win_id } if win_id == w.id() => {
+                    p.resize_surface(size.width, size.height);
+                }
+                Event::RedrawRequested(win_id) if win_id == w.id() => {
+                    p.render().unwrap();
+                }
+                Event::MainEventsCleared =>{
+                    if let Ok(RenderEvent::Render(buffer)) = render_receiver_chr.try_recv() {
+                        p.get_frame().copy_from_slice(buffer.as_slice());
+                    }
+                }
+                _ => {}
+            }
         }
         
         // Handle input events
