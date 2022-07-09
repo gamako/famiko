@@ -1157,7 +1157,7 @@ impl CPU {
                 write!(l, "${:04X},Y @ {:04X} = {:02X}", addr, addr1, v).unwrap();
                 (v, AddressingMode::Absolute(addr1), if addr.page() == addr1.page() && !is_store {1} else {2})
             },
-            AddressingMode::Indirect(h, l) => panic!("load indirect"),
+            AddressingMode::Indirect(_h, _l) => panic!("load indirect"),
             AddressingMode::IndirectX(m) => {
                 let addr = m.wrapping_add(self.x);
                 let addr1 = self.read_word_zeropage(addr);
@@ -1234,7 +1234,7 @@ impl CPU {
                 self.write_byte(addr1, v);
                 2
             },
-            AddressingMode::Indirect(h, l) => panic!("store indirect"),
+            AddressingMode::Indirect(_h, _l) => panic!("store indirect"),
             AddressingMode::IndirectX(m) => {
                 let addr = m.wrapping_add(self.x);
                 let addr1 = self.read_word_zeropage(addr);

@@ -350,8 +350,8 @@ impl PPU {
                     let pattern_bit = (7 - (x_pattern % 8)) as usize;
                     let palette_num = ((line0 >> pattern_bit) & 1 | ((line1 >> pattern_bit) & 1) << 1) as usize;
 
-                    let x_base = (i % 16);
-                    let y_base = (i / 16);
+                    let x_base = i % 16;
+                    let y_base = i / 16;
                     
                     let base = ((y_base * 8 + y_pattern) * 128 + x_base * 8 + x_pattern) * 4;
                     let c = match palette_num {
