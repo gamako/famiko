@@ -394,7 +394,8 @@ impl PPU {
                     let name_x_base = attr_x * 4;
                     for name_y in name_y_base..name_y_base + 4 {
                         for name_x in name_x_base..name_x_base + 4 {
-                            let palette_index = (attribute as usize >> shift_bit) & 3;
+                            let shift_bit_ = (shift_bit >> 1) << 1;
+                            let palette_index = (attribute as usize >> shift_bit_) & 3;
     
                             let name_index = base_addr + (name_x + name_y * 32) as usize;
                             let pattern_index = self.name_table[name_index] as usize;
@@ -411,25 +412,27 @@ impl PPU {
                                     let pattern_bit = (7 - (x % 8)) as usize;
                                     let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
     
-                                    let color = self.palette_ram[palette_index * 4 + palette_num];
+                                    let color = self.palette_ram[palette_index * 4 + palette_num] as usize;
                     
-                                    let c = match color {
-                                        1 => &COLORS[1],
-                                        2 => &COLORS[3],
-                                        3 => &COLORS[6],
-                                        _ => &COLORS[0],
+                                    let c = &COLORS[color];
+                                    let (b_x, b_y) = match i {
+                                        1 => (WIDTH,0),
+                                        2 => (0,HEIGHT),
+                                        3 => (WIDTH,HEIGHT),
+                                        _ => (0,0),
                                     };
-                                    let b = (WIDTH * HEIGHT) * i;
-                                    if x < WIDTH && y < HEIGHT {
-                                        let i = b + x + y * WIDTH;
+                                    let x = b_x + x;
+                                    let y = b_y + y;
+                                    if x < WIDTH*2 && y < HEIGHT*2 {
+                                        let j = (x + y * WIDTH * 2) * 4;
     
-                                        frame[i..i+3].clone_from_slice(c);
-                                        frame[0] = 0xff;
+                                        frame[j..j+3].clone_from_slice(c);
+                                        frame[j+3] = 0xff;
                                     }
                                 }
                             }
     
-                            shift_bit += 2;
+                            shift_bit += 1;
                         }
                     }
     

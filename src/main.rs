@@ -117,7 +117,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 if show_name_table {
                     let mut draw_name_frame = [0u8].repeat(256*240*4*4);
-                    cpu.bus.ppu.draw_chr(draw_name_frame.as_mut_slice());
+                    cpu.bus.ppu.draw_name_table(draw_name_frame.as_mut_slice());
                     render_sender_name.send(RenderEvent::Render(draw_name_frame)).unwrap();
                 }
             }
