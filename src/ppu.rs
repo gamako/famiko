@@ -328,47 +328,11 @@ impl PPU {
         }
     }
 
-
-
     fn palette_to_color(&self, i: usize) -> u8 {
         if i % 4 == 0 {
             return 0xff
         }
         self.palette_ram[i]
-    }
-
-    pub fn draw(&self, frame: &mut [u8]) {
-        for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let x = (i % WIDTH) as i16;
-            let y = (i / WIDTH) as i16;
-            
-            let attribute_table = &self.name_table[960..960 + 64];
-            let attribute_table_index = x / 32 + y / 32 * 8;
-            let bit = match (x%32 < 16, y%32 < 16) {
-                (true,true) => 0,
-                (false,true) => 2,
-                (true,false) => 4,
-                (false,false) => 6,
-            };
-            let palette_index = ((attribute_table[attribute_table_index as usize] >> bit) & 3) as usize;
-
-            let name_index = (x / 8 + y / 8 * 32) as usize;
-            let pattern_index = self.name_table[name_index] as usize;
-
-            let pattern_y = (y % 8) as usize;
-
-            let pattern0 = self.pattern_table[pattern_index * 16 + pattern_y];
-            let pattern1 = self.pattern_table[pattern_index * 16 + pattern_y + 8];
-            let pattern_bit = (7 - (x % 8)) as usize;
-            let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
-
-            let color = self.palette_ram[palette_index * 4 + palette_num];
-
-            let rgb = COLORS[color as usize];
-
-            pixel[0..3].copy_from_slice(&rgb);
-            pixel[3] = 0xff;
-        }
     }
 
     // debug
@@ -400,10 +364,79 @@ impl PPU {
                     frame[base+3] = 0xff;
                 }
             }
-
-
-
         }
+    }
+
+    // debug
+    pub fn draw_name_table(&self, frame: &mut [u8]) {
+        for i in 0..4 {
+            let base_addr = match i {
+                1 => 0x400,
+                2 => 0x800,
+                3 => 0xC00,
+                _ => 0,
+            };
+
+            let attribute_table = &self.name_table[base_addr + 0x3c0..base_addr + 0x3c0 + 64];
+
+            // 属性テーブルは32x32px単位で
+            // https://www.nesdev.org/wiki/PPU_attribute_tables
+            // https://taotao54321.hatenablog.com/entry/2017/04/11/115205
+            for attr_y in 0..8 {
+                for attr_x in 0..8 {
+                    let attribute = attribute_table[attr_y * 8 + attr_x];
+                    let mut shift_bit = 0;
+    
+                    // nameテーブルは8x8px単位
+                    // https://www.nesdev.org/wiki/PPU_nametables
+                    // https://taotao54321.hatenablog.com/entry/2017/04/11/115205
+                    let name_y_base = attr_y * 4;
+                    let name_x_base = attr_x * 4;
+                    for name_y in name_y_base..name_y_base + 4 {
+                        for name_x in name_x_base..name_x_base + 4 {
+                            let palette_index = (attribute as usize >> shift_bit) & 3;
+    
+                            let name_index = base_addr + (name_x + name_y * 32) as usize;
+                            let pattern_index = self.name_table[name_index] as usize;
+    
+                            let y_base = name_y * 8;
+                            let x_base = name_x * 8;
+                            for y in y_base..y_base+8 {
+                                for x in x_base..x_base+8 {
+                                    let pattern_y = (y % 8) as usize;
+    
+                                    let pattern0 = self.pattern_table[pattern_index * 16 + pattern_y];
+                                    let pattern1 = self.pattern_table[pattern_index * 16 + pattern_y + 8];
+    
+                                    let pattern_bit = (7 - (x % 8)) as usize;
+                                    let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
+    
+                                    let color = self.palette_ram[palette_index * 4 + palette_num];
+                    
+                                    let c = match color {
+                                        1 => &COLORS[1],
+                                        2 => &COLORS[3],
+                                        3 => &COLORS[6],
+                                        _ => &COLORS[0],
+                                    };
+                                    let b = (WIDTH * HEIGHT) * i;
+                                    if x < WIDTH && y < HEIGHT {
+                                        let i = b + x + y * WIDTH;
+    
+                                        frame[i..i+3].clone_from_slice(c);
+                                        frame[0] = 0xff;
+                                    }
+                                }
+                            }
+    
+                            shift_bit += 2;
+                        }
+                    }
+    
+                }
+            }
+        }
+
     }
 }
 
