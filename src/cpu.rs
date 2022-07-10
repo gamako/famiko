@@ -783,7 +783,7 @@ impl CPU {
             }
             Command::CPX(a) => {
                 let (m, _, cycle) = self.load(a, &mut l);
-                let (v, b) = self.x.overflowing_sub(m);
+                let (v, _b) = self.x.overflowing_sub(m);
                 self.update_status_carry(self.x >= m);
                 self.update_status_zero(v);
                 self.update_status_negative(v);
