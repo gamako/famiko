@@ -75,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // println!("{:?}", prg_rom.hex_dump());
     // println!("{:?}", chr_rom.hex_dump());
 
-    let bus = Bus::new(prg_rom, chr_rom);
+    let bus = Bus::new(prg_rom, chr_rom, h.flag6 & 1 == 0);
     let mut cpu = CPU::new(bus);
 
     // 画面情報をUIスレッドに転送するチャネル
@@ -117,7 +117,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 if show_name_table {
                     let mut draw_name_frame = [0u8].repeat(256*240*4*4);
-                    cpu.bus.ppu.draw_name_table(draw_name_frame.as_mut_slice());
+                    cpu.bus.ppu.draw_name_table(draw_name_frame.as_mut_slice(), );
                     render_sender_name.send(RenderEvent::Render(draw_name_frame)).unwrap();
                 }
             }

@@ -9,10 +9,10 @@ pub struct Bus {
 
 impl Bus {
 
-    pub fn new(prg: Vec<u8>, chr: Vec<u8>) -> Self {
+    pub fn new(prg: Vec<u8>, chr: Vec<u8>, is_mirror_horizontal: bool) -> Self {
         Bus { 
             prg: prg,
-            ppu: PPU::new(chr),
+            ppu: PPU::new(chr, is_mirror_horizontal),
             ram: [0,0,0,0,0xff,0xff,0xff,0xff].repeat(0x100),
         }
     }

@@ -17,6 +17,7 @@ pub struct PPU {
     pub ppudata : u8,
     pub oamdma: u8,
 
+    is_mirror_horizontal: bool,
     addr: u16,
     sprite_addr : u8,
     scroll_x : u8,
@@ -40,7 +41,7 @@ pub struct PPU {
 }
 
 impl PPU {
-    pub fn new(chr: Vec<u8>) -> Self {
+    pub fn new(chr: Vec<u8>, is_mirror_horizontal: bool) -> Self {
         PPU { 
             ppuctrl: 0,
             ppumask: 0,
@@ -51,6 +52,7 @@ impl PPU {
             ppuaddr: 0,
             ppudata: 0,
             oamdma: 0,
+            is_mirror_horizontal,
             addr: 0,
             sprite_addr: 0,
             scroll_x: 0,
@@ -114,6 +116,10 @@ impl PPU {
         match self.addr {
             0x2000 ..= 0x2fff => {
                 let a = self.addr as usize - 0x2000;
+                let a = match self.is_mirror_horizontal {
+                    true => a & !0x400,
+                    false => a & !0x800,
+                };
                 let v = self.name_table[a];
                 println!(" read nametable: {:04x} {:02X}", a, v);
                 v
@@ -143,6 +149,10 @@ impl PPU {
         match self.addr {
             0x2000 ..= 0x2fff => {
                 let a = self.addr as usize - 0x2000;
+                let a = match self.is_mirror_horizontal {
+                    true => a & !0x400,
+                    false => a & !0x800,
+                };
                 let v0 = self.name_table[a];
                 println!(" write nametable: {:04x} {:02X} {:02X}", a, v0, v);
                 self.name_table[a] = v;
@@ -366,17 +376,17 @@ impl PPU {
             }
         }
     }
-
     // debug
     pub fn draw_name_table(&self, frame: &mut [u8]) {
-        for i in 0..4 {
-            let base_addr = match i {
-                1 => 0x400,
-                2 => 0x800,
-                3 => 0xC00,
-                _ => 0,
-            };
+        
 
+        for i in 0..4 {
+
+            let base_addr = i * 0x400;
+            let base_addr = match self.is_mirror_horizontal {
+                true => base_addr & !0x400,
+                false => base_addr & !0x800,
+            };
             let attribute_table = &self.name_table[base_addr + 0x3c0..base_addr + 0x3c0 + 64];
 
             // 属性テーブルは32x32px単位で
@@ -415,20 +425,46 @@ impl PPU {
                                     let color = self.palette_ram[palette_index * 4 + palette_num] as usize;
                     
                                     let c = &COLORS[color];
-                                    let (b_x, b_y) = match i {
-                                        1 => (WIDTH,0),
-                                        2 => (0,HEIGHT),
-                                        3 => (WIDTH,HEIGHT),
-                                        _ => (0,0),
-                                    };
-                                    let x = b_x + x;
-                                    let y = b_y + y;
-                                    if x < WIDTH*2 && y < HEIGHT*2 {
-                                        let j = (x + y * WIDTH * 2) * 4;
+
+                                    let x_ = if i % 2 == 1 { x + WIDTH } else { x };
+                                    let y_ = if i / 2 == 1 { y + HEIGHT } else { x };
+
+                                    if x_ < WIDTH*2 && y_ < HEIGHT*2 {
+                                        let j = (x_ + y_ * WIDTH * 2) * 4;
     
                                         frame[j..j+3].clone_from_slice(c);
                                         frame[j+3] = 0xff;
                                     }
+
+                                    // fn set_pixel(x : usize, y : usize, c: &[u8], frame: &mut [u8]) {
+                                    //     if x < WIDTH*2 && y < HEIGHT*2 {
+                                    //         let j = (x + y * WIDTH * 2) * 4;
+        
+                                    //         frame[j..j+3].clone_from_slice(c);
+                                    //         frame[j+3] = 0xff;
+                                    //     }
+                                    // }
+                                    // match (i, self.is_mirror_horizontal) {
+                                    //     (0, true) => {
+                                    //         set_pixel(x, y, c, frame);
+                                    //         // set_pixel(x + WIDTH, y, c, frame);
+                                    //     }
+                                    //     (1, true) => {
+                                    //         // set_pixel(x, y + HEIGHT, c, frame);
+                                    //         // set_pixel(x + WIDTH, y + HEIGHT, c, frame);
+                                    //     }
+                                    //     (0, false) => {
+                                    //         set_pixel(x, y, c, frame);
+                                    //         set_pixel(x, y + HEIGHT, c, frame);
+                                    //     }
+                                    //     (1, false) => {
+                                    //         set_pixel(x + WIDTH, y,c,  frame);
+                                    //         set_pixel(x + WIDTH, y + HEIGHT, c, frame);
+                                    //     }
+                                    //     _ => {
+                                    //         panic!("unknown");
+                                    //     }
+                                    // }
                                 }
                             }
     
