@@ -19,7 +19,11 @@
                     "kind": "bin"
                 }
             },
-            "args": ["./rom/hw.nes"],
+            "args": [
+                "--show-chr-table",
+                "--show-name-table",
+                "./rom/hw.nes"
+            ],
             "cwd": "${workspaceFolder}"
         },
         {
@@ -56,6 +60,28 @@
                 }
             },
             "args": ["./rom/palette.nes"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "tutor",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=famiko",
+                    "--package=famiko"
+                ],
+                "filter": {
+                    "name": "famiko",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "--debug",
+                "--show-chr-table",
+                "--show-name-table",
+                "./rom/tutor/tutor.nes"],
             "cwd": "${workspaceFolder}"
         }
     ]
