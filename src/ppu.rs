@@ -427,7 +427,7 @@ impl PPU {
                                     let c = &COLORS[color];
 
                                     let x_ = if i % 2 == 1 { x + WIDTH } else { x };
-                                    let y_ = if i / 2 == 1 { y + HEIGHT } else { x };
+                                    let y_ = if i / 2 == 1 { y + HEIGHT } else { y };
 
                                     if x_ < WIDTH*2 && y_ < HEIGHT*2 {
                                         let j = (x_ + y_ * WIDTH * 2) * 4;
@@ -436,35 +436,6 @@ impl PPU {
                                         frame[j+3] = 0xff;
                                     }
 
-                                    // fn set_pixel(x : usize, y : usize, c: &[u8], frame: &mut [u8]) {
-                                    //     if x < WIDTH*2 && y < HEIGHT*2 {
-                                    //         let j = (x + y * WIDTH * 2) * 4;
-        
-                                    //         frame[j..j+3].clone_from_slice(c);
-                                    //         frame[j+3] = 0xff;
-                                    //     }
-                                    // }
-                                    // match (i, self.is_mirror_horizontal) {
-                                    //     (0, true) => {
-                                    //         set_pixel(x, y, c, frame);
-                                    //         // set_pixel(x + WIDTH, y, c, frame);
-                                    //     }
-                                    //     (1, true) => {
-                                    //         // set_pixel(x, y + HEIGHT, c, frame);
-                                    //         // set_pixel(x + WIDTH, y + HEIGHT, c, frame);
-                                    //     }
-                                    //     (0, false) => {
-                                    //         set_pixel(x, y, c, frame);
-                                    //         set_pixel(x, y + HEIGHT, c, frame);
-                                    //     }
-                                    //     (1, false) => {
-                                    //         set_pixel(x + WIDTH, y,c,  frame);
-                                    //         set_pixel(x + WIDTH, y + HEIGHT, c, frame);
-                                    //     }
-                                    //     _ => {
-                                    //         panic!("unknown");
-                                    //     }
-                                    // }
                                 }
                             }
     
