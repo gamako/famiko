@@ -94,8 +94,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         cpu.bus.ppu.step(7*3);
 
-        let mut time = Instant::now();
-
         loop {
             let mut log = CpuDebugLog::new();
             log.ppu_line = cpu.bus.ppu.y_();
@@ -107,7 +105,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let frame_ = cpu.bus.ppu.step(cycle*3);
 
             if let Some(f) = frame_ {
-                time = Instant::now();
+
                 render_sender.send(RenderEvent::Render(*f)).unwrap();
 
                 if show_chr_table {
