@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::Read;
 use std::sync::mpsc;
 use std::thread::{self, sleep};
-use std::time::{Instant, Duration};
+use std::time::Duration;
 
 use pixels::{Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
