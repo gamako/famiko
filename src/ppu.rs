@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 
 pub const WIDTH: usize = 256;
 pub const HEIGHT: usize = 240;
@@ -377,8 +379,8 @@ impl PPU {
         }
     }
     // debug
-    pub fn draw_name_table(&self, frame: &mut [u8]) {
-        
+    pub fn draw_name_table(&self, frame_: &RefCell<Vec<u8>>) {
+        let mut frame = frame_.borrow_mut();
 
         for i in 0..4 {
 

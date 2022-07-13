@@ -1,4 +1,5 @@
 use std::borrow::BorrowMut;
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::Read;
 use std::sync::mpsc;
@@ -21,6 +22,10 @@ use hex;
 #[derive(Debug)]
 enum RenderEvent {
     Render(Vec<u8>),
+}
+
+enum RenderEvent2 {
+    Render(RefCell<Vec<u8>>),
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -81,7 +86,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 画面情報をUIスレッドに転送するチャネル
     let (render_sender, render_receiver) = mpsc::channel::<RenderEvent>();
     let (render_sender_chr, render_receiver_chr) = mpsc::channel::<RenderEvent>();
-    let (render_sender_name, render_receiver_name) = mpsc::channel::<RenderEvent>();
+    let (render_sender_name, render_receiver_name) = mpsc::channel::<RenderEvent2>();
 
     thread::spawn(move ||{
 
@@ -114,9 +119,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     render_sender_chr.send(RenderEvent::Render(draw_chr_frame)).unwrap();
                 }
                 if show_name_table {
-                    let mut draw_name_frame = [0u8].repeat(256*240*4*4);
-                    cpu.bus.ppu.draw_name_table(draw_name_frame.as_mut_slice(), );
-                    render_sender_name.send(RenderEvent::Render(draw_name_frame)).unwrap();
+                    let draw_name_frame = RefCell::new(vec![0u8;256*240*4*4]);
+                    cpu.bus.ppu.draw_name_table(&draw_name_frame);
+                    render_sender_name.send(RenderEvent2::Render(draw_name_frame)).unwrap();
                 }
             }
             let t = (cycle * (CPU_CLOCK_UNIT_NSEC as usize)) as u64;
@@ -189,8 +194,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     p.render().unwrap();
                 }
                 Event::MainEventsCleared =>{
-                    if let Ok(RenderEvent::Render(buffer)) = render_receiver_name.try_recv() {
-                        p.get_frame().copy_from_slice(buffer.as_slice());
+                    if let Ok(RenderEvent2::Render(buffer)) = render_receiver_name.try_recv() {
+                        p.get_frame().copy_from_slice(buffer.borrow().as_slice());
                     }
                 }
                 _ => {}
