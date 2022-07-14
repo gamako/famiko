@@ -280,7 +280,7 @@ impl PPU {
             let p = x + line * WIDTH;
             let mut c = self.frame_sprite_fg[p];
             if c == 0xff {
-                let p2 = x + line * WIDTH * 2;
+                let p2 = (x + self.scroll_x as usize) + (line + self.scroll_y as usize) * WIDTH * 2;
                 c = self.frame_bg.borrow()[p2];
             }
             if c == 0xff {
