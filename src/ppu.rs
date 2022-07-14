@@ -378,10 +378,23 @@ impl PPU {
             }
         }
     }
-    // debug
+
     pub fn draw_name_table(&self, frame_: &RefCell<Vec<u8>>) {
         let mut frame = frame_.borrow_mut();
+        self.draw_name_table_(|x,y,c| {
+                    
+            let color = &COLORS[c];
 
+            let i = (x + y * WIDTH * 2) * 4;
+    
+            frame[i..i+3].clone_from_slice(color);
+            frame[i+3] = 0xff;
+
+        });
+    }
+
+    // debug
+    pub fn draw_name_table_<F>(&self, mut f: F) where F : FnMut(usize, usize, usize) {
         for i in 0..4 {
 
             let base_addr = i * 0x400;
@@ -426,16 +439,11 @@ impl PPU {
     
                                     let color = self.palette_ram[palette_index * 4 + palette_num] as usize;
                     
-                                    let c = &COLORS[color];
-
                                     let x_ = if i % 2 == 1 { x + WIDTH } else { x };
                                     let y_ = if i / 2 == 1 { y + HEIGHT } else { y };
 
                                     if x_ < WIDTH*2 && y_ < HEIGHT*2 {
-                                        let j = (x_ + y_ * WIDTH * 2) * 4;
-    
-                                        frame[j..j+3].clone_from_slice(c);
-                                        frame[j+3] = 0xff;
+                                        f(x_, y_, color);
                                     }
 
                                 }
