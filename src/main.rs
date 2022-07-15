@@ -22,10 +22,8 @@ use hex;
 #[derive(Debug)]
 enum RenderEvent {
     Render(Vec<u8>),
-}
-
-enum RenderEvent2 {
-    Render(RefCell<Vec<u8>>),
+    ChrTableRender(Vec<u8>),
+    NameTableRender(RefCell<Vec<u8>>),
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -85,8 +83,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 画面情報をUIスレッドに転送するチャネル
     let (render_sender, render_receiver) = mpsc::channel::<RenderEvent>();
-    let (render_sender_chr, render_receiver_chr) = mpsc::channel::<RenderEvent>();
-    let (render_sender_name, render_receiver_name) = mpsc::channel::<RenderEvent2>();
 
     thread::spawn(move ||{
 
@@ -116,12 +112,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if show_chr_table {
                     let mut draw_chr_frame = [0u8].repeat(128*128*4);
                     cpu.bus.ppu.draw_chr(draw_chr_frame.as_mut_slice());
-                    render_sender_chr.send(RenderEvent::Render(draw_chr_frame)).unwrap();
+                    render_sender.send(RenderEvent::ChrTableRender(draw_chr_frame)).unwrap();
                 }
                 if show_name_table {
                     let draw_name_frame = RefCell::new(vec![0u8;256*240*4*4]);
                     cpu.bus.ppu.draw_name_table(&draw_name_frame);
-                    render_sender_name.send(RenderEvent2::Render(draw_name_frame)).unwrap();
+                    render_sender.send(RenderEvent::NameTableRender(draw_name_frame)).unwrap();
                 }
             }
             let t = (cycle * (CPU_CLOCK_UNIT_NSEC as usize)) as u64;
@@ -159,47 +155,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Event::WindowEvent { event:  WindowEvent::Resized(size), window_id: win_id } if win_id == window.id() => {
                 pixels.resize_surface(size.width, size.height);
             }
+            Event::WindowEvent { event:  WindowEvent::Resized(size), window_id: win_id } => {
+                if let Some((w, p)) = chr_table_window.borrow_mut() {
+                    if w.id() == win_id {
+                        p.resize_surface(size.width, size.height);
+                    }
+                }
+                if let Some((w, p)) = name_table_window.borrow_mut() {
+                    if w.id() == win_id {
+                        p.resize_surface(size.width, size.height);
+                    }
+                }
+            }
             Event::RedrawRequested(win_id) if win_id == window.id() => {
                 pixels.render().unwrap();
             }
+            Event::RedrawRequested(win_id) => {
+                if let Some((w, p)) = chr_table_window.borrow_mut() {
+                    if w.id() == win_id {
+                        p.render().unwrap();
+                    }
+                }
+                if let Some((w, p)) = name_table_window.borrow_mut() {
+                    if w.id() == win_id {
+                        p.render().unwrap();
+                    }
+                }
+            }
             Event::MainEventsCleared => {
-                if let Ok(RenderEvent::Render(buffer)) = render_receiver.try_recv() {
-                    pixels.get_frame().copy_from_slice(buffer.as_slice());
+                match render_receiver.try_recv() {
+                    Ok(RenderEvent::Render(buffer)) => pixels.get_frame().copy_from_slice(buffer.as_slice()),
+                    Ok(RenderEvent::ChrTableRender(buffer)) => {
+                        if let Some((_, p)) = chr_table_window.borrow_mut() {
+                            p.get_frame().copy_from_slice(buffer.as_slice());
+                        }
+                    }
+                    Ok(RenderEvent::NameTableRender(buffer)) => {
+                        if let Some((_, p)) = name_table_window.borrow_mut() {
+                            p.get_frame().copy_from_slice(buffer.borrow().as_slice());
+                        }
+                    }
+                    _ => {}
                 }
             },
             _ => {}
-        }
-        if let Some((w, p)) = chr_table_window.borrow_mut() {
-            match event {
-                Event::WindowEvent { event:  WindowEvent::Resized(size), window_id: win_id } if win_id == w.id() => {
-                    p.resize_surface(size.width, size.height);
-                }
-                Event::RedrawRequested(win_id) if win_id == w.id() => {
-                    p.render().unwrap();
-                }
-                Event::MainEventsCleared =>{
-                    if let Ok(RenderEvent::Render(buffer)) = render_receiver_chr.try_recv() {
-                        p.get_frame().copy_from_slice(buffer.as_slice());
-                    }
-                }
-                _ => {}
-            }
-        }
-        if let Some((w, p)) = name_table_window.borrow_mut() {
-            match event {
-                Event::WindowEvent { event:  WindowEvent::Resized(size), window_id: win_id } if win_id == w.id() => {
-                    p.resize_surface(size.width, size.height);
-                }
-                Event::RedrawRequested(win_id) if win_id == w.id() => {
-                    p.render().unwrap();
-                }
-                Event::MainEventsCleared =>{
-                    if let Ok(RenderEvent2::Render(buffer)) = render_receiver_name.try_recv() {
-                        p.get_frame().copy_from_slice(buffer.borrow().as_slice());
-                    }
-                }
-                _ => {}
-            }
         }
 
         // Handle input events
