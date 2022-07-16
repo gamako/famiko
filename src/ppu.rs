@@ -384,12 +384,13 @@ impl PPU {
                             let y_base = name_y * 8;
                             let x_base = name_x * 8;
                             for y in y_base..y_base+8 {
+                                let pattern_y = (y % 8) as usize;
+    
+                                let pattern0 = self.pattern_table[pattern_index * 16 + pattern_y];
+                                let pattern1 = self.pattern_table[pattern_index * 16 + pattern_y + 8];
+
                                 for x in x_base..x_base+8 {
-                                    let pattern_y = (y % 8) as usize;
-    
-                                    let pattern0 = self.pattern_table[pattern_index * 16 + pattern_y];
-                                    let pattern1 = self.pattern_table[pattern_index * 16 + pattern_y + 8];
-    
+
                                     let pattern_bit = (7 - (x % 8)) as usize;
                                     let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
     
