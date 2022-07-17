@@ -45,6 +45,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .long("show-name-table")
                 .action(ArgAction::SetTrue)
         )
+        .arg(
+            Arg::new("fps")
+                .long("fps")
+                .action(ArgAction::SetTrue)
+        )
         .arg(arg!([rom] "rom"))
         .get_matches();
     
@@ -60,6 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let debug = matches.get_one::<bool>("debug").map_or(false, |v| *v);
     let show_chr_table = matches.get_one::<bool>("show-chr-table").map_or(false, |v| *v);
     let show_name_table = matches.get_one::<bool>("show-name-table").map_or(false, |v| *v);
+    let is_show_fps = matches.get_one::<bool>("fps").map_or(false, |v| *v);
 
     let mut file = File::open(file)?;
     let mut rom = Vec::new();
@@ -127,8 +133,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if one_frame_nsec > u1 {
                     sleep(Duration::from_nanos((one_frame_nsec - u1) as u64));
                 }
-                let u2 = u.elapsed().as_micros();
-                println!("draw : {}nsec fps:{}", u2, 1_000_000_000 / u2);
+                let u2 = u.elapsed().as_nanos();
+                if is_show_fps {
+                    println!("draw : {}msec fps:{}", u2/1000_000, 1_000_000_000 / u2);
+                }
                 
                 u = Instant::now();
 
