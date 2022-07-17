@@ -4,8 +4,8 @@ use crate::hex::dump_bytes;
 use std::string::ToString;
 use std::fmt::Write as FmtWrite;
 
-static CPU_CLOCK_HZ : u128 = 1789773;
-pub static CPU_CLOCK_UNIT_NSEC : u128 = 1 * 1000 * 1000 * 1000 / CPU_CLOCK_HZ;
+static CPU_CLOCK_HZ : u128 = 1_789_773; // 1.789773 MHz
+pub static CPU_CLOCK_UNIT_NSEC : u128 = 1_000_000_000 / CPU_CLOCK_HZ;
 
 pub struct CPU {
     a: u8,

@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::Read;
 use std::sync::mpsc;
 use std::thread::{self, sleep};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use pixels::{Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
@@ -95,7 +95,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         cpu.bus.ppu.step(7*3);
 
+        let mut u = Instant::now();
         loop {
+            let t0 = Instant::now();
             let mut log = CpuDebugLog::new();
             log.ppu_line = cpu.bus.ppu.y_();
             log.ppu_x = cpu.bus.ppu.x_();
@@ -119,9 +121,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     cpu.bus.ppu.draw_name_table(&draw_name_frame);
                     render_sender.send(RenderEvent::NameTableRender(draw_name_frame)).unwrap();
                 }
+                let u1 = u.elapsed().as_nanos();
+                let one_frame_nsec = 1_000_000_000 / 60u128; 
+                
+                if one_frame_nsec > u1 {
+                    sleep(Duration::from_nanos((one_frame_nsec - u1) as u64));
+                }
+                let u2 = u.elapsed().as_micros();
+                println!("draw : {}nsec fps:{}", u2, 1_000_000_000 / u2);
+                
+                u = Instant::now();
+
+
             }
-            let t = (cycle * (CPU_CLOCK_UNIT_NSEC as usize)) as u64;
-            sleep(Duration::from_nanos(t));
         };
     });
 
