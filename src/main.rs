@@ -15,7 +15,7 @@ use winit_input_helper::WinitInputHelper;
 
 use famiko::cpu::{CPU, CpuDebugLog, CPU_CLOCK_UNIT_NSEC};
 use famiko::bus::Bus;
-use famiko::ppu::{WIDTH, HEIGHT};
+use famiko::ppu::{WIDTH, HEIGHT, CHR_DEBUG_FRAME_SIZE, CHR_DEBUG_WIDTH, CHR_DEBUG_HEIGT};
 use clap::{arg, Command, Arg, ArgAction};
 use hex;
 
@@ -118,7 +118,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 render_sender.send(RenderEvent::Render(*f)).unwrap();
 
                 if show_chr_table {
-                    let mut draw_chr_frame = [0u8].repeat(128*128*4);
+                    let mut draw_chr_frame = [0u8].repeat(CHR_DEBUG_FRAME_SIZE*4);
                     cpu.bus.ppu.draw_chr(draw_chr_frame.as_mut_slice());
                     render_sender.send(RenderEvent::ChrTableRender(draw_chr_frame)).unwrap();
                 }
@@ -154,7 +154,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // デバッグ用表示
     let mut chr_table_window = if show_chr_table {
-        Some(create_window("chr_table".into(), 128, 128, &event_loop)?)
+        Some(create_window("chr_table".into(), CHR_DEBUG_WIDTH as u32, CHR_DEBUG_HEIGT as u32, &event_loop)?)
     } else {
         None
     };

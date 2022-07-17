@@ -5,6 +5,10 @@ pub const WIDTH: usize = 256;
 pub const HEIGHT: usize = 240;
 pub const FRAME_SIZE : usize = WIDTH * HEIGHT * 4;
 
+pub const CHR_DEBUG_WIDTH : usize = 16 * 8 * 2;
+pub const CHR_DEBUG_HEIGT : usize = 16 * 8;
+pub const CHR_DEBUG_FRAME_SIZE : usize = CHR_DEBUG_HEIGT * CHR_DEBUG_WIDTH;
+
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct PPU {
@@ -244,7 +248,7 @@ impl PPU {
             let is_fg = attr & (1 << 5) != 0;
 
             // size : 8x8
-            let pattern_table_base = if self.ppuctrl & 0x08 != 0 { 0x0000usize } else { 0x1000usize };
+            let pattern_table_base = if self.ppuctrl & 0x08 != 0 { 0x1000usize } else { 0x0000usize };
             let pattern_base = pattern_table_base + tile * 16;
             let pattern_table = &self.pattern_table[pattern_base..pattern_base+16];
             let palette_type = attr & 3;
@@ -305,34 +309,39 @@ impl PPU {
 
     // debug
     pub fn draw_chr(&self, frame: &mut [u8]) {
-        for i in 0..256 {
-            let base = i * 16;
-            let pattern0 = &self.pattern_table[base .. (base + 8)];
-            let pattern1 = &self.pattern_table[(base + 8).. (base + 16)];
 
-            for y_pattern in 0..8 {
-                let line0 = pattern0[y_pattern];
-                let line1 = pattern1[y_pattern];
-
-                for x_pattern in 0..8 {
-                    let pattern_bit = (7 - (x_pattern % 8)) as usize;
-                    let palette_num = ((line0 >> pattern_bit) & 1 | ((line1 >> pattern_bit) & 1) << 1) as usize;
-
-                    let x_base = i % 16;
-                    let y_base = i / 16;
-                    
-                    let base = ((y_base * 8 + y_pattern) * 128 + x_base * 8 + x_pattern) * 4;
-                    let c = match palette_num {
-                        1 => &COLORS[1],
-                        2 => &COLORS[3],
-                        3 => &COLORS[6],
-                        _ => &COLORS[0],
-                    };
-                    frame[base..base+3].clone_from_slice(c);
-                    frame[base+3] = 0xff;
+        for j in 0..2usize {
+            let chr_base = j * 0x1000;
+            for i in 0..256 {
+                let base = i * 16 + chr_base;
+                let pattern0 = &self.pattern_table[base .. (base + 8)];
+                let pattern1 = &self.pattern_table[(base + 8).. (base + 16)];
+    
+                for y_pattern in 0..8 {
+                    let line0 = pattern0[y_pattern];
+                    let line1 = pattern1[y_pattern];
+    
+                    for x_pattern in 0..8 {
+                        let pattern_bit = (7 - (x_pattern % 8)) as usize;
+                        let palette_num = ((line0 >> pattern_bit) & 1 | ((line1 >> pattern_bit) & 1) << 1) as usize;
+    
+                        let x_base = i % 16 + j * 16;
+                        let y_base = i / 16;
+                        
+                        let base = ((y_base * 8 + y_pattern) * CHR_DEBUG_WIDTH + x_base * 8 + x_pattern) * 4;
+                        let c = match palette_num {
+                            1 => &COLORS[1],
+                            2 => &COLORS[3],
+                            3 => &COLORS[6],
+                            _ => &COLORS[0],
+                        };
+                        frame[base..base+3].clone_from_slice(c);
+                        frame[base+3] = 0xff;
+                    }
                 }
             }
         }
+
     }
 
     pub fn draw_name_table(&self, frame_: &RefCell<Vec<u8>>) {
