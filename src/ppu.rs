@@ -245,7 +245,7 @@ impl PPU {
             let sprite_x = sprite[3] as usize;
 
             // https://www.nesdev.org/wiki/PPU_OAM
-            let is_fg = attr & (1 << 5) != 0;
+            let is_fg = attr & (1 << 5) == 0;
 
             // size : 8x8
             let pattern_table_base = if self.ppuctrl & 0x08 != 0 { 0x1000usize } else { 0x0000usize };
