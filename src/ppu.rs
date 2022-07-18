@@ -255,9 +255,10 @@ impl PPU {
             let palette_base = palette_type * 4 + 0x10;
 
             for y in 0..8usize {
+                let pattern0 = pattern_table[y];
+                let pattern1 = pattern_table[y + 8];
+
                 for x in 0..8usize {
-                    let pattern0 = pattern_table[y];
-                    let pattern1 = pattern_table[y + 8];
 
                     let pattern_bit = 7 - x;
                     let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
@@ -347,12 +348,14 @@ impl PPU {
     pub fn draw_name_table(&self, frame_: &RefCell<Vec<u8>>) {
         let mut frame = frame_.borrow_mut();
         self.draw_name_table_(|x,y,c| {
-                    
-            let color = &COLORS[c];
-
             let i = (x + y * WIDTH * 2) * 4;
+            if c == 0xff {
+                frame[i..i+3].iter_mut().map(|v| {*v = 0x0;} ).count();
+            } else {
+                let color = &COLORS[c];
     
-            frame[i..i+3].clone_from_slice(color);
+                frame[i..i+3].clone_from_slice(color);
+            }
             frame[i+3] = 0xff;
 
         });
@@ -405,8 +408,12 @@ impl PPU {
                                     let pattern_bit = (7 - (x % 8)) as usize;
                                     let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
     
-                                    let color = self.palette_ram[palette_index * 4 + palette_num] as usize;
-                    
+                                    let color = if palette_num % 4 != 0 {
+                                        self.palette_ram[palette_index * 4 + palette_num] as usize 
+                                    } else {
+                                        0xff
+                                    };
+
                                     let x_ = if i % 2 == 1 { x + WIDTH } else { x };
                                     let y_ = if i / 2 == 1 { y + HEIGHT } else { y };
 
