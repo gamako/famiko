@@ -360,6 +360,8 @@ impl PPU {
 
     // debug
     pub fn draw_name_table_<F>(&self, mut f: F) where F : FnMut(usize, usize, usize) {
+        let chr_base = if self.ppuctrl & (1 << 4) != 0 { 0x1000 } else { 0x0000 };
+
         for i in 0..4 {
 
             let base_addr = i * 0x400;
@@ -395,8 +397,8 @@ impl PPU {
                             for y in y_base..y_base+8 {
                                 let pattern_y = (y % 8) as usize;
     
-                                let pattern0 = self.pattern_table[pattern_index * 16 + pattern_y];
-                                let pattern1 = self.pattern_table[pattern_index * 16 + pattern_y + 8];
+                                let pattern0 = self.pattern_table[chr_base + pattern_index * 16 + pattern_y];
+                                let pattern1 = self.pattern_table[chr_base + pattern_index * 16 + pattern_y + 8];
 
                                 for x in x_base..x_base+8 {
 
