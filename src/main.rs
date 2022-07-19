@@ -15,7 +15,7 @@ use winit_input_helper::WinitInputHelper;
 
 use famiko::cpu::{CPU, CpuDebugLog, CPU_CLOCK_UNIT_NSEC};
 use famiko::bus::Bus;
-use famiko::ppu::{WIDTH, HEIGHT, CHR_DEBUG_FRAME_SIZE, CHR_DEBUG_WIDTH, CHR_DEBUG_HEIGT};
+use famiko::ppu::{WIDTH, HEIGHT, CHR_DEBUG_FRAME_SIZE, CHR_DEBUG_WIDTH, CHR_DEBUG_HEIGT, SPRITE_DEBUG_WIDTH, SPRITE_DEBUG_HEIGT};
 use clap::{arg, Command, Arg, ArgAction};
 use hex;
 
@@ -24,6 +24,7 @@ enum RenderEvent {
     Render(Vec<u8>),
     ChrTableRender(Vec<u8>),
     NameTableRender(RefCell<Vec<u8>>),
+    SpriteRender(Vec<u8>),
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -46,6 +47,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .action(ArgAction::SetTrue)
         )
         .arg(
+            Arg::new("show-sprite")
+                .long("show-sprite")
+                .action(ArgAction::SetTrue)
+        )
+        .arg(
             Arg::new("fps")
                 .long("fps")
                 .action(ArgAction::SetTrue)
@@ -65,6 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let debug = matches.get_one::<bool>("debug").map_or(false, |v| *v);
     let show_chr_table = matches.get_one::<bool>("show-chr-table").map_or(false, |v| *v);
     let show_name_table = matches.get_one::<bool>("show-name-table").map_or(false, |v| *v);
+    let show_sprite = matches.get_one::<bool>("show-sprite").map_or(false, |v| *v);
     let is_show_fps = matches.get_one::<bool>("fps").map_or(false, |v| *v);
 
     let mut file = File::open(file)?;
@@ -127,6 +134,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     cpu.bus.ppu.draw_name_table(&draw_name_frame);
                     render_sender.send(RenderEvent::NameTableRender(draw_name_frame)).unwrap();
                 }
+                if show_sprite {
+                    let mut frame = Some([0u8].repeat(64*64*4));
+                    cpu.bus.ppu.write_sprite(&mut frame);
+                    render_sender.send(RenderEvent::SpriteRender(frame.unwrap())).unwrap();
+                }
                 let u1 = u.elapsed().as_nanos();
                 let one_frame_nsec = 1_000_000_000 / 60u128; 
                 
@@ -158,11 +170,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         None
     };
+    let mut sprite_table_window = if show_sprite {
+        Some(create_window("sprite_table".into(), SPRITE_DEBUG_WIDTH as u32, SPRITE_DEBUG_HEIGT as u32, &event_loop)?)
+    } else {
+        None
+    };
     let mut name_table_window = if show_name_table {
         Some(create_window("name_table".into(), WIDTH as u32 *2, HEIGHT as u32 *2, &event_loop)?)
     } else {
         None
     };
+    
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -177,6 +195,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             Event::WindowEvent { event:  WindowEvent::Resized(size), window_id: win_id } => {
                 if let Some((w, p)) = chr_table_window.borrow_mut() {
+                    if w.id() == win_id {
+                        p.resize_surface(size.width, size.height);
+                    }
+                }
+                if let Some((w, p)) = sprite_table_window.borrow_mut() {
                     if w.id() == win_id {
                         p.resize_surface(size.width, size.height);
                     }
@@ -196,6 +219,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         p.render().unwrap();
                     }
                 }
+                if let Some((w, p)) = sprite_table_window.borrow_mut() {
+                    if w.id() == win_id {
+                        p.render().unwrap();
+                    }
+                }
                 if let Some((w, p)) = name_table_window.borrow_mut() {
                     if w.id() == win_id {
                         p.render().unwrap();
@@ -207,6 +235,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok(RenderEvent::Render(buffer)) => pixels.get_frame().copy_from_slice(buffer.as_slice()),
                     Ok(RenderEvent::ChrTableRender(buffer)) => {
                         if let Some((_, p)) = chr_table_window.borrow_mut() {
+                            p.get_frame().copy_from_slice(buffer.as_slice());
+                        }
+                    }
+                    Ok(RenderEvent::SpriteRender(buffer)) => {
+                        if let Some((_, p)) = sprite_table_window.borrow_mut() {
                             p.get_frame().copy_from_slice(buffer.as_slice());
                         }
                     }
@@ -234,6 +267,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             window.request_redraw();
             name_table_window.as_ref().map(|(x, _)| { x.request_redraw() });
             chr_table_window.as_ref().map(|(x, _)| { x.request_redraw() });
+            sprite_table_window.as_ref().map(|(x, _)| { x.request_redraw() });
         }
     });
 }

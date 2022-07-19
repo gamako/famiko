@@ -9,6 +9,10 @@ pub const CHR_DEBUG_WIDTH : usize = 16 * 8 * 2;
 pub const CHR_DEBUG_HEIGT : usize = 16 * 8;
 pub const CHR_DEBUG_FRAME_SIZE : usize = CHR_DEBUG_HEIGT * CHR_DEBUG_WIDTH;
 
+pub const SPRITE_DEBUG_WIDTH : usize = 8 * 8;
+pub const SPRITE_DEBUG_HEIGT : usize = 8 * 8;
+pub const SPRITE_DEBUG_FRAME_SIZE : usize = SPRITE_DEBUG_HEIGT * SPRITE_DEBUG_WIDTH;
+
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct PPU {
@@ -190,7 +194,7 @@ impl PPU {
                 if self.y == 0 {
                     // 最初にそれぞれのフレームを描く
                     self.init_frame();
-                    self.write_sprite();
+                    self.write_sprite(&mut None::<Vec<u8>>);
                     self.write_frame_bg();
                 }
 
@@ -236,13 +240,16 @@ impl PPU {
         });
     }
 
-    pub fn write_sprite(&mut self) {
+    pub fn write_sprite(&mut self, frame: &mut Option<Vec<u8>>) {
         for i in 0..64 {
             let sprite = &self.sprite_ram[i*4..i*4+4];
-            let sprite_y = sprite[0] as usize;
             let tile = sprite[1] as usize;
             let attr = sprite[2] as usize;
-            let sprite_x = sprite[3] as usize;
+
+            let is_debug = frame.is_some();
+            let sprite_x = if !is_debug {sprite[3] as usize} else { i % 8 * 8};
+            let sprite_y = if !is_debug {sprite[0] as usize} else { i / 8 * 8};
+            let width = if !is_debug { WIDTH } else { 64 };
 
             // https://www.nesdev.org/wiki/PPU_OAM
             let is_fg = attr & (1 << 5) == 0;
@@ -267,12 +274,25 @@ impl PPU {
                     
                     let x_ = sprite_x + x;
                     let y_ = sprite_y + y;
-                    if x_ < WIDTH && y_ < HEIGHT {
-                        let i = (y_ * WIDTH + x_) as usize;
-                        if is_fg {
-                            self.frame_sprite_fg[i] = color;
+                    if x_ < width && y_ < HEIGHT {
+                        let i = (y_ * width + x_) as usize;
+                        if let Some(frame_) = frame {
+                            let i = i*4;
+                            if color == 0xff {
+                                frame_[i+0] = 0;
+                                frame_[i+1] = 0;
+                                frame_[i+2] = 0;
+                            } else {
+                                let c = &COLORS[color as usize];
+                                frame_[i..i+3].clone_from_slice(c);
+                            }
+                            frame_[i+3] = 0xff;
                         } else {
-                            self.frame_sprite_bg[i] = color;
+                            if is_fg {
+                                self.frame_sprite_fg[i] = color;
+                            } else {
+                                self.frame_sprite_bg[i] = color;
+                            }
                         }
                     }
                 }
