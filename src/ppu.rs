@@ -122,7 +122,7 @@ impl PPU {
     }
 
     // https://www.nesdev.org/wiki/PPU_memory_map
-    pub fn read_ppudata(&mut self) -> u8 {
+    pub fn read_ppudata(&mut self, is_increment : bool) -> u8 {
         match self.addr {
             0x2000 ..= 0x2fff => {
                 let a = self.addr as usize - 0x2000;
@@ -132,12 +132,26 @@ impl PPU {
                 };
                 let v = self.name_table[a];
                 println!(" read nametable: {:04x} {:02X}", a, v);
+                if is_increment {
+                    if self.ppuctrl & 4 != 0 {
+                        self.addr += 32;
+                    } else {
+                        self.addr += 1;
+                    }
+                }
                 v
             }
             0x3f00 ..= 0x3fff => {
                 let a = (self.addr & 0x001f) as usize;
                 let v = self.palette_ram[a];
                 println!(" write palette_ram: {:04x} {:02X}", a, v);
+                if is_increment {
+                    if self.ppuctrl & 4 != 0 {
+                        self.addr += 32;
+                    } else {
+                        self.addr += 1;
+                    }
+                }
                 v
             }
             _ => {
@@ -166,14 +180,22 @@ impl PPU {
                 let v0 = self.name_table[a];
                 println!(" write nametable: {:04x} {:02X} {:02X}", a, v0, v);
                 self.name_table[a] = v;
-                self.addr += 1;
+                if self.ppuctrl & 4 != 0 {
+                    self.addr += 32;
+                } else {
+                    self.addr += 1;
+                }
             }
             0x3f00 ..= 0x3fff => {
                 let a = (self.addr & 0x001f) as usize;
                 let v0 = self.palette_ram[a];
                 println!(" write palette_ram: {:04x} {:02X} {:02X}", a, v0, v);
                 self.palette_ram[a] = v;
-                self.addr += 1;
+                if self.ppuctrl & 4 != 0 {
+                    self.addr += 32;
+                } else {
+                    self.addr += 1;
+                }
             }
             _ => {
                 println!(" ppu cant write {:04x} {:02X}", self.addr, v);

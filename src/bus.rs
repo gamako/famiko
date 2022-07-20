@@ -18,7 +18,7 @@ impl Bus {
     }
 
     // https://www.nesdev.org/wiki/CPU_memory_map
-    pub fn read(&mut self, addr: u16) -> u8 {
+    pub fn read(&mut self, addr: u16, is_debug: bool) -> u8 {
         match addr {
             0x0000 ..= 0x1fff => {
                 let addr = addr & 0x7fff;
@@ -31,7 +31,7 @@ impl Bus {
             0x2004 => { println!("cant read {:#02x}", addr); panic!("not impl write addr"); },
             0x2005 => 0xff,
             0x2006 => 0xff,
-            0x2007 => { self.ppu.read_ppudata() },
+            0x2007 => { self.ppu.read_ppudata(!is_debug) },
             0x4000 ..= 0x4017 => {
                 0xff
             }
@@ -115,7 +115,7 @@ impl Bus {
 
     pub fn debug_prg_bytes(&mut self, addr: u16, l: usize) -> String {
         (addr .. (addr + (l as u16)))
-            .map(|v|{ self.read(v) })
+            .map(|v|{ self.read(v, false) })
             .map(|x| { format!("{:02X}", x) })
             .collect::<Vec<_>>()
             .join(" ")
