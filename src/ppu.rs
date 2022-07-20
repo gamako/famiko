@@ -267,6 +267,8 @@ impl PPU {
             let sprite = &self.sprite_ram[i*4..i*4+4];
             let tile = sprite[1] as usize;
             let attr = sprite[2] as usize;
+            let is_h_reverse = attr & (1 << 6) != 0;
+            let is_v_reverse = attr & (1 << 7) != 0;
 
             let is_debug = frame.is_some();
             let sprite_x = if !is_debug {sprite[3] as usize} else { i % 8 * 8};
@@ -284,12 +286,13 @@ impl PPU {
             let palette_base = palette_type * 4 + 0x10;
 
             for y in 0..8usize {
-                let pattern0 = pattern_table[y];
-                let pattern1 = pattern_table[y + 8];
+                let y_ = if is_v_reverse { 7 - y } else { y };
+                let pattern0 = pattern_table[y_];
+                let pattern1 = pattern_table[y_ + 8];
 
                 for x in 0..8usize {
 
-                    let pattern_bit = 7 - x;
+                    let pattern_bit = if is_h_reverse { x } else { 7 - x };
                     let palette_num = ((pattern0 >> pattern_bit) & 1 | ((pattern1 >> pattern_bit) & 1) << 1) as usize;
 
                     let color = self.palette_to_color(palette_base + palette_num);
