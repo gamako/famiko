@@ -33,7 +33,7 @@ impl Bus {
             0x2006 => 0xff,
             0x2007 => { self.ppu.read_ppudata(!is_debug) },
             0x4000 ..= 0x4017 => {
-                0xff
+                0x00
             }
             0x4020 ..= 0xffff => {
                 // mapper-0 prg
