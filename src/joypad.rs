@@ -11,6 +11,7 @@ pub const Down : PadKey = 5;
 pub const Left : PadKey = 6;
 pub const Right : PadKey = 7;
 
+#[derive(Debug)]
 pub struct Joypad {
     current : PadKey,
     state : HashMap<PadKey, bool>
@@ -21,10 +22,12 @@ impl Joypad {
         Self { current: A, state: HashMap::new() }
     }
 
-    pub fn read(&mut self) -> bool {
+    pub fn read(&mut self, is_debug: bool) -> bool {
         let v = self.state.get(&self.current).unwrap_or(&false);
         
-        self.current = (self.current + 1) % (Right + 1);
+        if !is_debug {
+            self.current = (self.current + 1) % (Right + 1);
+        }
         *v
     }
 

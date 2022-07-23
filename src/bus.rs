@@ -1,10 +1,13 @@
-use crate::{ppu::PPU};
+use log::debug;
+
+use crate::{ppu::PPU, joypad::Joypad};
 
 #[derive(Debug)]
 pub struct Bus {
     pub prg : Vec<u8>,
     pub ppu : PPU,
     ram : Vec<u8>,
+    pub joy_pad : Joypad,
 }
 
 impl Bus {
@@ -14,6 +17,7 @@ impl Bus {
             prg: prg,
             ppu: PPU::new(chr, is_mirror_horizontal),
             ram: [0,0,0,0,0xff,0xff,0xff,0xff].repeat(0x100),
+            joy_pad: Joypad::new(),
         }
     }
 
@@ -32,7 +36,14 @@ impl Bus {
             0x2005 => 0xff,
             0x2006 => 0xff,
             0x2007 => { self.ppu.read_ppudata(!is_debug) },
-            0x4000 ..= 0x4017 => {
+            0x4000 ..= 0x4015 => {
+                0x00
+            }
+            0x4016 => {
+                self.joy_pad.read(is_debug) as u8
+            }
+            0x4017 => {
+                // 2pコントローラー
                 0x00
             }
             0x4020 ..= 0xffff => {
@@ -95,11 +106,19 @@ impl Bus {
                 let addr = (value as usize) << 8;
                 self.ppu.write_dma(&self.ram[addr..addr+0x100])
             }
-            0x4000 ..= 0x4017 => {
-                println!(" write apu register: {:#02x}", value);
+            0x4000 ..= 0x4015 => {
+                debug!(" write apu register: {:#02x}", value);
+            }
+            0x4016 => {
+                // コントローラー
+                debug!(" write joypad register: {:#02x}", value);
+            }
+            0x4017 => {
+                // apu
+                debug!(" write apu register: {:#02x}", value);
             }
             _ => {
-                println!("cant write {:#02x}", addr);
+                debug!("cant write {:#02x}", addr);
                 panic!("not impl write addr");
             }
         }

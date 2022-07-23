@@ -6,6 +6,8 @@ use std::sync::mpsc;
 use std::thread::{self, sleep};
 use std::time::{Duration, Instant};
 
+use famiko::joypad;
+use famiko::joypad::PadKey;
 use pixels::{Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode, WindowEvent};
@@ -97,6 +99,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 画面情報をUIスレッドに転送するチャネル
     let (render_sender, render_receiver) = mpsc::channel::<RenderEvent>();
 
+    // キー情報をUIスレッドから転送するチャネル
+    let (key_sender, key_receiver) = mpsc::channel::<(PadKey, bool)>();
+
     thread::spawn(move ||{
 
         // 電源ON
@@ -149,7 +154,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if is_show_fps {
                     println!("draw : {}msec fps:{}", u2/1000_000, 1_000_000_000 / u2);
                 }
-                
+                if let Ok((k, b)) = key_receiver.try_recv() {
+                    cpu.bus.joy_pad.update_key(k, b);
+                }
+
                 u = Instant::now();
 
 
@@ -263,6 +271,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return;
             }
             
+            let joy_and_code = [
+                (joypad::A, VirtualKeyCode::Z),
+                (joypad::B, VirtualKeyCode::X),
+                (joypad::Select, VirtualKeyCode::C),
+                (joypad::Start, VirtualKeyCode::V),
+                (joypad::Up, VirtualKeyCode::Up),
+                (joypad::Down, VirtualKeyCode::Down),
+                (joypad::Right, VirtualKeyCode::Right),
+                (joypad::Left, VirtualKeyCode::Left),
+                ];
+            for (key,code) in joy_and_code {
+                if input.key_pressed(code) {
+                    key_sender.send((key, true)).unwrap();
+                }
+                if input.key_released(code) {
+                    key_sender.send((key, false)).unwrap();
+                }
+            }
+
             // Update internal state and request a redraw
             window.request_redraw();
             name_table_window.as_ref().map(|(x, _)| { x.request_redraw() });
