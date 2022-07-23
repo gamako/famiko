@@ -425,7 +425,6 @@ impl PPU {
             for attr_y in 0..8 {
                 for attr_x in 0..8 {
                     let attribute = attribute_table[attr_y * 8 + attr_x];
-                    let mut shift_bit = 0;
     
                     // nameテーブルは8x8px単位
                     // https://www.nesdev.org/wiki/PPU_nametables
@@ -434,8 +433,8 @@ impl PPU {
                     let name_x_base = attr_x * 4;
                     for name_y in name_y_base..name_y_base + 4 {
                         for name_x in name_x_base..name_x_base + 4 {
-                            let shift_bit_ = (shift_bit >> 1) << 1;
-                            let palette_index = (attribute as usize >> shift_bit_) & 3;
+                            let shift_bit = (((name_x%4)/2) + ((name_y%4)/2)*2)*2;
+                            let palette_index = (attribute as usize >> shift_bit) & 3;
     
                             let name_index = base_addr + (name_x + name_y * 32) as usize;
                             let pattern_index = self.name_table[name_index] as usize;
@@ -468,8 +467,6 @@ impl PPU {
 
                                 }
                             }
-    
-                            shift_bit += 1;
                         }
                     }
     
