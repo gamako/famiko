@@ -102,6 +102,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // キー情報をUIスレッドから転送するチャネル
     let (key_sender, key_receiver) = mpsc::channel::<(PadKey, bool)>();
 
+    // apu開始
+    cpu.bus.apu.start()?;
+
     thread::spawn(move ||{
 
         // 電源ON
@@ -188,7 +191,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         None
     };
-    
 
     event_loop.run(move |event, _, control_flow| {
         match event {
