@@ -15,7 +15,7 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use winit::window::{WindowBuilder, Window};
 use winit_input_helper::WinitInputHelper;
 
-use famiko::cpu::{CPU, CpuDebugLog, CPU_CLOCK_UNIT_NSEC};
+use famiko::cpu::{CPU, CpuDebugLog};
 use famiko::bus::Bus;
 use famiko::ppu::{WIDTH, HEIGHT, CHR_DEBUG_FRAME_SIZE, CHR_DEBUG_WIDTH, CHR_DEBUG_HEIGT, SPRITE_DEBUG_WIDTH, SPRITE_DEBUG_HEIGT};
 use clap::{arg, Command, Arg, ArgAction};
@@ -118,7 +118,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut u = Instant::now();
         loop {
-            let t0 = Instant::now();
             let mut log = CpuDebugLog::new();
             log.ppu_line = cpu.bus.ppu.y_();
             log.ppu_x = cpu.bus.ppu.x_();
