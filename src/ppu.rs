@@ -90,10 +90,6 @@ impl PPU {
         self.y
     }
 
-    fn read_vblank(&self) -> bool {
-        self.ppustatus & 0x80 != 0
-    }
-
     fn update_vblank(&mut self, b: bool) {
         self.ppustatus = if b {
             self.ppustatus | (1u8 << 7)
