@@ -96,11 +96,11 @@ impl Bus {
                 self.ppu.write_ppuscroll(value);
             }
             0x2006 => {
-                println!(" write ppuaddr: {:#02x}", value);
+                //println!(" write ppuaddr: {:#02x}", value);
                 self.ppu.write_ppuaddr(value);
             }
             0x2007 => {
-                println!(" write ppudata: {:#02x}", value);
+                //println!(" write ppudata: {:#02x}", value);
                 self.ppu.write_ppudata(value);
             }
             0x4014 => {

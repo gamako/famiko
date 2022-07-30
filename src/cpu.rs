@@ -1262,7 +1262,7 @@ impl CPU {
 
     pub fn step_next(&mut self, log : &mut CpuDebugLog) -> usize {
         if self.bus.read_nmi() {
-            println!("interruption nmi");
+            //println!("interruption nmi");
             return self.int_nmi();
         }
 

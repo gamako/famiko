@@ -105,7 +105,7 @@ impl PPU {
     }
 
     pub fn write_ppuscroll(&mut self, v : u8) {
-        println!(" write scroll: {:02x}", v);
+        //println!(" write scroll: {:02x}", v);
         match self.scroll_next_y {
             false => { self.scroll_x = v }
             true => { self.scroll_y = v }
@@ -127,7 +127,7 @@ impl PPU {
                     false => a & !0x800,
                 };
                 let v = self.name_table[a];
-                println!(" read nametable: {:04x} {:02X}", a, v);
+                //println!(" read nametable: {:04x} {:02X}", a, v);
                 if is_increment {
                     if self.ppuctrl & 4 != 0 {
                         self.addr += 32;
@@ -140,7 +140,7 @@ impl PPU {
             0x3f00 ..= 0x3fff => {
                 let a = (self.addr & 0x001f) as usize;
                 let v = self.palette_ram[a];
-                println!(" write palette_ram: {:04x} {:02X}", a, v);
+                //println!(" write palette_ram: {:04x} {:02X}", a, v);
                 if is_increment {
                     if self.ppuctrl & 4 != 0 {
                         self.addr += 32;
@@ -174,7 +174,7 @@ impl PPU {
                     false => a & !0x800,
                 };
                 let v0 = self.name_table[a];
-                println!(" write nametable: {:04x} {:02X} {:02X}", a, v0, v);
+                //println!(" write nametable: {:04x} {:02X} {:02X}", a, v0, v);
                 self.name_table[a] = v;
                 if self.ppuctrl & 4 != 0 {
                     self.addr += 32;
@@ -185,7 +185,7 @@ impl PPU {
             0x3f00 ..= 0x3fff => {
                 let a = (self.addr & 0x001f) as usize;
                 let v0 = self.palette_ram[a];
-                println!(" write palette_ram: {:04x} {:02X} {:02X}", a, v0, v);
+                //println!(" write palette_ram: {:04x} {:02X} {:02X}", a, v0, v);
                 self.palette_ram[a] = v;
                 if self.ppuctrl & 4 != 0 {
                     self.addr += 32;
