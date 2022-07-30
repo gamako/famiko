@@ -4,12 +4,12 @@ pub type PadKey = usize;
 
 pub const A : PadKey = 0;
 pub const B : PadKey = 1;
-pub const Select : PadKey = 2;
-pub const Start : PadKey = 3;
-pub const Up : PadKey = 4;
-pub const Down : PadKey = 5;
-pub const Left : PadKey = 6;
-pub const Right : PadKey = 7;
+pub const SELECT : PadKey = 2;
+pub const START : PadKey = 3;
+pub const UP : PadKey = 4;
+pub const DOWN : PadKey = 5;
+pub const LEFT : PadKey = 6;
+pub const RIGHT : PadKey = 7;
 
 #[derive(Debug)]
 pub struct Joypad {
@@ -26,7 +26,7 @@ impl Joypad {
         let v = self.state.get(&self.current).unwrap_or(&false);
         
         if !is_debug {
-            self.current = (self.current + 1) % (Right + 1);
+            self.current = (self.current + 1) % (RIGHT + 1);
         }
         *v
     }

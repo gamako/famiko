@@ -275,12 +275,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let joy_and_code = [
                 (joypad::A, VirtualKeyCode::Z),
                 (joypad::B, VirtualKeyCode::X),
-                (joypad::Select, VirtualKeyCode::C),
-                (joypad::Start, VirtualKeyCode::V),
-                (joypad::Up, VirtualKeyCode::Up),
-                (joypad::Down, VirtualKeyCode::Down),
-                (joypad::Right, VirtualKeyCode::Right),
-                (joypad::Left, VirtualKeyCode::Left),
+                (joypad::SELECT, VirtualKeyCode::C),
+                (joypad::START, VirtualKeyCode::V),
+                (joypad::UP, VirtualKeyCode::Up),
+                (joypad::DOWN, VirtualKeyCode::Down),
+                (joypad::RIGHT, VirtualKeyCode::Right),
+                (joypad::LEFT, VirtualKeyCode::Left),
                 ];
             for (key,code) in joy_and_code {
                 if input.key_pressed(code) {
