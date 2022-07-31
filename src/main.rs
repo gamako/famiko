@@ -93,8 +93,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // println!("{:?}", prg_rom.hex_dump());
     // println!("{:?}", chr_rom.hex_dump());
 
-    let bus = Bus::new(prg_rom, chr_rom, h.flag6 & 1 == 0);
-    let mut cpu = CPU::new(bus);
 
     // 画面情報をUIスレッドに転送するチャネル
     let (render_sender, render_receiver) = mpsc::channel::<RenderEvent>();
@@ -102,11 +100,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // キー情報をUIスレッドから転送するチャネル
     let (key_sender, key_receiver) = mpsc::channel::<(PadKey, bool)>();
 
-    // apu開始
-    cpu.bus.apu.start()?;
 
     thread::spawn(move ||{
+        let bus = Bus::new(prg_rom, chr_rom, h.flag6 & 1 == 0);
+        let mut cpu = CPU::new(bus);
 
+        // apu開始
+        _ = cpu.bus.apu.start();
+    
         // 電源ON
         if let Some(start_addr) = start_addr {
             println!("start addr {start_addr:04x}");
@@ -126,6 +127,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 log.log();
             }
             let frame_ = cpu.bus.ppu.step(cycle*3);
+
+            cpu.bus.apu.step();
 
             if let Some(f) = frame_ {
 

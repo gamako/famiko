@@ -1,15 +1,16 @@
 
 use core::fmt;
+use std::usize::MIN;
 
 use pa::{Stream, Blocking, Output, StreamAvailable, OutputStreamSettings};
 use portaudio as pa;
 
 const CHANNELS: i32 = 1;
 const SAMPLE_RATE: f64 = 44_100.0;
-const FRAMES_PER_BUFFER: u32 = 64;
+const FRAMES_PER_BUFFER: u32 = 512;
 
 pub struct Apu {
-    stream: Option<Stream<Blocking<OutputStreamSettings<f32>::Flow>, Output<f32>>>,
+    stream: Option<Stream<Blocking<pa::stream::Buffer>, Output<f32>>>,
 
     pulse1_reg1 : u8, // $4000 DDLC VVVV  Duty (D), envelope loop / length counter halt (L), constant volume (C), volume/envelope (V)
     pulse1_reg2 : u8, // $4001 EPPP NSSS  Sweep unit: enabled (E), period (P), negate (N), shift (S)
@@ -26,6 +27,8 @@ pub struct Apu {
     pulse1_state : f32,
 
     pulse1_step : usize, // 
+
+    saw : f32,
 
 }
 
@@ -47,21 +50,18 @@ impl Apu {
 
             status_reg : 0u8,
             pulse1_start : false,
-            pulse1_timer_count : 0u64,
+            pulse1_timer_count : 1u64,
             pulse1_sequencer_counter : 0,
             pulse1_buffer : vec![],
             pulse1_sample_output_couter : 0f32,
             pulse1_state : 0f32,
 
             pulse1_step : 0usize,
+            saw : 0f32,
         }
     }
 
     pub fn start(&mut self) -> Result<(), pa::Error>{
-        println!(
-            "PortAudio Test: output sawtooth wave. SR = {}, BufSize = {}",
-            SAMPLE_RATE, FRAMES_PER_BUFFER
-        );
     
         let mut left_saw = 0.0;
     
@@ -74,7 +74,6 @@ impl Apu {
         
         let mut stream = pa.open_blocking_stream(settings)?;
         stream.start()?;
-
         self.stream = Some(stream);
 
         Ok(())
@@ -117,7 +116,7 @@ impl Apu {
     // 1.789MHzのクロックで呼ばれる想定
     // 戻り値はIRQが発生したことを知らせる
     // 44.1kHzで音を出力する場合は40.58クロックにごとに1サンプルを出力 (1/44.1K)/(1/1789773)=1789773/44100=40.58
-    pub fn step(&mut self) -> bool {
+    pub fn step(&mut self) {
         let duty_array = [
             [0,1,0,0,0,0,0,0],
             [0,1,1,0,0,0,0,0],
@@ -125,17 +124,18 @@ impl Apu {
             [1,0,0,1,1,1,1,1],
         ];
 
-        if self.status_reg & 1 != 0 {
+        if true {
             let reg = (self.pulse1_reg3 as u64) | ((self.pulse1_reg4 as u64 & 0x07) << 8);
+            let reg = 0b111100000;
             let duty_type = self.pulse1_reg1 >> 6;
 
             if reg < 8 {
-                return false;
+                return;
             }
             let reg_t = reg << 5 + 1;
             
             if self.pulse1_timer_count > 0 {
-                self.pulse1_timer_count -= 0;
+                self.pulse1_timer_count -= 1;
 
                 if self.pulse1_timer_count == 0 {
                     self.pulse1_timer_count = reg_t / 2;
@@ -151,31 +151,54 @@ impl Apu {
 
                 if self.pulse1_timer_count > 0 {
                     let value = if self.pulse1_step == 0 {
-                        1f32
-                    } else {
                         0f32
+                    } else {
+                        0.00001f32
                     };
                     self.pulse1_buffer.push(value);
                 }
 
-                let write_len = self.pulse1_buffer.len();
-                if write_len > FRAMES_PER_BUFFER as usize {
-                    if let Some(stream) = self.stream {
+                let buffer_len = self.pulse1_buffer.len();
+
+                if buffer_len >= FRAMES_PER_BUFFER as usize {
+
+                    if let Some(stream) = &mut self.stream {
                         match stream.write_available() {
-                            Some(StreamAvailable::Frames(l)) => {
-                                let l = l as usize;
-                                if write_len > l{
-                                    let write_frame = &self.pulse1_buffer[0..l];
-                                    stream.write(l, |output|{
-                                        output.copy_from_slice(&write_frame);
+                            Ok(StreamAvailable::Frames(l)) => {
+                                let write_len = if buffer_len > l as usize {
+                                    l as usize
+                                } else {
+                                    buffer_len
+                                };
+
+                                let write_frame = &self.pulse1_buffer[0..write_len];
+                                if l > (FRAMES_PER_BUFFER as i64) {
+                                    let r = stream.write((FRAMES_PER_BUFFER) as u32, |output|{
+                                        // output.copy_from_slice(&write_frame);
+
+                                        for i in 0 ..(FRAMES_PER_BUFFER) as usize{
+                                            // output[i] = write_frame[i];
+                                            output[i] = self.saw;
+                                            self.saw += 0.01;
+                                            if self.saw >= 1.0 {
+                                                self.saw -= 2.0;
+                                            }
+                                        }
+    
+                                        //print!("");
                                     });
-                                    let remain = write_len - l as usize;
-                                    
+                                    if let Err(e) = r {
+                                        println!("{:?}", e);
+                                    }
                                 }
+
+                                let remain = buffer_len - write_len;
+                                self.pulse1_buffer.clear();
+                            
                             },
-                            Some(StreamAvailable::OutputUnderflowed) => { println!("OutputUnderflowed"); },
-                            Some(StreamAvailable::InputOverflowed) => { println!("InputOverflowed");},
-                            None => { println!("None"); }
+                            Ok(StreamAvailable::OutputUnderflowed) => { println!("OutputUnderflowed"); },
+                            Ok(StreamAvailable::InputOverflowed) => { println!("InputOverflowed");},
+                            Err(err) => { println!("err {:?}", err); }
                         }
                     }
                 }
@@ -185,7 +208,6 @@ impl Apu {
             
         }
 
-        false
     }
 
 }
