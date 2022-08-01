@@ -9,6 +9,13 @@ const CHANNELS: i32 = 1;
 const SAMPLE_RATE: f64 = 44_100.0;
 const FRAMES_PER_BUFFER: u32 = 512;
 
+static DUTY_TABLE : [[u8;8];4] = [
+    [0,1,0,0,0,0,0,0],
+    [0,1,1,0,0,0,0,0],
+    [0,1,1,1,1,0,0,0],
+    [1,0,0,1,1,1,1,1],
+];
+
 pub struct Apu {
     stream: Option<Stream<Blocking<pa::stream::Buffer>, Output<f32>>>,
 
@@ -17,18 +24,22 @@ pub struct Apu {
     pulse1_reg3 : u8, // $4002 TTTT TTTT  Timer low (T)
     pulse1_reg4 : u8, // $4003 LLLL LTTT  Length counter load (L), timer high (T)
 
-    pub status_reg : u8, // $4015 ---D NT21  Enable DMC (D), noise (N), triangle (T), and pulse channels (2/1)
+    status_reg : u8, // $4015 ---D NT21  Enable DMC (D), noise (N), triangle (T), and pulse channels (2/1)
+    frame_counter_reg : u8, // $4017 MI-- ----  Mode (M, 0 = 4-step, 1 = 5-step), IRQ inhibit flag (I)
 
-    pulse1_start : bool,
-    pulse1_timer_count : u64,
-    pulse1_sequencer_counter : u64,
-    pulse1_buffer : Vec<f32>,
+    pulse1_timer1 : u64, // reg3,reg4の (T << 2)を初期値として毎クロック(-1)する。0になったら`pulse1_timer2`を+1
+    pulse1_timer2 : u8, // 0-8の値。この値で`DUTY_TABLE`から取り出した値を出力値とする
+    pulse1_seq_diver : u16, // 0-7456。毎クロック(-1)し、7457クロックごとにpulse1_seq_stepを(+1)する
+    pulse1_seq_step : u8, // 7457クロックごとに(+1)。Mによって、0-3または0-4の値をとる。
+    pulse1_sweep : u8,
+    
+    pulse1_envelope_reset : bool, // pulse1_reg4に書き込みがあったらにtrueにする。trueであればenvelopeのクロック（シーケンサの各クロック）でdivider, counterをリセット
+    pulse1_envelope_divider : u8, // envelopeの分周の実装。初期値はreg1のVVVVを与える。クロックごとに-1して、0のときにcouterを処理。
+    pulse1_envelope_counter : u8, // 0-15の値。envelopeのクロックごとに(-1)する。0のときにloopが有効であれば15にする。
+
     pulse1_sample_output_couter : f32,
-    pulse1_state : f32,
-
-    pulse1_step : usize, // 
-
-    saw : f32,
+    pulse1_value : u8,
+    pulse1_buffer : Vec<f32>,
 
 }
 
@@ -49,15 +60,22 @@ impl Apu {
             pulse1_reg4 : 0u8,
 
             status_reg : 0u8,
-            pulse1_start : false,
-            pulse1_timer_count : 1u64,
-            pulse1_sequencer_counter : 0,
-            pulse1_buffer : vec![],
-            pulse1_sample_output_couter : 0f32,
-            pulse1_state : 0f32,
+            frame_counter_reg: 0u8,
 
-            pulse1_step : 0usize,
-            saw : 0f32,
+            pulse1_timer1 : 0,
+            pulse1_timer2 : 0,
+            pulse1_seq_diver : 0,
+            pulse1_seq_step : 0,
+            pulse1_sweep : 0,
+            
+            pulse1_envelope_reset : false, // pulse1_reg4に書き込みがあったらにtrueにする。trueであればenvelopeのクロック（シーケンサの各クロック）でdivider, counterをリセット
+            pulse1_envelope_divider : 0, // envelopeの分周の実装。初期値はreg1のVVVVを与える。クロックごとに-1して、0のときにcouterを処理。
+            pulse1_envelope_counter : 0, // 0-15の値。envelopeのクロックごとに(-1)する。0のときにloopが有効であれば15にする。
+        
+            pulse1_sample_output_couter : 0f32,
+            pulse1_value : 0u8,
+            pulse1_buffer : Vec::<f32>::new(),
+        
         }
     }
 
@@ -105,8 +123,9 @@ impl Apu {
             0x4002 => self.pulse1_reg3 = v,
             0x4003 => { 
                 self.pulse1_reg4 = v;
-                self.pulse1_timer_count = 0;
-                self.pulse1_sequencer_counter = 0;
+                self.pulse1_timer1 = 0;
+                self.pulse1_seq_step = 0;
+                self.pulse1_envelope_reset = true;
             }
             _ => {
             }
@@ -117,12 +136,6 @@ impl Apu {
     // 戻り値はIRQが発生したことを知らせる
     // 44.1kHzで音を出力する場合は40.58クロックにごとに1サンプルを出力 (1/44.1K)/(1/1789773)=1789773/44100=40.58
     pub fn step(&mut self) {
-        let duty_array = [
-            [0,1,0,0,0,0,0,0],
-            [0,1,1,0,0,0,0,0],
-            [0,1,1,1,1,0,0,0],
-            [1,0,0,1,1,1,1,1],
-        ];
 
         if true {
             let reg = (self.pulse1_reg3 as u64) | ((self.pulse1_reg4 as u64 & 0x07) << 8);
@@ -133,30 +146,27 @@ impl Apu {
                 return;
             }
             let reg_t = reg << 5 + 1;
+
             
-            if self.pulse1_timer_count > 0 {
-                self.pulse1_timer_count -= 1;
+            if self.pulse1_timer1 != 0 {
+                self.pulse1_timer1 -= 1;
+            } else {
+                self.pulse1_timer1 = reg << 2;
 
-                if self.pulse1_timer_count == 0 {
-                    self.pulse1_timer_count = reg_t / 2;
-
-                    self.pulse1_step = (self.pulse1_step + 1) % 2;
-                }
+                self.pulse1_seq_step = (self.pulse1_seq_step + 1) % 4;
             }
+            
+            // let value = match duty_type {
+            //     0 => { duty_array[]}
+            // }
 
             self.pulse1_sample_output_couter += 1f32;
             let sample_output_count = 1789773f32/44100.0;
             if self.pulse1_sample_output_couter > sample_output_count {
-                self.pulse1_sample_output_couter - sample_output_count;
+                self.pulse1_sample_output_couter =- sample_output_count;
 
-                if self.pulse1_timer_count > 0 {
-                    let value = if self.pulse1_step == 0 {
-                        0f32
-                    } else {
-                        0.00001f32
-                    };
-                    self.pulse1_buffer.push(value);
-                }
+                let v = (self.pulse1_value as f32) * 1.5 / 15.0 - 1.0;
+                self.pulse1_buffer.push(v);
 
                 let buffer_len = self.pulse1_buffer.len();
 
@@ -170,6 +180,7 @@ impl Apu {
                                 } else {
                                     buffer_len
                                 };
+                                
 
                                 let write_frame = &self.pulse1_buffer[0..write_len];
                                 if l > (FRAMES_PER_BUFFER as i64) {
@@ -179,10 +190,6 @@ impl Apu {
                                         for i in 0 ..(FRAMES_PER_BUFFER) as usize{
                                             // output[i] = write_frame[i];
                                             output[i] = self.saw;
-                                            self.saw += 0.01;
-                                            if self.saw >= 1.0 {
-                                                self.saw -= 2.0;
-                                            }
                                         }
     
                                         //print!("");
