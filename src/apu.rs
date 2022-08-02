@@ -251,4 +251,34 @@ impl Apu {
 
     }
 
+    fn step_envelope(&mut self) -> u8 {
+        if self.pulse1_reg1 & (1 << 4) != 0 {
+            // disable envelope (constant volume)
+            self.pulse1_reg1 & 0x0f
+        } else {
+            if self.pulse1_envelope_reset {
+                self.pulse1_envelope_reset = false;
+                self.pulse1_envelope_divider = self.pulse1_reg1 & 0x0f;
+                self.pulse1_envelope_counter = 15;
+    
+            } else if self.pulse1_envelope_divider == 0 {
+                if self.pulse1_envelope_counter == 0 {
+                    if self.pulse1_reg1 & (1 << 5) != 0 {
+                        // loop
+                        self.pulse1_envelope_counter = 15;
+                    }
+                }
+    
+            } else {
+                self.pulse1_envelope_divider -= 1;
+            }
+            // counter値が出力となる
+            self.pulse1_envelope_counter
+        }
+    }
+
+    fn step_length(&mut self) {
+        
+    }
+
 }
