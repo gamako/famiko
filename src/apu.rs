@@ -27,9 +27,9 @@ pub struct Apu {
     status_reg : u8, // $4015 ---D NT21  Enable DMC (D), noise (N), triangle (T), and pulse channels (2/1)
     frame_counter_reg : u8, // $4017 MI-- ----  Mode (M, 0 = 4-step, 1 = 5-step), IRQ inhibit flag (I)
 
-    pulse1_timer1 : u64, // reg3,reg4の (T << 2)を初期値として毎クロック(-1)する。0になったら`pulse1_timer2`を+1
-    pulse1_timer2 : u8, // 0-8の値。この値で`DUTY_TABLE`から取り出した値を出力値とする
-    pulse1_seq_diver : u16, // 0-7456。毎クロック(-1)し、7457クロックごとにpulse1_seq_stepを(+1)する
+    pulse1_timer_divider : u64, // reg3,reg4の (T << 5)を初期値として毎クロック(-1)する。0になったら`pulse1_timer2`を+1
+    pulse1_timer_step : u8, // 0-8の値。この値で`DUTY_TABLE`から取り出した値を出力値とする
+    pulse1_seq_diveder : u16, // 0-7456。毎クロック(-1)し、7457クロックごとにpulse1_seq_stepを(+1)する
     pulse1_seq_step : u8, // 7457クロックごとに(+1)。Mによって、0-3または0-4の値をとる。
     pulse1_sweep : u8,
     
@@ -62,9 +62,9 @@ impl Apu {
             status_reg : 0u8,
             frame_counter_reg: 0u8,
 
-            pulse1_timer1 : 0,
-            pulse1_timer2 : 0,
-            pulse1_seq_diver : 0,
+            pulse1_timer_divider : 0,
+            pulse1_timer_step : 0,
+            pulse1_seq_diveder : 0,
             pulse1_seq_step : 0,
             pulse1_sweep : 0,
             
@@ -123,7 +123,10 @@ impl Apu {
             0x4002 => self.pulse1_reg3 = v,
             0x4003 => { 
                 self.pulse1_reg4 = v;
-                self.pulse1_timer1 = 0;
+
+                let t = (self.pulse1_reg3 as u64) | ((self.pulse1_reg4 as u64 & 0x07) << 8);
+
+                self.pulse1_timer_divider = t << 5;
                 self.pulse1_seq_step = 0;
                 self.pulse1_envelope_reset = true;
             }
@@ -138,27 +141,58 @@ impl Apu {
     pub fn step(&mut self) {
 
         if true {
-            let reg = (self.pulse1_reg3 as u64) | ((self.pulse1_reg4 as u64 & 0x07) << 8);
-            let reg = 0b111100000;
+            let t = (self.pulse1_reg3 as u64) | ((self.pulse1_reg4 as u64 & 0x07) << 8);
             let duty_type = self.pulse1_reg1 >> 6;
 
-            if reg < 8 {
-                return;
-            }
-            let reg_t = reg << 5 + 1;
-
-            
-            if self.pulse1_timer1 != 0 {
-                self.pulse1_timer1 -= 1;
+            // タイマー
+            if self.pulse1_timer_divider != 0 {
+                self.pulse1_timer_divider -= 1;
             } else {
-                self.pulse1_timer1 = reg << 2;
-
-                self.pulse1_seq_step = (self.pulse1_seq_step + 1) % 4;
+                self.pulse1_timer_divider = t << 5;
+                self.pulse1_timer_step += 1;
             }
-            
-            // let value = match duty_type {
-            //     0 => { duty_array[]}
-            // }
+            // シーケンサ
+            let value = match duty_type {
+                0..=3 => { DUTY_TABLE[duty_type as usize][self.pulse1_timer_step as usize] }
+                _ => panic!("duty_type error {:?}", duty_type)
+            };
+
+            // スイープ
+            // TODO
+
+            // フレームシーケンサー
+            if self.pulse1_seq_diveder != 0 {
+                self.pulse1_seq_diveder -= 1;
+            } else {
+                self.pulse1_seq_diveder = 7467;
+
+                if self.frame_counter_reg & (1u8 << 7) == 0 {
+                    // 4step mode
+                    match self.pulse1_seq_step {
+                        0 => {}
+                        1 => {}
+                        2 => {}
+                        3 => {}
+                    }
+                } else {
+                    // 5step mode
+                    match self.pulse1_seq_step {
+                        0 => {}
+                        1 => {}
+                        2 => {}
+                        3 => {}
+                        4 => {}
+                    }
+                }
+
+            }
+
+            // エンベロープ
+
+            // レングス
+
+
+
 
             self.pulse1_sample_output_couter += 1f32;
             let sample_output_count = 1789773f32/44100.0;
