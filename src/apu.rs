@@ -16,6 +16,11 @@ static DUTY_TABLE : [[u8;8];4] = [
     [1,0,0,1,1,1,1,1],
 ];
 
+static LENGTH_TABLE : [u8; 32] = [
+    10,254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
+    12, 16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30,
+];
+
 pub struct Apu {
     stream: Option<Stream<Blocking<pa::stream::Buffer>, Output<f32>>>,
 
@@ -33,9 +38,11 @@ pub struct Apu {
     pulse1_seq_step : u8, // 7457クロックごとに(+1)。Mによって、0-3または0-4の値をとる。
     pulse1_sweep : u8,
     
-    pulse1_envelope_reset : bool, // pulse1_reg4に書き込みがあったらにtrueにする。trueであればenvelopeのクロック（シーケンサの各クロック）でdivider, counterをリセット
+    pulse1_reg4_write : bool, // pulse1_reg4に書き込みがあったらにtrueにする。trueであればenvelopeのクロック（シーケンサの各クロック）でdivider, counterをリセット
     pulse1_envelope_divider : u8, // envelopeの分周の実装。初期値はreg1のVVVVを与える。クロックごとに-1して、0のときにcouterを処理。
     pulse1_envelope_counter : u8, // 0-15の値。envelopeのクロックごとに(-1)する。0のときにloopが有効であれば15にする。
+
+    pulse1_length_counter : u8,
 
     pulse1_sample_output_couter : f32,
     pulse1_value : u8,
@@ -68,10 +75,12 @@ impl Apu {
             pulse1_seq_step : 0,
             pulse1_sweep : 0,
             
-            pulse1_envelope_reset : false, // pulse1_reg4に書き込みがあったらにtrueにする。trueであればenvelopeのクロック（シーケンサの各クロック）でdivider, counterをリセット
+            pulse1_reg4_write : false, // pulse1_reg4に書き込みがあったらにtrueにする。trueであればenvelopeのクロック（シーケンサの各クロック）でdivider, counterをリセット
             pulse1_envelope_divider : 0, // envelopeの分周の実装。初期値はreg1のVVVVを与える。クロックごとに-1して、0のときにcouterを処理。
             pulse1_envelope_counter : 0, // 0-15の値。envelopeのクロックごとに(-1)する。0のときにloopが有効であれば15にする。
         
+            pulse1_length_counter : 0,
+
             pulse1_sample_output_couter : 0f32,
             pulse1_value : 0u8,
             pulse1_buffer : Vec::<f32>::new(),
@@ -128,7 +137,7 @@ impl Apu {
 
                 self.pulse1_timer_divider = t << 5;
                 self.pulse1_seq_step = 0;
-                self.pulse1_envelope_reset = true;
+                self.pulse1_reg4_write = true;
             }
             _ => {
             }
@@ -187,12 +196,8 @@ impl Apu {
 
             }
 
-            // エンベロープ
 
-            // レングス
-
-
-
+            self.pulse1_reg4_write = false;
 
             self.pulse1_sample_output_couter += 1f32;
             let sample_output_count = 1789773f32/44100.0;
@@ -256,8 +261,7 @@ impl Apu {
             // disable envelope (constant volume)
             self.pulse1_reg1 & 0x0f
         } else {
-            if self.pulse1_envelope_reset {
-                self.pulse1_envelope_reset = false;
+            if self.pulse1_reg4_write {
                 self.pulse1_envelope_divider = self.pulse1_reg1 & 0x0f;
                 self.pulse1_envelope_counter = 15;
     
@@ -278,7 +282,20 @@ impl Apu {
     }
 
     fn step_length(&mut self) {
-        
+        if self.status_reg & (1 << 0) != 0 && self.pulse1_reg1 & (1 << 5) == 0 {
+            if self.pulse1_reg4_write {
+                let i = (self.pulse1_reg4 & 0xf8) >> 3;
+                let l = LENGTH_TABLE[i as usize];
+                self.pulse1_length_counter = l;
+            
+            } else if self.pulse1_length_counter == 0 {
+                // pulse1をoff
+                self.status_reg &= !(1 << 0);
+            } else {
+                self.pulse1_envelope_counter -= 1;
+            }
+    
+        }
     }
 
 }
