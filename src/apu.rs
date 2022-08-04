@@ -36,7 +36,7 @@ pub struct Apu {
     pulse1_timer_step : u8, // 0-8の値。この値で`DUTY_TABLE`から取り出した値を出力値とする
     pulse1_seq_diveder : u16, // 0-7456。毎クロック(-1)し、7457クロックごとにpulse1_seq_stepを(+1)する
     pulse1_seq_step : u8, // 7457クロックごとに(+1)。Mによって、0-3または0-4の値をとる。
-    pulse1_sweep : u8,
+    pulse1_sweep_divider : u8,
     
     pulse1_reg4_write : bool, // pulse1_reg4に書き込みがあったらにtrueにする。trueであればenvelopeのクロック（シーケンサの各クロック）でdivider, counterをリセット
     pulse1_envelope_divider : u8, // envelopeの分周の実装。初期値はreg1のVVVVを与える。クロックごとに-1して、0のときにcouterを処理。
@@ -73,7 +73,7 @@ impl Apu {
             pulse1_timer_step : 0,
             pulse1_seq_diveder : 0,
             pulse1_seq_step : 0,
-            pulse1_sweep : 0,
+            pulse1_sweep_divider : 0,
             
             pulse1_reg4_write : false, // pulse1_reg4に書き込みがあったらにtrueにする。trueであればenvelopeのクロック（シーケンサの各クロック）でdivider, counterをリセット
             pulse1_envelope_divider : 0, // envelopeの分周の実装。初期値はreg1のVVVVを与える。クロックごとに-1して、0のときにcouterを処理。
@@ -167,7 +167,23 @@ impl Apu {
             };
 
             // スイープ
-            // TODO
+            if self.pulse1_reg2 & (1 << 7) != 0 {
+                if self.pulse1_sweep_divider == 0 {
+                    self.pulse1_seq_diveder = (self.pulse1_reg2 & (0b111 << 4)) as u16;
+                    let t = (self.pulse1_reg3 as u64) | ((self.pulse1_reg4 as u64 & 0x07) << 8);
+                    let v = self.pulse1_reg2 & 0b111;
+                    let t = if self.pulse1_reg2 & (1 << 3) == 0 {
+                        t + (t >> v)
+                    } else {
+                        t - (t >> v)
+                    };
+                    self.pulse1_reg3 = (t & 0xff) as u8;
+                    self.pulse1_reg4 = ((t >> 8) & 0x0b111) as u8;
+
+                } else {
+                    self.pulse1_envelope_divider -= 1;
+                }
+            }
 
             // フレームシーケンサー
             if self.pulse1_seq_diveder != 0 {
