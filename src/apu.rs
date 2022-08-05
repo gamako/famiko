@@ -172,7 +172,7 @@ impl Apu {
                 self.pulse1_timer_divider -= 1;
             } else {
                 self.pulse1_timer_divider = t << 5;
-                self.pulse1_timer_step += 1;
+                self.pulse1_timer_step = (self.pulse1_timer_step + 1) % 8;
             }
 
             // スイープ
