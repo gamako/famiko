@@ -1,6 +1,6 @@
 
 use core::fmt;
-use std::usize::MIN;
+use std::{usize::MIN, collections::VecDeque};
 
 use pa::{Stream, Blocking, Output, StreamAvailable, OutputStreamSettings};
 use portaudio as pa;
@@ -19,6 +19,20 @@ static DUTY_TABLE : [[u8;8];4] = [
 static LENGTH_TABLE : [u8; 32] = [
     10,254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
     12, 16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30,
+];
+
+static FLAME_SEQ_4 : [(bool, bool, bool); 4] = [ // IRQ, LENGTH, ENVELOPEの順で、ステップごとの処理のありなし
+    (false, false, true),
+    (false, true, true),
+    (false, false, true),
+    (true, true, true),
+];
+static FLAME_SEQ_5 : [(bool, bool, bool); 5] = [
+    (false, true, true),
+    (false, false, true),
+    (false, true, true),
+    (false, false, true),
+    (false, false, false),
 ];
 
 pub struct Apu {
@@ -46,7 +60,7 @@ pub struct Apu {
 
     pulse1_sample_output_couter : f32,
     pulse1_value : u8,
-    pulse1_buffer : Vec<f32>,
+    pulse1_buffer : VecDeque<f32>,
 
 }
 
@@ -83,7 +97,7 @@ impl Apu {
 
             pulse1_sample_output_couter : 0f32,
             pulse1_value : 0u8,
-            pulse1_buffer : Vec::<f32>::new(),
+            pulse1_buffer : VecDeque::<f32>::new(),
         
         }
     }
@@ -160,11 +174,6 @@ impl Apu {
                 self.pulse1_timer_divider = t << 5;
                 self.pulse1_timer_step += 1;
             }
-            // シーケンサ
-            let value = match duty_type {
-                0..=3 => { DUTY_TABLE[duty_type as usize][self.pulse1_timer_step as usize] }
-                _ => panic!("duty_type error {:?}", duty_type)
-            };
 
             // スイープ
             if self.pulse1_reg2 & (1 << 7) != 0 {
@@ -191,27 +200,29 @@ impl Apu {
             } else {
                 self.pulse1_seq_diveder = 7467;
 
-                if self.frame_counter_reg & (1u8 << 7) == 0 {
-                    // 4step mode
-                    match self.pulse1_seq_step {
-                        0 => {}
-                        1 => {}
-                        2 => {}
-                        3 => {}
-                    }
+                let (step_max, (is_IRQ, is_length, is_envelope)) = if self.frame_counter_reg & (1u8 << 7) == 0 {
+                    (4, FLAME_SEQ_4[self.pulse1_seq_step as usize])
                 } else {
-                    // 5step mode
-                    match self.pulse1_seq_step {
-                        0 => {}
-                        1 => {}
-                        2 => {}
-                        3 => {}
-                        4 => {}
-                    }
+                    (5, FLAME_SEQ_5[self.pulse1_seq_step as usize])
+                };
+                self.pulse1_seq_step = (self.pulse1_seq_step + 1) % step_max;
+
+
+                if is_length {
+                    self.step_length();
                 }
 
-            }
+                if is_envelope {
+                    let envelope_value = self.step_envelope();
 
+                    let duty_value = match duty_type {
+                        0..=3 => { DUTY_TABLE[duty_type as usize][self.pulse1_timer_step as usize] }
+                        _ => panic!("duty_type error {:?}", duty_type)
+                    };
+        
+                    self.pulse1_value = envelope_value * duty_value;
+                }
+            }
 
             self.pulse1_reg4_write = false;
 
@@ -220,8 +231,8 @@ impl Apu {
             if self.pulse1_sample_output_couter > sample_output_count {
                 self.pulse1_sample_output_couter =- sample_output_count;
 
-                let v = (self.pulse1_value as f32) * 1.5 / 15.0 - 1.0;
-                self.pulse1_buffer.push(v);
+                let v = (self.pulse1_value as f32) / 255.0 * 1.5 / 15.0 - 1.0;
+                self.pulse1_buffer.push_back(v);
 
                 let buffer_len = self.pulse1_buffer.len();
 
@@ -230,33 +241,27 @@ impl Apu {
                     if let Some(stream) = &mut self.stream {
                         match stream.write_available() {
                             Ok(StreamAvailable::Frames(l)) => {
-                                let write_len = if buffer_len > l as usize {
-                                    l as usize
-                                } else {
-                                    buffer_len
-                                };
-                                
-
-                                let write_frame = &self.pulse1_buffer[0..write_len];
                                 if l > (FRAMES_PER_BUFFER as i64) {
+                                    
+                                    let write_len = std::cmp::min(l as usize, buffer_len as usize);
+                                    // let write_frame = &self.pulse1_buffer[0..write_len];
+    
+
                                     let r = stream.write((FRAMES_PER_BUFFER) as u32, |output|{
                                         // output.copy_from_slice(&write_frame);
 
-                                        for i in 0 ..(FRAMES_PER_BUFFER) as usize{
-                                            // output[i] = write_frame[i];
-                                            output[i] = self.saw;
+                                        for i in 0 ..(FRAMES_PER_BUFFER) as usize {
+                                            if let Some(v) = self.pulse1_buffer.pop_front() {
+                                                output[i] = v;
+                                            }
                                         }
-    
-                                        //print!("");
                                     });
                                     if let Err(e) = r {
                                         println!("{:?}", e);
                                     }
+                                    // let remain = buffer_len - write_len;
+                                    // self.pulse1_buffer.
                                 }
-
-                                let remain = buffer_len - write_len;
-                                self.pulse1_buffer.clear();
-                            
                             },
                             Ok(StreamAvailable::OutputUnderflowed) => { println!("OutputUnderflowed"); },
                             Ok(StreamAvailable::InputOverflowed) => { println!("InputOverflowed");},
