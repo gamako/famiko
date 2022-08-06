@@ -128,7 +128,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             let frame_ = cpu.bus.ppu.step(cycle*3);
 
-            cpu.bus.apu.step();
+            cpu.bus.apu.step(cycle);
 
             if let Some(f) = frame_ {
 

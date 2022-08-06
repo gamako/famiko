@@ -158,10 +158,16 @@ impl Apu {
         };
     }
 
+    pub fn step(&mut self, cycle: usize) {
+        for i in 0..cycle {
+            self.step_();
+        }
+    }
+
     // 1.789MHzのクロックで呼ばれる想定
     // 戻り値はIRQが発生したことを知らせる
     // 44.1kHzで音を出力する場合は40.58クロックにごとに1サンプルを出力 (1/44.1K)/(1/1789773)=1789773/44100=40.58
-    pub fn step(&mut self) {
+    pub fn step_(&mut self) {
 
         if true {
             let t = (self.pulse1_reg3 as u64) | ((self.pulse1_reg4 as u64 & 0x07) << 8);
