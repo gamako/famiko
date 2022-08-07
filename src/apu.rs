@@ -1,6 +1,6 @@
 
 use core::fmt;
-use std::{usize::MIN, collections::VecDeque};
+use std::{usize::MIN, collections::VecDeque, time::{self, Instant}};
 
 use pa::{Stream, Blocking, Output, StreamAvailable, OutputStreamSettings};
 use portaudio as pa;
@@ -60,7 +60,9 @@ pub struct Apu {
 
     pulse1_sample_output_couter : f32,
     pulse1_value : u8,
-    pulse1_buffer : VecDeque<f32>,
+    pulse1_buffer : Vec<f32>,
+
+    t : Instant,
 
 }
 
@@ -97,7 +99,9 @@ impl Apu {
 
             pulse1_sample_output_couter : 0f32,
             pulse1_value : 0u8,
-            pulse1_buffer : VecDeque::<f32>::new(),
+            pulse1_buffer : Vec::<f32>::new(),
+
+            t : Instant::now(),
         
         }
     }
@@ -238,7 +242,7 @@ impl Apu {
                 self.pulse1_sample_output_couter =- sample_output_count;
 
                 let v = (self.pulse1_value as f32) / 255.0 * 1.5 / 15.0 - 1.0;
-                self.pulse1_buffer.push_back(v);
+                self.pulse1_buffer.push(v);
 
                 let buffer_len = self.pulse1_buffer.len();
 
@@ -250,23 +254,38 @@ impl Apu {
                                 if l > (FRAMES_PER_BUFFER as i64) {
                                     
                                     let write_len = std::cmp::min(l as usize, buffer_len as usize);
-                                    // let write_frame = &self.pulse1_buffer[0..write_len];
-    
 
-                                    let r = stream.write((FRAMES_PER_BUFFER) as u32, |output|{
-                                        // output.copy_from_slice(&write_frame);
+                                    let t = time::Instant::now();
+                                    let d = t.duration_since(self.t);
+                                    self.t = t;
+                                    print!("{:?} {:?}/{:?}/{:?} ", d, write_len, buffer_len, l);
 
-                                        for i in 0 ..(FRAMES_PER_BUFFER) as usize {
-                                            if let Some(v) = self.pulse1_buffer.pop_front() {
-                                                output[i] = v;
+                                    let r = stream.write(l as u32, |output|{
+
+                                        let mut i = 0;
+                                        let buffer_len = self.pulse1_buffer.len();
+
+                                        let mut x1 = vec![1,2,3,4,5,6];
+                                        let x2 = [10, 11, 12];
+                                        x1[3..=5].clone_from_slice(&x2);
+
+                                        while i < l as usize {
+                                            let cp_len = std::cmp::min((l as usize -i), buffer_len);
+
+                                            for j in i..i+cp_len {
+                                                output[j] = self.pulse1_buffer[j % buffer_len];
                                             }
+                                            i += cp_len;
+                                        }
+
+                                        for i in 0..l as usize {
+                                            output[i] = 0.0;
                                         }
                                     });
                                     if let Err(e) = r {
                                         println!("{:?}", e);
                                     }
-                                    // let remain = buffer_len - write_len;
-                                    // self.pulse1_buffer.
+                                    self.pulse1_buffer.clear();
                                 }
                             },
                             Ok(StreamAvailable::OutputUnderflowed) => { println!("OutputUnderflowed"); },
