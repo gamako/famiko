@@ -1,3 +1,4 @@
+use once_cell::sync::Lazy;
 
 static DUTY_TABLE : [[u8;8];4] = [
     [0,1,0,0,0,0,0,0],
@@ -25,6 +26,14 @@ static FLAME_SEQ_5 : [(bool, bool, bool); 5] = [
     (false, false, false),
 ];
 
+static PULSE_TABLE : Lazy<[f32;31]> = Lazy::new(||{
+    let mut t : [f32;31] = Default::default();
+    for i in 0..31 {
+        t[i] = 95.52 / (8128.0 / (i as f32) + 100.0)
+    }
+    t
+});
+
 #[derive(Debug)]
 pub struct Pulse {
     pub reg_duty_type : usize,
@@ -51,8 +60,6 @@ pub struct Pulse {
     length_counter : u8,
     sequencer_diveder : u16,
     sequencer_step : u8,
-
-    pub value : u8,
 }
 
 impl Pulse {
@@ -87,7 +94,6 @@ impl Pulse {
             sequencer_diveder : 0,
             sequencer_step : 0,
 
-            value : 0,
         }
     }
 
@@ -172,25 +178,15 @@ impl Pulse {
             }
 
             if is_envelope {
-                let envelope_value = self.step_envelope();
-
-                let duty_value = match self.reg_duty_type {
-                    0..=3 => { DUTY_TABLE[self.reg_duty_type as usize][self.timer_step as usize] }
-                    _ => panic!("duty_type error {:?}", self.reg_duty_type)
-                };
-    
-                self.value = envelope_value * duty_value;
+                self.step_envelope();
             }
         }
 
         self.reg_is_reset = false;
     }
 
-    fn step_envelope(&mut self) -> u8 {
-        if self.reg_envelope_is_disabled {
-            // disable envelope (constant volume)
-            self.reg_envelope_value
-        } else {
+    fn step_envelope(&mut self) {
+        if !self.reg_envelope_is_disabled {
             if self.reg_is_reset {
                 self.envelope_divider = self.reg_envelope_value;
                 self.envelope_counter = 15;
@@ -207,7 +203,13 @@ impl Pulse {
             } else {
                 self.envelope_divider -= 1;
             }
-            // counter値が出力となる
+        }
+    }
+
+    fn envelope_value(&self) -> u8 {
+        if self.reg_envelope_is_disabled {
+            self.reg_envelope_value
+        } else {
             self.envelope_counter
         }
     }
@@ -223,6 +225,20 @@ impl Pulse {
                 self.length_counter -= 1;
             }
         }
+    }
+
+    fn timer_value(&self) -> u8 {
+        match self.reg_duty_type {
+            0..=3 => { DUTY_TABLE[self.reg_duty_type as usize][self.timer_step as usize] }
+            _ => panic!("duty_type error {:?}", self.reg_duty_type)
+        }
+    }
+
+    pub fn value(&self) -> u8 {
+        let v1 = self.timer_value();
+        let v2 = self.envelope_value();
+
+        v1 * v2
     }
 }
 
@@ -260,10 +276,21 @@ impl Mixer {
         if self.time >= self.frame_cycle {
             self.time -= self.frame_cycle;
 
-            let v = (self.pulse1.value as f32) / 255.0 * 2.0 - 1.0;
+            let v = self.value();
             self.frames.push(v);
-
         }
+    }
+
+    // https://www.nesdev.org/wiki/APU_Mixer
+    pub fn value(&self) -> f32 {
+        let pulse1 = self.pulse1.value();
+        let pulse2 = 0; // TODO
+
+        let pulse1_out = PULSE_TABLE[(pulse1 + pulse2) as usize];
+
+        let tnd_out = 0.0; // TODO
+
+        pulse1_out + tnd_out
     }
 
 }
@@ -271,10 +298,11 @@ impl Mixer {
 #[cfg(test)]
 mod tests {
     use crate::Mixer;
-
+    use hound;
 
     #[test]
-    fn pulse1_cの音がループ() {
+    #[ignore]
+    fn pulse1_cの音をファイル出力() {
         let mut m = Mixer::new();
         m.pulse1.write_reg1(0x34);
         m.pulse1.write_reg2(0x00);
@@ -282,10 +310,22 @@ mod tests {
         m.pulse1.write_reg4(0x00);
         m.pulse1.reg_is_enable = true;
 
-        for i in 0..7467*100 {
-            
-        }
+        m.step(7467*100);
 
+        let wav_spec = hound::WavSpec {
+            channels : 1,
+            sample_rate : 44100,
+            bits_per_sample : 32,
+            sample_format : hound::SampleFormat::Float,
+        };
+
+        let mut writer = hound::WavWriter::create("./.test.wav", wav_spec).unwrap();
+        let frames = m.frames;
+        for i in 0..frames.len() {
+            writer.write_sample(frames[i]).unwrap();
+        }
+        writer.finalize().unwrap();
+        
     }
 
     #[test]
