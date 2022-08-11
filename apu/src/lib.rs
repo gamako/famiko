@@ -297,8 +297,37 @@ impl Mixer {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use crate::Mixer;
     use hound;
+
+    static TEST_OUTPUT : &str = "test_result/";
+
+    fn prepare_dir() {
+        fs::create_dir(TEST_OUTPUT).unwrap();
+    }
+
+    // テスト用にファイルの書き出し
+    impl Mixer {
+        fn write_wav_file(&self, output: &str) {
+            prepare_dir();
+
+            let wav_spec = hound::WavSpec {
+                channels : 1,
+                sample_rate : 44100,
+                bits_per_sample : 32,
+                sample_format : hound::SampleFormat::Float,
+            };
+    
+            let mut writer = hound::WavWriter::create(output, wav_spec).unwrap();
+            
+            for i in 0..self.frames.len() {
+                writer.write_sample(self.frames[i]).unwrap();
+            }
+            writer.finalize().unwrap();
+        }
+    }
 
     #[test]
     #[ignore]
@@ -312,19 +341,8 @@ mod tests {
 
         m.step(40*44100/2);
 
-        let wav_spec = hound::WavSpec {
-            channels : 1,
-            sample_rate : 44100,
-            bits_per_sample : 32,
-            sample_format : hound::SampleFormat::Float,
-        };
-
-        let mut writer = hound::WavWriter::create("./.test.wav", wav_spec).unwrap();
-        let frames = m.frames;
-        for i in 0..frames.len() {
-            writer.write_sample(frames[i]).unwrap();
-        }
-        writer.finalize().unwrap();
+        let file = TEST_OUTPUT.to_string() + "1_pusle_c.wav";
+        m.write_wav_file(&file); 
         
     }
 
