@@ -305,7 +305,7 @@ mod tests {
     static TEST_OUTPUT : &str = "test_result/";
 
     fn prepare_dir() {
-        fs::create_dir(TEST_OUTPUT).unwrap();
+        _ = fs::create_dir(TEST_OUTPUT);
     }
 
     // テスト用にファイルの書き出し
@@ -331,7 +331,8 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn pulse1_cの音をファイル出力() {
+    fn pulse1_440hzの音をファイル出力() {
+        // 440hz => 1789773 / 440 / 32 - 1 = 126.11 ≒ 126 = 0x7e
         let mut m = Mixer::new();
         m.pulse1.write_reg1(0x34);
         m.pulse1.write_reg2(0x00);
@@ -341,14 +342,46 @@ mod tests {
 
         m.step(40*44100/2);
 
-        let file = TEST_OUTPUT.to_string() + "1_pusle_c.wav";
+        let file = TEST_OUTPUT.to_string() + "1_pusle_440_loop.wav";
         m.write_wav_file(&file); 
-        
     }
 
     #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+    #[ignore]
+    fn pulse1_880hzの音をファイル出力() {
+        // 880hz => 1789773 / 880 / 32 - 1 = 62.56 ≒ 63 = 0x3e
+        let mut m = Mixer::new();
+        m.pulse1.write_reg1(0x34);
+        m.pulse1.write_reg2(0x00);
+        m.pulse1.write_reg3(0x3e);
+        m.pulse1.write_reg4(0x00);
+        m.pulse1.reg_is_enable = true;
+
+        m.step(40*44100/2);
+
+        let file = TEST_OUTPUT.to_string() + "2_pusle_880_loop.wav";
+        m.write_wav_file(&file); 
+    }
+
+    #[test]
+    #[ignore]
+    fn pulse1_duty0_1_3_2の音をファイル出力() {
+        let mut m = Mixer::new();
+        m.pulse1.write_reg1(0x34);
+        m.pulse1.write_reg2(0x00);
+        m.pulse1.write_reg3(0x7e);
+        m.pulse1.write_reg4(0x00);
+        m.pulse1.reg_is_enable = true;
+
+        m.step(40*44100/2);
+        m.pulse1.write_reg1(0x74);
+        m.step(40*44100/2);
+        m.pulse1.write_reg1(0xf4);
+        m.step(40*44100/2);
+        m.pulse1.write_reg1(0xb4);
+        m.step(40*44100/2);
+
+        let file = TEST_OUTPUT.to_string() + "3_pusle_duty.wav";
+        m.write_wav_file(&file); 
     }
 }
