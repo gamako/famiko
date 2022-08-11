@@ -82,7 +82,7 @@ impl Pulse {
             reg_length_counter_type: 0,
             reg_is_reset : true,
             reg_is_enable : true,
-            reg_5step_mode : true,
+            reg_5step_mode : false,
             reg_enable_IRQ : true,
 
             timer_divider : 0,
@@ -121,8 +121,10 @@ impl Pulse {
     pub fn write_reg4(&mut self, v : u8) {
         // $4003 LLLL LTTT  Length counter load (L), timer high (T)
         self.reg_length_counter_type = (v >> 3) & 0b11111;
+        self.length_counter = LENGTH_TABLE[self.reg_length_counter_type as usize];
         self.reg_timer_high = (v & 0b111) as u16;
         self.reg_is_reset = true;
+        self.reg_is_enable = true;
     }
 
     pub fn step(&mut self, cycle : usize) {
@@ -140,25 +142,6 @@ impl Pulse {
             self.timer_step = (self.timer_step + 1) % 8;
         }
 
-        // スイープ
-        if self.reg_sweep_is_enabled {
-            if self.sweep_divider == 0 {
-                self.sweep_divider = self.reg_sweep_period;
-                let timer = self.reg_timer_high << 8 | self.reg_timer_low;
-                let v = timer >> self.reg_sweep_shift;
-
-                let timer = if self.reg_sweep_is_negate {
-                    timer - v
-                } else {
-                    timer + v
-                };
-                self.reg_timer_high = timer >> 8;
-                self.reg_timer_low = timer & 0xff;
-            } else {
-                self.sweep_divider -= 1;
-            }
-        }
-
         // フレームシーケンサー
         if self.sequencer_diveder != 0 {
             self.sequencer_diveder -= 1;
@@ -174,6 +157,7 @@ impl Pulse {
 
 
             if is_length {
+                self.step_sweep();
                 self.step_length();
             }
 
@@ -216,13 +200,31 @@ impl Pulse {
 
     fn step_length(&mut self) {
         if self.reg_is_enable && !self.reg_envelope_loop_enable_and_length_is_disable {
-            if self.reg_is_reset {
-                self.length_counter = LENGTH_TABLE[self.reg_length_counter_type as usize];
-            } else if self.length_counter == 0 {
+            if self.length_counter == 0 {
                 // pulse1をoff
                 self.reg_is_enable = false;
             } else {
                 self.length_counter -= 1;
+            }
+        }
+    }
+
+    fn step_sweep(&mut self) {
+        if self.reg_sweep_is_enabled {
+            if self.sweep_divider == 0 {
+                self.sweep_divider = self.reg_sweep_period;
+                let timer = self.reg_timer_high << 8 | self.reg_timer_low;
+                let v = timer >> self.reg_sweep_shift;
+
+                let timer = if self.reg_sweep_is_negate {
+                    timer - v
+                } else {
+                    timer + v
+                };
+                self.reg_timer_high = timer >> 8;
+                self.reg_timer_low = timer & 0xff;
+            } else {
+                self.sweep_divider -= 1;
             }
         }
     }
@@ -235,10 +237,14 @@ impl Pulse {
     }
 
     pub fn value(&self) -> u8 {
-        let v1 = self.timer_value();
-        let v2 = self.envelope_value();
-
-        v1 * v2
+        if self.reg_is_enable {
+            let v1 = self.timer_value();
+            let v2 = self.envelope_value();
+    
+            v1 * v2
+        } else {
+            0
+        }
     }
 }
 
@@ -382,6 +388,26 @@ mod tests {
         m.step(40*44100/2);
 
         let file = TEST_OUTPUT.to_string() + "3_pusle_duty.wav";
+        m.write_wav_file(&file); 
+    }
+
+    #[test]
+    #[ignore]
+    fn pulse1_長さ160msecの音をファイル出力() {
+        let mut m = Mixer::new();
+        m.pulse1.write_reg1(0x14);
+        m.pulse1.write_reg2(0x00);
+        m.pulse1.write_reg3(0x7e);
+        m.pulse1.write_reg4(0x10);
+        m.pulse1.reg_is_enable = true;
+
+        // let count = 40.58 * 44_100.0 * 0.17;
+        // let count_ = count as usize;
+        // m.step(count_);
+        // m.step(1);
+        m.step(40*44100/2);
+
+        let file = TEST_OUTPUT.to_string() + "4_pusle_length.wav";
         m.write_wav_file(&file); 
     }
 }
