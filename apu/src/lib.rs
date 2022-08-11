@@ -136,7 +136,7 @@ impl Pulse {
         if self.timer_divider != 0 {
             self.timer_divider -= 1;
         } else {
-            self.timer_divider = self.reg_timer_high << 8 | self.reg_timer_low;
+            self.timer_divider = (self.reg_timer_high << 8 | self.reg_timer_low + 1) << 1;
             self.timer_step = (self.timer_step + 1) % 8;
         }
 
@@ -310,7 +310,7 @@ mod tests {
         m.pulse1.write_reg4(0x00);
         m.pulse1.reg_is_enable = true;
 
-        m.step(7467*100);
+        m.step(40*44100/2);
 
         let wav_spec = hound::WavSpec {
             channels : 1,
