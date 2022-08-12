@@ -401,10 +401,6 @@ mod tests {
         m.pulse1.write_reg4(0x10);
         m.pulse1.reg_is_enable = true;
 
-        // let count = 40.58 * 44_100.0 * 0.17;
-        // let count_ = count as usize;
-        // m.step(count_);
-        // m.step(1);
         m.step(40*44100/2);
 
         let file = TEST_OUTPUT.to_string() + "4_pusle_length.wav";
