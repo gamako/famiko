@@ -406,4 +406,37 @@ mod tests {
         let file = TEST_OUTPUT.to_string() + "4_pusle_length.wav";
         m.write_wav_file(&file); 
     }
+
+    #[test]
+    #[ignore]
+    fn pulse1_sweep音をファイル出力() {
+        let mut m = Mixer::new();
+        m.pulse1.write_reg1(0x34);
+        m.pulse1.write_reg2(0b10010100);
+        m.pulse1.write_reg3(0x7e);
+        m.pulse1.write_reg4(0x30);
+        m.pulse1.reg_is_enable = true;
+
+        m.step(40*44100*4/5);
+
+        let file = TEST_OUTPUT.to_string() + "5_pusle_sweep.wav";
+        m.write_wav_file(&file); 
+    }
+
+    #[test]
+    #[ignore]
+    fn pulse1_sweep音をファイル出力2() {
+        let mut m = Mixer::new();
+        m.pulse1.write_reg1(0x34);
+        m.pulse1.write_reg2(0b11001100);
+        m.pulse1.write_reg3(0x7e);
+        m.pulse1.write_reg4(0x00);
+        m.pulse1.reg_is_enable = true;
+
+        m.step(40*44100*14/10);
+
+        let file = TEST_OUTPUT.to_string() + "6_pusle_sweep2.wav";
+        m.write_wav_file(&file); 
+    }
+
 }
