@@ -552,4 +552,19 @@ mod tests {
         m.write_wav_file(&file); 
     }
 
+    #[test]
+    #[ignore]
+    fn triangle_440hz音をファイル出力() {
+        let mut m = Mixer::new();
+        m.triangle.write_reg1(0b11000000);
+        m.triangle.write_reg2(0b10000001);
+        m.triangle.write_reg3(0b01111000);
+
+        m.step(40*44100/2);
+
+        let file = TEST_OUTPUT.to_string() + "triangle_1_440hz.wav";
+        m.write_wav_file(&file); 
+    }
+
+
 }
