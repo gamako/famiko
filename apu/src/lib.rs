@@ -348,7 +348,7 @@ mod tests {
 
         m.step(40*44100/2);
 
-        let file = TEST_OUTPUT.to_string() + "1_pusle_440_loop.wav";
+        let file = TEST_OUTPUT.to_string() + "pusle_1_440_loop.wav";
         m.write_wav_file(&file); 
     }
 
@@ -365,7 +365,7 @@ mod tests {
 
         m.step(40*44100/2);
 
-        let file = TEST_OUTPUT.to_string() + "2_pusle_880_loop.wav";
+        let file = TEST_OUTPUT.to_string() + "pusle_2_880_loop.wav";
         m.write_wav_file(&file); 
     }
 
@@ -387,7 +387,7 @@ mod tests {
         m.pulse1.write_reg1(0xb4);
         m.step(40*44100/2);
 
-        let file = TEST_OUTPUT.to_string() + "3_pusle_duty.wav";
+        let file = TEST_OUTPUT.to_string() + "pusle_3_duty.wav";
         m.write_wav_file(&file); 
     }
 
@@ -403,7 +403,7 @@ mod tests {
 
         m.step(40*44100/2);
 
-        let file = TEST_OUTPUT.to_string() + "4_pusle_length.wav";
+        let file = TEST_OUTPUT.to_string() + "pusle_4_length.wav";
         m.write_wav_file(&file); 
     }
 
@@ -419,7 +419,7 @@ mod tests {
 
         m.step(40*44100*4/5);
 
-        let file = TEST_OUTPUT.to_string() + "5_pusle_sweep.wav";
+        let file = TEST_OUTPUT.to_string() + "pusle_5_sweep.wav";
         m.write_wav_file(&file); 
     }
 
@@ -435,7 +435,7 @@ mod tests {
 
         m.step(40*44100*14/10);
 
-        let file = TEST_OUTPUT.to_string() + "6_pusle_sweep2.wav";
+        let file = TEST_OUTPUT.to_string() + "pusle_6_sweep2.wav";
         m.write_wav_file(&file); 
     }
 
