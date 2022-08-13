@@ -312,37 +312,31 @@ impl Triangle {
         self.enable_triangle = true;
     }
 
-    pub fn step(&mut self, cycle : usize) {
-        for _ in 0..cycle {
-            self.step_cycle();
-        }
-    }
-
-    fn step_cycle(&mut self) {
+    fn step_cycle(&mut self, is_step_length : bool) {
         if self.timer_divider != 0 {
             self.timer_divider -= 1;
         } else {
             self.timer_divider = self.timer;
+            self.envelope = (self.envelope + 1) % 32;
+        }
 
+        if is_step_length {
             if self.linear_counter != 0 {
                 self.linear_counter -= 1;
             }
 
             if !self.disable_length {
                 if self.length_counter != 0 {
-                    self.length_counter -= 0;
-                    if self.length_counter == 0 {
-                        self.enable_triangle = false;
-                    }
+                    self.length_counter -= 1;
+                } else {
+                    self.enable_triangle = false;
                 }
             }
-
-            self.envelope = (self.envelope + 1) % 32;
         }
     }
 
     fn value(&self) -> u8 {
-        if self.enable_triangle {
+        if self.enable_triangle && self.length_counter != 0 && self.linear_counter != 0 {
             TRIANGLE_ENVELOPE_TABLE[self.envelope as usize]
         } else {
             0
@@ -350,9 +344,46 @@ impl Triangle {
     }
 }
 
+#[derive(Debug)]
+struct FrameSequencer {
+    is_5step_mode : bool,
+    diveder : u16,
+    step : u8,
+}
+
+impl FrameSequencer {
+    pub fn new() -> Self {
+        Self {
+            is_5step_mode : false,
+            diveder : 0,
+            step : 0,
+        }
+    }
+
+    // (IRQ, LENGTH, ENVELOPE)のフラグを返す
+    fn step(&mut self) -> (bool, bool, bool) {
+        // フレームシーケンサー
+        if self.diveder != 0 {
+            self.diveder -= 1;
+            (false, false, false)
+        } else {
+            self.diveder = 7467;
+
+            let (step_max, r) = if self.is_5step_mode {
+                (5, FLAME_SEQ_5[self.step as usize])
+            } else {
+                (4, FLAME_SEQ_4[self.step as usize])
+            };
+            self.step = (self.step + 1) % step_max;
+            r
+        }
+    }
+}
+
 
 #[derive(Debug)]
 pub struct Mixer {
+    frame_sequencer : FrameSequencer,
     pub pulse1 : Pulse,
     pub pulse2 : Pulse,
     pub triangle : Triangle,
@@ -365,7 +396,8 @@ pub struct Mixer {
 
 impl Mixer {
     pub fn new() -> Self {
-        Self { 
+        Self {
+            frame_sequencer : FrameSequencer::new(),
             pulse1: Pulse::new(),
             pulse2: Pulse::new(),
             triangle : Triangle::new(),
@@ -383,9 +415,10 @@ impl Mixer {
     }
 
     pub fn step_cycle(&mut self) {
+        let (_, is_length, _) = self.frame_sequencer.step();
         self.pulse1.step_cycle();
         self.pulse2.step_cycle();
-        self.triangle.step_cycle();
+        self.triangle.step_cycle(is_length);
 
         self.time += self.time_per_cycle;
         if self.time >= self.frame_cycle {
@@ -563,6 +596,34 @@ mod tests {
         m.step(40*44100/2);
 
         let file = TEST_OUTPUT.to_string() + "triangle_1_440hz.wav";
+        m.write_wav_file(&file); 
+    }
+
+    #[test]
+    #[ignore]
+    fn triangle_880hz音をファイル出力() {
+        let mut m = Mixer::new();
+        m.triangle.write_reg1(0b11000000);
+        m.triangle.write_reg2(0b00001110);
+        m.triangle.write_reg3(0b01111000);
+
+        m.step(40*44100/2);
+
+        let file = TEST_OUTPUT.to_string() + "triangle_2_880hz.wav";
+        m.write_wav_file(&file); 
+    }
+
+    #[test]
+    #[ignore]
+    fn triangle_160secの音をファイル出力() {
+        let mut m = Mixer::new();
+        m.triangle.write_reg1(0b01111111);
+        m.triangle.write_reg2(0b10000001);
+        m.triangle.write_reg3(0b01111000);
+
+        m.step(40*44100/2);
+
+        let file = TEST_OUTPUT.to_string() + "triangle_3_length.wav";
         m.write_wav_file(&file); 
     }
 
