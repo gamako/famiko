@@ -34,6 +34,14 @@ static PULSE_TABLE : Lazy<[f32;31]> = Lazy::new(||{
     t
 });
 
+static TND_TABLE : Lazy<[f32;256]> = Lazy::new(||{
+    let mut t : [f32;256] = [0.0;256];
+    for i in 0..256 {
+        t[i] = 163.67 / (24329.0 / (i as f32) + 100.0)
+    }
+    t
+});
+
 #[derive(Debug)]
 pub struct Pulse {
     pub reg_duty_type : usize,
@@ -248,9 +256,106 @@ impl Pulse {
     }
 }
 
+static TRIANGLE_ENVELOPE_TABLE : [u8; 32] = [
+    0xF, 0xE, 0xD, 0xC, 0xB, 0xA, 0x9, 0x8, 0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1, 0x0,
+    0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF,
+];
+
+#[derive(Debug)]
+pub struct Triangle {
+    pub disable_length : bool,
+    pub linear_counter : u8,
+    pub timer : u16,
+    pub length_counter : u8,
+    pub envelope : u8,
+    pub enable_triangle : bool,
+    pub is_reset : bool,
+
+    pub timer_divider : u16,
+    pub value : u16,
+}
+
+impl Triangle {
+    pub fn new() -> Self {
+        Self { 
+            disable_length: true,
+            linear_counter: 0,
+            timer: 0,
+            length_counter: 0,
+            envelope: 0,
+            enable_triangle: false,
+            is_reset: false,
+            timer_divider: 0,
+            value: 0,
+        }
+    }
+
+    pub fn write_reg1(&mut self, v : u8) {
+        // CRRR RRRR	Length counter halt / linear counter control (C), linear counter load (R)
+        self.disable_length = v & (1 << 7) != 0;
+        self.linear_counter = v & 0x7f;
+    }
+
+    pub fn write_reg2(&mut self, v : u8) {
+        // TTTT TTTT	Timer low (T)
+        self.timer = (self.timer & 0x700) | (v as u16);
+        self.timer_divider = self.timer;
+    }
+
+    pub fn write_reg3(&mut self, v : u8) {
+        // LLLL LTTT	Length counter load (L), timer high (T)
+        self.timer = (self.timer & 0xff) | ((v as u16 & 0x07) << 8);
+        self.timer_divider = self.timer;
+        let length_type = v >> 3;
+        self.length_counter = LENGTH_TABLE[length_type as usize];
+        self.is_reset = true;
+        self.enable_triangle = true;
+    }
+
+    pub fn step(&mut self, cycle : usize) {
+        for _ in 0..cycle {
+            self.step_cycle();
+        }
+    }
+
+    fn step_cycle(&mut self) {
+        if self.timer_divider != 0 {
+            self.timer_divider -= 1;
+        } else {
+            self.timer_divider = self.timer;
+
+            if self.linear_counter != 0 {
+                self.linear_counter -= 1;
+            }
+
+            if !self.disable_length {
+                if self.length_counter != 0 {
+                    self.length_counter -= 0;
+                    if self.length_counter == 0 {
+                        self.enable_triangle = false;
+                    }
+                }
+            }
+
+            self.envelope = (self.envelope + 1) % 32;
+        }
+    }
+
+    fn value(&self) -> u8 {
+        if self.enable_triangle {
+            TRIANGLE_ENVELOPE_TABLE[self.envelope as usize]
+        } else {
+            0
+        }
+    }
+}
+
+
 #[derive(Debug)]
 pub struct Mixer {
     pub pulse1 : Pulse,
+    pub pulse2 : Pulse,
+    pub triangle : Triangle,
     pub frames : Vec<f32>,
 
     time : f32,
@@ -261,7 +366,9 @@ pub struct Mixer {
 impl Mixer {
     pub fn new() -> Self {
         Self { 
-            pulse1: Pulse::new(), 
+            pulse1: Pulse::new(),
+            pulse2: Pulse::new(),
+            triangle : Triangle::new(),
             frames: vec![],
             time : 0.0,
             frame_cycle : 1.0 / 44_100.0,
@@ -277,6 +384,8 @@ impl Mixer {
 
     pub fn step_cycle(&mut self) {
         self.pulse1.step_cycle();
+        self.pulse2.step_cycle();
+        self.triangle.step_cycle();
 
         self.time += self.time_per_cycle;
         if self.time >= self.frame_cycle {
@@ -290,11 +399,15 @@ impl Mixer {
     // https://www.nesdev.org/wiki/APU_Mixer
     pub fn value(&self) -> f32 {
         let pulse1 = self.pulse1.value();
-        let pulse2 = 0; // TODO
+        let pulse2 = self.pulse2.value();
 
         let pulse1_out = PULSE_TABLE[(pulse1 + pulse2) as usize];
 
-        let tnd_out = 0.0; // TODO
+        let triangle = self.triangle.value();
+        let noise = 0;
+        let dmc = 0;
+
+        let tnd_out = TND_TABLE[(3 * triangle + noise + dmc) as usize];
 
         pulse1_out + tnd_out
     }
