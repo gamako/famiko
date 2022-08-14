@@ -344,6 +344,108 @@ impl Triangle {
     }
 }
 
+static NOISE_PERIOD_TABLE : [u16; 16] = [
+    4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068
+];
+
+#[derive(Debug)]
+struct Noise {
+    
+    pub is_length_disable : bool,
+    pub is_constant_volume : bool,
+    pub volume : u8,
+    pub mode : bool,
+    pub period_type : u8,
+    pub length : u8,
+    pub is_reset : bool,
+    pub is_enable : bool,
+
+    pub timer_divider : u16,
+
+    pub length_counter : u8,
+
+    pub shift_register : u16,
+}
+
+impl Noise {
+    pub fn new() -> Self {
+        Self {
+            is_length_disable: false,
+            is_constant_volume: true,
+            volume: 0,
+            mode: false,
+            period_type: 0,
+            length: 0,
+            is_reset : false,
+            is_enable : true,
+
+            timer_divider : 0,
+
+            length_counter : 0,
+
+            shift_register : 1,
+        }
+    }
+
+    pub fn write_reg1(&mut self, v : u8) {
+        // --lc.vvvv	Length counter halt, constant volume/envelope flag, and volume/envelope divider period (write)
+        self.is_length_disable = v & (1 << 5) != 0;
+        self.is_constant_volume = v & (1 << 4) != 0;
+        self.volume = v & 0x0f;
+    }
+
+    pub fn write_reg2(&mut self, v : u8) {
+        // M---.PPPP	Mode and period (write)
+        self.mode = v & (1 << 7) != 0;
+        self.period_type = v & 0x0f;
+    }
+
+    pub fn write_reg3(&mut self, v : u8) {
+        // llll.l---	Length counter load and envelope restart (write)
+        let length_type = v >> 3;
+        self.length_counter = LENGTH_TABLE[length_type as usize];
+        self.is_reset = true;
+    }
+
+    pub fn step_cycle(&mut self, is_step_length : bool) {
+        if self.timer_divider != 0 {
+            self.timer_divider -= 0;
+        } else {
+            self.timer_divider = NOISE_PERIOD_TABLE[self.period_type as usize];
+
+            let bit = if self.mode == false { 1 } else { 6 };
+            let b = (self.shift_register & 1) ^ ((self.shift_register >> bit) & 1);
+            
+            self.shift_register = (self.shift_register >> 1) & 0x3ff | (b << 14);
+
+            if !self.is_constant_volume {
+                if self.volume != 0 {
+                    self.volume -= 0;
+                }
+            }
+        }
+
+        if !is_step_length {
+            if !self.is_length_disable {
+                if self.length_counter != 0 {
+                    self.length_counter -= 1;
+                } else {
+                    self.is_enable = false;
+                }
+            }
+        }
+    }
+
+    pub fn value(&self) -> u8 {
+        if self.is_enable {
+            ((self.shift_register & 1) as u8) * self.volume
+        } else {
+            0
+        }
+    }
+
+}
+
 #[derive(Debug)]
 struct FrameSequencer {
     is_5step_mode : bool,
@@ -387,6 +489,7 @@ pub struct Mixer {
     pub pulse1 : Pulse,
     pub pulse2 : Pulse,
     pub triangle : Triangle,
+    pub noise : Noise,
     pub frames : Vec<f32>,
 
     time : f32,
@@ -401,6 +504,7 @@ impl Mixer {
             pulse1: Pulse::new(),
             pulse2: Pulse::new(),
             triangle : Triangle::new(),
+            noise : Noise::new(),
             frames: vec![],
             time : 0.0,
             frame_cycle : 1.0 / 44_100.0,
@@ -419,6 +523,7 @@ impl Mixer {
         self.pulse1.step_cycle();
         self.pulse2.step_cycle();
         self.triangle.step_cycle(is_length);
+        self.noise.step_cycle(is_length);
 
         self.time += self.time_per_cycle;
         if self.time >= self.frame_cycle {
@@ -437,7 +542,7 @@ impl Mixer {
         let pulse1_out = PULSE_TABLE[(pulse1 + pulse2) as usize];
 
         let triangle = self.triangle.value();
-        let noise = 0;
+        let noise = self.noise.value();
         let dmc = 0;
 
         let tnd_out = TND_TABLE[(3 * triangle + noise + dmc) as usize];
