@@ -760,4 +760,18 @@ mod tests {
         m.write_wav_file(&file); 
     }
 
+    #[test]
+    #[ignore]
+    fn noise_mode1ファイル出力() {
+        let mut m = Mixer::new();
+        m.noise.write_reg1(0b00111100);
+        m.noise.write_reg2(0b10001100);
+        m.noise.write_reg3(0b00000000);
+
+        m.step(40*44100/2);
+
+        let file = TEST_OUTPUT.to_string() + "noise_3_mode1.wav";
+        m.write_wav_file(&file); 
+    }
+
 }
