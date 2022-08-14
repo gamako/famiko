@@ -349,7 +349,7 @@ static NOISE_PERIOD_TABLE : [u16; 16] = [
 ];
 
 #[derive(Debug)]
-struct Noise {
+pub struct Noise {
     
     pub is_length_disable : bool,
     pub is_constant_volume : bool,
@@ -409,14 +409,14 @@ impl Noise {
 
     pub fn step_cycle(&mut self, is_step_length : bool) {
         if self.timer_divider != 0 {
-            self.timer_divider -= 0;
+            self.timer_divider -= 1;
         } else {
             self.timer_divider = NOISE_PERIOD_TABLE[self.period_type as usize];
 
             let bit = if self.mode == false { 1 } else { 6 };
             let b = (self.shift_register & 1) ^ ((self.shift_register >> bit) & 1);
             
-            self.shift_register = (self.shift_register >> 1) & 0x3ff | (b << 14);
+            self.shift_register = (self.shift_register >> 1) & 0x3fff | (b << 14);
 
             if !self.is_constant_volume {
                 if self.volume != 0 {
@@ -425,7 +425,7 @@ impl Noise {
             }
         }
 
-        if !is_step_length {
+        if is_step_length {
             if !self.is_length_disable {
                 if self.length_counter != 0 {
                     self.length_counter -= 1;
@@ -732,5 +732,18 @@ mod tests {
         m.write_wav_file(&file); 
     }
 
+    #[test]
+    #[ignore]
+    fn noise_25hzファイル出力() {
+        let mut m = Mixer::new();
+        m.noise.write_reg1(0b00111100);
+        m.noise.write_reg2(0b00001100);
+        m.noise.write_reg3(0b00000000);
+
+        m.step(40*44100/2);
+
+        let file = TEST_OUTPUT.to_string() + "noise_1_25hz.wav";
+        m.write_wav_file(&file); 
+    }
 
 }
