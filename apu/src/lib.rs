@@ -89,7 +89,7 @@ impl Pulse {
             reg_timer_high: 0,
             reg_length_counter_type: 0,
             reg_is_reset : true,
-            reg_is_enable : true,
+            reg_is_enable : false,
             reg_5step_mode : false,
             reg_enable_IRQ : true,
 
@@ -539,7 +539,7 @@ impl Mixer {
         let pulse1 = self.pulse1.value();
         let pulse2 = self.pulse2.value();
 
-        let pulse1_out = PULSE_TABLE[(pulse1 + pulse2) as usize];
+        let pulse_out = PULSE_TABLE[(pulse1 + pulse2) as usize];
 
         let triangle = self.triangle.value();
         let noise = self.noise.value();
@@ -547,7 +547,7 @@ impl Mixer {
 
         let tnd_out = TND_TABLE[(3 * triangle + noise + dmc) as usize];
 
-        pulse1_out + tnd_out
+        pulse_out + tnd_out
     }
 
 }
