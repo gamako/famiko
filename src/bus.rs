@@ -39,7 +39,7 @@ impl Bus {
             0x2006 => 0xff,
             0x2007 => { self.ppu.read_ppudata(!is_debug) },
             0x4000 ..= 0x4015 => {
-                0x00
+                self.apu.read(addr, is_debug)
             }
             0x4016 => {
                 self.joy_pad.read(is_debug) as u8
@@ -109,7 +109,7 @@ impl Bus {
                 self.ppu.write_dma(&self.ram[addr..addr+0x100])
             }
             0x4000 ..= 0x4015 => {
-                debug!(" write apu register: {:#02x}", value);
+                self.apu.write(addr, value);
             }
             0x4016 => {
                 // コントローラー
