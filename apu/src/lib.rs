@@ -566,14 +566,16 @@ impl Apu {
         };
     }
 
-    pub fn step(&mut self, count : usize) {
+    pub fn step(&mut self, count : usize) -> bool {
+        let mut is_irq = false;
         for _ in 0..count {
-            self.step_cycle()
+            is_irq |= self.step_cycle()
         }
+        is_irq
     }
 
-    pub fn step_cycle(&mut self) {
-        let (_, is_length, _) = self.frame_sequencer.step();
+    pub fn step_cycle(&mut self) -> bool {
+        let (is_irq, is_length, _) = self.frame_sequencer.step();
         self.pulse1.step_cycle();
         self.pulse2.step_cycle();
         self.triangle.step_cycle(is_length);
@@ -586,6 +588,7 @@ impl Apu {
             let v = self.value();
             self.frames.push(v);
         }
+        is_irq
     }
 
     // https://www.nesdev.org/wiki/APU_Mixer

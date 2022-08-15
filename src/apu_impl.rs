@@ -12,7 +12,8 @@ const FRAMES_PER_BUFFER: u32 = 512;
 
 pub struct ApuImpl {
     stream: Option<Stream<Blocking<pa::stream::Buffer>, Output<f32>>>,
-    apu : Apu
+    apu : Apu,
+    pub irq : bool
 }
 
 impl fmt::Debug for ApuImpl {
@@ -27,12 +28,11 @@ impl ApuImpl {
         Self{
             stream: None,
             apu : Apu::new(),
+            irq : false,
         }
     }
 
     pub fn start(&mut self) -> Result<(), pa::Error>{
-    
-        let mut left_saw = 0.0;
     
         let pa = pa::PortAudio::new()?;
     
@@ -65,8 +65,12 @@ impl ApuImpl {
     }
 
     pub fn step(&mut self, cycle: usize) {
-        self.apu.step(cycle);
+        let is_irq = self.apu.step(cycle);
         self.flush_buffer_if_need();
+
+        if is_irq {
+            self.irq = true;
+        }
     }
 
     fn flush_buffer_if_need(&mut self) {

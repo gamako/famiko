@@ -257,6 +257,10 @@ impl CPU {
         self.intrrupt(0xfffa)
     }
 
+    pub fn int_irq(&mut self) -> usize {
+        self.intrrupt(0xfffa)
+    }
+
     pub fn intrrupt(&mut self, addr: u16) -> usize {
         let l = self.bus.read(addr, false);
         let h = self.bus.read(addr+1, false);
@@ -1264,6 +1268,11 @@ impl CPU {
         if self.bus.read_nmi() {
             //println!("interruption nmi");
             return self.int_nmi();
+        }
+        if self.bus.read_irq() & (self.p & P_MASK_INT_DISABLE == 0) {
+            println!("interruption irq");
+            self.p &= !P_MASK_BREAK_COMMAND;
+            return self.int_irq();
         }
 
         log.addr = Some(self.pc);

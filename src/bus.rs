@@ -134,6 +134,12 @@ impl Bus {
         v
     }
 
+    pub fn read_irq(&mut self) -> bool {
+        let v = self.apu.irq;
+        self.apu.irq = false;
+        v
+    }
+
     pub fn debug_prg_bytes(&mut self, addr: u16, l: usize) -> String {
         (addr .. (addr + (l as u16)))
             .map(|v|{ self.read(v, false) })
