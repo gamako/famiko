@@ -11,6 +11,7 @@ members = [
 ]
 
 [dependencies]
+apu = { path = "apu" }
 clap = "3.2.5"
 hex = "0.4.3"
 log = "0.4.16"

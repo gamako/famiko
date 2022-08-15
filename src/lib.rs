@@ -3,4 +3,4 @@ pub mod bus;
 pub mod ppu;
 pub mod joypad;
 pub mod hex;
-pub mod apu;
+pub mod apu_impl;

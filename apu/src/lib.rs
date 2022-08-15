@@ -482,9 +482,16 @@ impl FrameSequencer {
     }
 }
 
+fn mixer(pulse1 : u8, pulse2 : u8, triangle : u8, noise : u8, dmc: u8) -> f32 {
+    let pulse_out = PULSE_TABLE[(pulse1 + pulse2) as usize];
+
+    let tnd_out = TND_TABLE[(3 * triangle + noise + dmc) as usize];
+
+    pulse_out + tnd_out
+}
 
 #[derive(Debug)]
-pub struct Mixer {
+pub struct Apu {
     frame_sequencer : FrameSequencer,
     pub pulse1 : Pulse,
     pub pulse2 : Pulse,
@@ -497,7 +504,7 @@ pub struct Mixer {
     time_per_cycle : f32,
 }
 
-impl Mixer {
+impl Apu {
     pub fn new() -> Self {
         Self {
             frame_sequencer : FrameSequencer::new(),
@@ -510,6 +517,53 @@ impl Mixer {
             frame_cycle : 1.0 / 44_100.0,
             time_per_cycle : 1.0 / 1_789_773.0,
          }
+    }
+
+    pub fn read(&mut self, addr : u16, is_debug : bool) -> u8 {
+        match addr {
+            0x4015 => {
+                ( (self.pulse1.reg_is_enable as u8) << 0) | 
+                ( (self.pulse2.reg_is_enable as u8) << 1) | 
+                ( (self.triangle.enable_triangle as u8) << 2) | 
+                ( (self.noise.is_enable as u8) << 3)
+            }
+            _ => 0u8,
+        }
+    }
+
+    pub fn write(&mut self, addr : u16, v : u8) {
+        match addr {
+            0x4000 => self.pulse1.write_reg1(v),
+            0x4001 => self.pulse1.write_reg2(v),
+            0x4002 => self.pulse1.write_reg3(v),
+            0x4003 => self.pulse1.write_reg4(v),
+            0x4004 => self.pulse2.write_reg1(v),
+            0x4005 => self.pulse2.write_reg2(v),
+            0x4006 => self.pulse2.write_reg3(v),
+            0x4007 => self.pulse2.write_reg4(v),
+ 
+            0x4008 => self.triangle.write_reg1(v),
+            0x4009 => {},
+            0x400a => self.triangle.write_reg2(v),
+            0x400b => self.triangle.write_reg3(v),
+            0x400c => self.noise.write_reg1(v),
+            0x400d => {},
+            0x400e => self.noise.write_reg2(v),
+            0x400f => self.noise.write_reg3(v),
+            0x4010 => {},
+            0x4011 => {},
+            0x4012 => {},
+            0x4013 => {},
+            0x4015 => { 
+                self.pulse1.reg_is_enable = v & (1 << 0) != 0;
+                self.pulse2.reg_is_enable = v & (1 << 1) != 0;
+                self.triangle.enable_triangle = v & (1 << 2) != 0;
+                self.noise.is_enable = v & (1 << 3) != 0;
+            },
+            _ => {
+                panic!("unimplemented apu {:?}", addr);
+            }
+        };
     }
 
     pub fn step(&mut self, count : usize) {
@@ -538,16 +592,11 @@ impl Mixer {
     pub fn value(&self) -> f32 {
         let pulse1 = self.pulse1.value();
         let pulse2 = self.pulse2.value();
-
-        let pulse_out = PULSE_TABLE[(pulse1 + pulse2) as usize];
-
         let triangle = self.triangle.value();
         let noise = self.noise.value();
         let dmc = 0;
 
-        let tnd_out = TND_TABLE[(3 * triangle + noise + dmc) as usize];
-
-        pulse_out + tnd_out
+        mixer(pulse1, pulse2, triangle, noise, dmc)
     }
 
 }
@@ -556,7 +605,7 @@ impl Mixer {
 mod tests {
     use std::fs;
 
-    use crate::Mixer;
+    use crate::Apu;
     use hound;
 
     static TEST_OUTPUT : &str = "test_result/";
@@ -566,7 +615,7 @@ mod tests {
     }
 
     // テスト用にファイルの書き出し
-    impl Mixer {
+    impl Apu {
         fn write_wav_file(&self, output: &str) {
             prepare_dir();
 
@@ -590,7 +639,7 @@ mod tests {
     #[ignore]
     fn pulse1_440hzの音をファイル出力() {
         // 440hz => 1789773 / 440 / 32 - 1 = 126.11 ≒ 126 = 0x7e
-        let mut m = Mixer::new();
+        let mut m = Apu::new();
         m.pulse1.write_reg1(0x34);
         m.pulse1.write_reg2(0x00);
         m.pulse1.write_reg3(0x7e);
@@ -607,7 +656,7 @@ mod tests {
     #[ignore]
     fn pulse1_880hzの音をファイル出力() {
         // 880hz => 1789773 / 880 / 32 - 1 = 62.56 ≒ 63 = 0x3e
-        let mut m = Mixer::new();
+        let mut m = Apu::new();
         m.pulse1.write_reg1(0x34);
         m.pulse1.write_reg2(0x00);
         m.pulse1.write_reg3(0x3e);
@@ -623,7 +672,7 @@ mod tests {
     #[test]
     #[ignore]
     fn pulse1_duty0_1_3_2の音をファイル出力() {
-        let mut m = Mixer::new();
+        let mut m = Apu::new();
         m.pulse1.write_reg1(0x34);
         m.pulse1.write_reg2(0x00);
         m.pulse1.write_reg3(0x7e);
@@ -645,7 +694,7 @@ mod tests {
     #[test]
     #[ignore]
     fn pulse1_長さ160msecの音をファイル出力() {
-        let mut m = Mixer::new();
+        let mut m = Apu::new();
         m.pulse1.write_reg1(0x14);
         m.pulse1.write_reg2(0x00);
         m.pulse1.write_reg3(0x7e);
@@ -661,7 +710,7 @@ mod tests {
     #[test]
     #[ignore]
     fn pulse1_sweep音をファイル出力() {
-        let mut m = Mixer::new();
+        let mut m = Apu::new();
         m.pulse1.write_reg1(0x34);
         m.pulse1.write_reg2(0b10010100);
         m.pulse1.write_reg3(0x7e);
@@ -677,7 +726,7 @@ mod tests {
     #[test]
     #[ignore]
     fn pulse1_sweep音をファイル出力2() {
-        let mut m = Mixer::new();
+        let mut m = Apu::new();
         m.pulse1.write_reg1(0x34);
         m.pulse1.write_reg2(0b11001100);
         m.pulse1.write_reg3(0x7e);
@@ -693,7 +742,7 @@ mod tests {
     #[test]
     #[ignore]
     fn triangle_440hz音をファイル出力() {
-        let mut m = Mixer::new();
+        let mut m = Apu::new();
         m.triangle.write_reg1(0b11000000);
         m.triangle.write_reg2(0b10000001);
         m.triangle.write_reg3(0b01111000);
@@ -707,7 +756,7 @@ mod tests {
     #[test]
     #[ignore]
     fn triangle_880hz音をファイル出力() {
-        let mut m = Mixer::new();
+        let mut m = Apu::new();
         m.triangle.write_reg1(0b11000000);
         m.triangle.write_reg2(0b00001110);
         m.triangle.write_reg3(0b01111000);
@@ -721,7 +770,7 @@ mod tests {
     #[test]
     #[ignore]
     fn triangle_160secの音をファイル出力() {
-        let mut m = Mixer::new();
+        let mut m = Apu::new();
         m.triangle.write_reg1(0b01111111);
         m.triangle.write_reg2(0b10000001);
         m.triangle.write_reg3(0b01111000);
@@ -735,7 +784,7 @@ mod tests {
     #[test]
     #[ignore]
     fn noise_25hzファイル出力() {
-        let mut m = Mixer::new();
+        let mut m = Apu::new();
         m.noise.write_reg1(0b00111100);
         m.noise.write_reg2(0b00001100);
         m.noise.write_reg3(0b00000000);
@@ -749,7 +798,7 @@ mod tests {
     #[test]
     #[ignore]
     fn noise_200hzファイル出力() {
-        let mut m = Mixer::new();
+        let mut m = Apu::new();
         m.noise.write_reg1(0b00111100);
         m.noise.write_reg2(0b00000101);
         m.noise.write_reg3(0b00000000);
@@ -763,7 +812,7 @@ mod tests {
     #[test]
     #[ignore]
     fn noise_mode1ファイル出力() {
-        let mut m = Mixer::new();
+        let mut m = Apu::new();
         m.noise.write_reg1(0b00111100);
         m.noise.write_reg2(0b10001100);
         m.noise.write_reg3(0b00000000);

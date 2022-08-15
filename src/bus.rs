@@ -1,6 +1,6 @@
 use log::debug;
 
-use crate::{ppu::PPU, joypad::Joypad, apu::Apu};
+use crate::{ppu::PPU, joypad::Joypad, apu_impl::ApuImpl};
 
 #[derive(Debug)]
 pub struct Bus {
@@ -8,7 +8,7 @@ pub struct Bus {
     pub ppu : PPU,
     ram : Vec<u8>,
     pub joy_pad : Joypad,
-    pub apu : Apu,
+    pub apu : ApuImpl,
 }
 
 impl Bus {
@@ -19,7 +19,7 @@ impl Bus {
             ppu: PPU::new(chr, is_mirror_horizontal),
             ram: [0,0,0,0,0xff,0xff,0xff,0xff].repeat(0x100),
             joy_pad: Joypad::new(),
-            apu : Apu::new(),
+            apu : ApuImpl::new(),
         }
     }
 
