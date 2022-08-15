@@ -44,6 +44,7 @@ static TND_TABLE : Lazy<[f32;256]> = Lazy::new(||{
 
 #[derive(Debug)]
 pub struct Pulse {
+    num : u8,
     pub reg_duty_type : usize,
     pub reg_envelope_loop_enable_and_length_is_disable : bool,
     pub reg_envelope_is_disabled : bool,
@@ -71,8 +72,9 @@ pub struct Pulse {
 }
 
 impl Pulse {
-    pub fn new() -> Self {
+    pub fn new(num :u8) -> Self {
         Self { 
+            num : num,
             // $4000 DDLC VVVV  Duty (D), envelope loop / length counter halt (L), constant volume (C), volume/envelope (V)
             // $4001 EPPP NSSS  Sweep unit: enabled (E), period (P), negate (N), shift (S)
             // $4002 TTTT TTTT  Timer low (T)
@@ -508,8 +510,8 @@ impl Apu {
     pub fn new() -> Self {
         Self {
             frame_sequencer : FrameSequencer::new(),
-            pulse1: Pulse::new(),
-            pulse2: Pulse::new(),
+            pulse1: Pulse::new(1),
+            pulse2: Pulse::new(2),
             triangle : Triangle::new(),
             noise : Noise::new(),
             frames: vec![],
