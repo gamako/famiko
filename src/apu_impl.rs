@@ -106,9 +106,7 @@ impl ApuImpl {
             }
         }
         self.debug_writer_length += len;
-        println!("{:}", self.debug_writer_length);
         if self.debug_writer_length > 44_100 * 10 {
-            println!("flush");
             self.debug_stop();
         }
     }
@@ -136,40 +134,37 @@ impl ApuImpl {
 
     fn flush_buffer_if_need(&mut self) {
         let buffer_len = self.apu.frames.len();
+        let stream = self.stream.as_mut().unwrap();
+        
         if buffer_len >= FRAMES_PER_BUFFER as usize {
 
-            if let Some(stream) = &mut self.stream {
-                match stream.write_available() {
-                    Ok(StreamAvailable::Frames(l)) => {
-                        if l > (FRAMES_PER_BUFFER as i64) {
+            match stream.write_available() {
+                Ok(StreamAvailable::Frames(l)) => {
+                    if l > (FRAMES_PER_BUFFER as i64) {
 
-                            let r = stream.write(l as u32, |output|{
+                        let r = stream.write(l as u32, |output|{
 
-                                let mut i = 0;
-                                let buffer_len = self.apu.frames.len();
+                            let mut i = 0;
+                            let buffer_len = self.apu.frames.len();
 
-                                while i < l as usize {
-                                    output[i] = self.apu.frames[i % buffer_len];
-                                    i += 1;
-                                }
-                            });
-                            if let Err(e) = r {
-                                println!("{:?}", e);
+                            while i < l as usize {
+                                output[i] = self.apu.frames[i % buffer_len];
+                                i += 1;
                             }
-
-                            if self.is_debug {
-                                self.debug_write();
-                            }
-
-                            self.apu.frames.clear();
+                        });
+                        if let Err(e) = r {
+                            println!("{:?}", e);
                         }
-                    },
-                    Ok(StreamAvailable::OutputUnderflowed) => { println!("OutputUnderflowed"); },
-                    Ok(StreamAvailable::InputOverflowed) => { println!("InputOverflowed");},
-                    Err(err) => { println!("err {:?}", err); }
-                }
-            } else {
-                println!("if else ..");
+
+                        if self.is_debug {
+                            self.debug_write();
+                        }
+                        self.apu.frames.clear();
+                    }
+                },
+                Ok(StreamAvailable::OutputUnderflowed) => { println!("OutputUnderflowed"); },
+                Ok(StreamAvailable::InputOverflowed) => { println!("InputOverflowed");},
+                Err(err) => { println!("err {:?}", err); }
             }
         }
         
