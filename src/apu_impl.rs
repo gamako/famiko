@@ -149,16 +149,8 @@ impl ApuImpl {
                                 let buffer_len = self.apu.frames.len();
 
                                 while i < l as usize {
-                                    let cp_len = std::cmp::min((l as usize -i), buffer_len);
-
-                                    for j in i..i+cp_len {
-                                        output[j] = self.apu.frames[j % buffer_len];
-                                    }
-                                    i += cp_len;
-                                }
-
-                                for i in 0..l as usize {
-                                    output[i] = 0.0;
+                                    output[i] = self.apu.frames[i % buffer_len];
+                                    i += 1;
                                 }
                             });
                             if let Err(e) = r {
