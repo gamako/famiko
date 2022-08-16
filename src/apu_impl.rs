@@ -141,13 +141,13 @@ impl ApuImpl {
             match stream.write_available() {
                 Ok(StreamAvailable::Frames(l)) => {
                     if l > (FRAMES_PER_BUFFER as i64) {
-
-                        let r = stream.write(l as u32, |output|{
+                        let write_len = std::cmp::min(buffer_len, l as usize);
+                        let r = stream.write(write_len as u32, |output|{
 
                             let mut i = 0;
                             let buffer_len = self.apu.frames.len();
 
-                            while i < l as usize {
+                            while i < write_len as usize {
                                 output[i] = self.apu.frames[i % buffer_len];
                                 i += 1;
                             }
@@ -159,7 +159,14 @@ impl ApuImpl {
                         if self.is_debug {
                             self.debug_write();
                         }
-                        self.apu.frames.clear();
+                        if buffer_len <= write_len {
+                            self.apu.frames.clear();
+                        } else {
+                            for i in write_len..buffer_len {
+                                self.apu.frames[i - write_len] = self.apu.frames[i];
+                            }
+                            self.apu.frames.resize(buffer_len - write_len, 0.0);
+                        }
                     }
                 },
                 Ok(StreamAvailable::OutputUnderflowed) => { println!("OutputUnderflowed"); },
