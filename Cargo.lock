@@ -377,6 +377,7 @@ dependencies = [
  "apu",
  "clap",
  "hex",
+ "hound",
  "log",
  "pixels",
  "portaudio",

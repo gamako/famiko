@@ -19,7 +19,7 @@ impl Bus {
             ppu: PPU::new(chr, is_mirror_horizontal),
             ram: [0,0,0,0,0xff,0xff,0xff,0xff].repeat(0x100),
             joy_pad: Joypad::new(),
-            apu : ApuImpl::new(),
+            apu : ApuImpl::new(true),
         }
     }
 
