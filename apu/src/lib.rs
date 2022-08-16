@@ -270,7 +270,7 @@ pub struct Triangle {
     pub timer : u16,
     pub length_counter : u8,
     pub envelope : u8,
-    pub enable_triangle : bool,
+    pub is_enable : bool,
     pub is_reset : bool,
 
     pub timer_divider : u16,
@@ -285,7 +285,7 @@ impl Triangle {
             timer: 0,
             length_counter: 0,
             envelope: 0,
-            enable_triangle: false,
+            is_enable: false,
             is_reset: false,
             timer_divider: 0,
             value: 0,
@@ -311,7 +311,6 @@ impl Triangle {
         let length_type = v >> 3;
         self.length_counter = LENGTH_TABLE[length_type as usize];
         self.is_reset = true;
-        self.enable_triangle = true;
     }
 
     fn step_cycle(&mut self, is_step_length : bool) {
@@ -330,19 +329,21 @@ impl Triangle {
             if !self.disable_length {
                 if self.length_counter != 0 {
                     self.length_counter -= 1;
-                } else {
-                    self.enable_triangle = false;
                 }
             }
         }
     }
 
     fn value(&self) -> u8 {
-        if self.enable_triangle && self.length_counter != 0 && self.linear_counter != 0 {
+        if self.is_enable() {
             TRIANGLE_ENVELOPE_TABLE[self.envelope as usize]
         } else {
             0
         }
+    }
+
+    fn is_enable(&self) -> bool {
+        self.is_enable && self.length_counter != 0 && self.linear_counter != 0
     }
 }
 
@@ -526,7 +527,7 @@ impl Apu {
             0x4015 => {
                 ( (self.pulse1.reg_is_enable as u8) << 0) | 
                 ( (self.pulse2.reg_is_enable as u8) << 1) | 
-                ( (self.triangle.enable_triangle as u8) << 2) | 
+                ( (self.triangle.is_enable() as u8) << 2) | 
                 ( (self.noise.is_enable as u8) << 3)
             }
             _ => 0u8,
@@ -559,7 +560,7 @@ impl Apu {
             0x4015 => { 
                 self.pulse1.reg_is_enable = v & (1 << 0) != 0;
                 self.pulse2.reg_is_enable = v & (1 << 1) != 0;
-                self.triangle.enable_triangle = v & (1 << 2) != 0;
+                self.triangle.is_enable = v & (1 << 2) != 0;
                 self.noise.is_enable = v & (1 << 3) != 0;
             },
             _ => {
