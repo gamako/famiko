@@ -135,6 +135,7 @@ impl Pulse {
         self.reg_timer_high = (v & 0b111) as u16;
         self.reg_is_reset = true;
         self.reg_is_enable = true;
+        self.envelope_counter = 15;
     }
 
     pub fn step(&mut self, cycle : usize) {
@@ -231,8 +232,13 @@ impl Pulse {
                 } else {
                     timer + v
                 };
-                self.reg_timer_high = timer >> 8;
-                self.reg_timer_low = timer & 0xff;
+                if (timer > 0x7ff) | (timer <= 8) {
+                    self.reg_sweep_is_enabled = false;
+                    self.reg_is_enable = false;
+                } else {
+                    self.reg_timer_high = timer >> 8;
+                    self.reg_timer_low = timer & 0xff;
+                }
             } else {
                 self.sweep_divider -= 1;
             }
