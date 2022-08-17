@@ -120,8 +120,11 @@ impl PPU {
     // https://www.nesdev.org/wiki/PPU_memory_map
     pub fn read_ppudata(&mut self, is_increment : bool) -> u8 {
         match self.addr {
-            0x2000 ..= 0x2fff => {
-                let a = self.addr as usize - 0x2000;
+            0x0000 ..= 0x1fff => {
+                self.pattern_table[self.addr as usize]
+            }
+            0x2000 ..= 0x3eff => {
+                let a = (self.addr as usize - 0x2000) % 1000;
                 let a = match self.is_mirror_horizontal {
                     true => a & !0x400,
                     false => a & !0x800,
