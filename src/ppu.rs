@@ -37,6 +37,8 @@ pub struct PPU {
     name_table : [u8; 0x400 * 4],
     pattern_table : Vec<u8>,
     sprite_ram : [u8; 0x100],
+
+    read_buffer : u8,
     
     x : usize,
     y : usize,
@@ -72,6 +74,7 @@ impl PPU {
             name_table: [0; 0x400 * 4],
             pattern_table: chr,
             sprite_ram: [0; 0x100],
+            read_buffer : 0,
             nmi : false,
             x: 0,
             y: 0,
@@ -119,21 +122,17 @@ impl PPU {
 
     // https://www.nesdev.org/wiki/PPU_memory_map
     pub fn read_ppudata(&mut self, is_increment : bool) -> u8 {
-        let v = match self.addr {
+        let read_for_buffer = match self.addr {
             0x0000 ..= 0x1fff => {
                 self.pattern_table[self.addr as usize]
             }
-            0x2000 ..= 0x3eff => {
+            0x2000 ..= 0x3fff => {
                 let a = (self.addr as usize - 0x2000) % 1000;
                 let a = match self.is_mirror_horizontal {
                     true => a & !0x400,
                     false => a & !0x800,
                 };
                 self.name_table[a]
-            }
-            0x3f00 ..= 0x3fff => {
-                let a = (self.addr & 0x001f) as usize;
-                self.palette_ram[a]
             }
             _ => {
                 println!(" ppu cant read {:04X}", self.addr);
@@ -147,7 +146,16 @@ impl PPU {
                 self.addr += 1;
             }
         };
-        v
+        // パレットのみ値がすぐに読める
+        let ret = match self.addr {
+            0x3f00 ..= 0x3fff => {
+                let a = (self.addr & 0x001f) as usize;
+                self.palette_ram[a]
+            }
+            _ => self.read_buffer
+        };
+        self.read_buffer = read_for_buffer;
+        ret
     }
 
     pub fn write_ppu_sprite_addr(&mut self, v: u8) {
@@ -160,15 +168,15 @@ impl PPU {
 
     pub fn write_ppudata(&mut self, v : u8) {
         match self.addr {
-            0x2000 ..= 0x2fff => {
-                let a = self.addr as usize - 0x2000;
+            0x2000 ..= 0x3eff | 0x3f20 ..= 0x3fff => {
+                let a = (self.addr as usize - 0x2000) % 1000;
                 let a = match self.is_mirror_horizontal {
                     true => a & !0x400,
                     false => a & !0x800,
                 };
                 self.name_table[a] = v;
             }
-            0x3f00 ..= 0x3fff => {
+            0x3f00 ..= 0x3f1f => {
                 println!("write ppu palette {:04x}", self.addr);
                 let a = (self.addr & 0x001f) as usize;
                 if a % 4 == 0 {
@@ -178,7 +186,6 @@ impl PPU {
                 } else {
                     self.palette_ram[a] = v;
                 }
-                
             }
             _ => {
                 println!(" ppu cant write {:04x} {:02X}", self.addr, v);
