@@ -333,7 +333,8 @@ impl PPU {
             }
             let out_pixel = &mut self.frame[p*4..p*4+4];
             if c == 0xff {
-                out_pixel.clone_from_slice(&[0x0, 0x0, 0x0, 0xff]);
+                out_pixel[0..3].clone_from_slice(&COLORS[self.palette_ram[0] as usize]);
+                out_pixel[3] = 0xff;
             } else {
                 out_pixel[0..3].clone_from_slice(&COLORS[c as usize]);
                 out_pixel[3] = 0xff;
