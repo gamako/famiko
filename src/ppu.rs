@@ -119,7 +119,7 @@ impl PPU {
 
     // https://www.nesdev.org/wiki/PPU_memory_map
     pub fn read_ppudata(&mut self, is_increment : bool) -> u8 {
-        match self.addr {
+        let v = match self.addr {
             0x0000 ..= 0x1fff => {
                 self.pattern_table[self.addr as usize]
             }
@@ -129,35 +129,25 @@ impl PPU {
                     true => a & !0x400,
                     false => a & !0x800,
                 };
-                let v = self.name_table[a];
-                //println!(" read nametable: {:04x} {:02X}", a, v);
-                if is_increment {
-                    if self.ppuctrl & 4 != 0 {
-                        self.addr += 32;
-                    } else {
-                        self.addr += 1;
-                    }
-                }
-                v
+                self.name_table[a]
             }
             0x3f00 ..= 0x3fff => {
                 let a = (self.addr & 0x001f) as usize;
-                let v = self.palette_ram[a];
-                //println!(" write palette_ram: {:04x} {:02X}", a, v);
-                if is_increment {
-                    if self.ppuctrl & 4 != 0 {
-                        self.addr += 32;
-                    } else {
-                        self.addr += 1;
-                    }
-                }
-                v
+                self.palette_ram[a]
             }
             _ => {
                 println!(" ppu cant read {:04X}", self.addr);
                 panic!("not impl ppu read addr");
             }
-        }
+        };
+        if is_increment {
+            if self.ppuctrl & 4 != 0 {
+                self.addr += 32;
+            } else {
+                self.addr += 1;
+            }
+        };
+        v
     }
 
     pub fn write_ppu_sprite_addr(&mut self, v: u8) {
@@ -176,30 +166,29 @@ impl PPU {
                     true => a & !0x400,
                     false => a & !0x800,
                 };
-                let v0 = self.name_table[a];
-                //println!(" write nametable: {:04x} {:02X} {:02X}", a, v0, v);
                 self.name_table[a] = v;
-                if self.ppuctrl & 4 != 0 {
-                    self.addr += 32;
-                } else {
-                    self.addr += 1;
-                }
             }
             0x3f00 ..= 0x3fff => {
+                println!("write ppu palette {:04x}", self.addr);
                 let a = (self.addr & 0x001f) as usize;
-                let v0 = self.palette_ram[a];
-                //println!(" write palette_ram: {:04x} {:02X} {:02X}", a, v0, v);
-                self.palette_ram[a] = v;
-                if self.ppuctrl & 4 != 0 {
-                    self.addr += 32;
+                if a % 4 == 0 {
+                    let a = a & 0x0f;
+                    self.palette_ram[a] = v;
+                    self.palette_ram[a | 0x10 ] = v;
                 } else {
-                    self.addr += 1;
+                    self.palette_ram[a] = v;
                 }
+                
             }
             _ => {
                 println!(" ppu cant write {:04x} {:02X}", self.addr, v);
                 panic!("not impl ppu write addr");
             }
+        }
+        if self.ppuctrl & 4 != 0 {
+            self.addr += 32;
+        } else {
+            self.addr += 1;
         }
     }
     
