@@ -127,7 +127,7 @@ impl PPU {
                 self.pattern_table[self.addr as usize]
             }
             0x2000 ..= 0x3fff => {
-                let a = (self.addr as usize - 0x2000) % 1000;
+                let a = (self.addr as usize - 0x2000) % 0x1000;
                 let a = match self.is_mirror_horizontal {
                     true => a & !0x400,
                     false => a & !0x800,
@@ -169,7 +169,7 @@ impl PPU {
     pub fn write_ppudata(&mut self, v : u8) {
         match self.addr {
             0x2000 ..= 0x3eff | 0x3f20 ..= 0x3fff => {
-                let a = (self.addr as usize - 0x2000) % 1000;
+                let a = (self.addr as usize - 0x2000) % 0x1000;
                 let a = match self.is_mirror_horizontal {
                     true => a & !0x400,
                     false => a & !0x800,
@@ -490,3 +490,28 @@ static COLORS : [[u8;3];64]= [
     [0xFF, 0xF7, 0x9C], [0xD7, 0xE8, 0x95], [0xA6, 0xED, 0xAF], [0xA2, 0xF2, 0xDA],
     [0x99, 0xFF, 0xFC], [0xDD, 0xDD, 0xDD], [0x11, 0x11, 0x11], [0x11, 0x11, 0x11],
   ];
+
+#[cfg(test)]
+mod tests {
+
+    fn a(a: u16) -> u16 {
+        a & !0x400        
+    }
+    fn v(a: u16) -> u16 {
+        a & !0x800        
+    }
+    #[test]
+    #[ignore]
+    fn test() {
+        assert_eq!(a(1), 1);
+        assert_eq!(a(0x401), 0x1);
+        assert_eq!(a(0x801), 0x801);
+        assert_eq!(a(0xc01), 0x801);
+
+        assert_eq!(v(1), 0x001);
+        assert_eq!(v(0x401), 0x401);
+        assert_eq!(v(0x801), 0x001);
+        assert_eq!(v(0xc01), 0x401);
+        
+    }
+}
