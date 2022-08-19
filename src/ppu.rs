@@ -177,7 +177,6 @@ impl PPU {
                 self.name_table[a] = v;
             }
             0x3f00 ..= 0x3f1f => {
-                println!("write ppu palette {:04x}", self.addr);
                 let a = (self.addr & 0x001f) as usize;
                 if a % 4 == 0 {
                     let a = a & 0x0f;
