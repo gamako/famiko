@@ -389,13 +389,13 @@ impl PPU {
         let mut frame = frame_.borrow_mut();
         self.draw_name_table_(|x,y,c| {
             let i = (x + y * WIDTH * 2) * 4;
-            if c == 0xff {
-                frame[i..i+3].iter_mut().map(|v| {*v = 0x0;} ).count();
+            let color = if c == 0xff {
+                &COLORS[self.palette_ram[0] as usize]
             } else {
-                let color = &COLORS[c];
+                &COLORS[c]
     
-                frame[i..i+3].clone_from_slice(color);
-            }
+            };
+            frame[i..i+3].clone_from_slice(color);
             frame[i+3] = 0xff;
 
         });
