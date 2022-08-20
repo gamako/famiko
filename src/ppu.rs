@@ -100,6 +100,13 @@ impl PPU {
             self.ppustatus & !(1u8 << 7)
         }
     }
+    fn update_sprite_0_hit(&mut self, b: bool) {
+        self.ppustatus = if b {
+            self.ppustatus | (1u8 << 6)
+        } else {
+            self.ppustatus & !(1u8 << 6)
+        }
+    }
 
     pub fn read_status(&mut self) -> u8 {
         let status = self.ppustatus;
@@ -216,7 +223,10 @@ impl PPU {
 
                 if self.y < HEIGHT {
                     // 1ラインずつコピーしていく
-                    self.write_line(self.y);
+                    let sprite_0_hit = self.write_line(self.y);
+                    if sprite_0_hit {
+                        self.update_sprite_0_hit(true);
+                    }
                 }
             }
 
@@ -231,6 +241,7 @@ impl PPU {
                     }
                 } else if self.y == 261 {
                     self.update_vblank(false);
+                    self.update_sprite_0_hit(false);
                 }
                 if self.y > 262 {
                     self.y = 0;
@@ -307,10 +318,15 @@ impl PPU {
                             }
                             frame_[i+3] = 0xff;
                         } else {
-                            if is_fg {
-                                self.frame_sprite_fg[i] = color;
-                            } else {
-                                self.frame_sprite_bg[i] = color;
+                            // Sprite 0 Hit判定のためにフラグを一緒にセットする
+                            let color = color | if i == 0 && palette_num % 4 != 0 { 0x80 } else { 0 };
+
+                            if color != 0xff {
+                                if is_fg {
+                                    self.frame_sprite_fg[i] = self.frame_sprite_fg[i] & 0x80 | color;
+                                } else {
+                                    self.frame_sprite_bg[i] = self.frame_sprite_bg[i] & 0x80 | color;
+                                }
                             }
                         }
                     }
@@ -319,12 +335,14 @@ impl PPU {
         }
     }
 
-    pub fn write_line(&mut self, line: usize) {
+    // 戻り値はsprite 0 hitが起きた時にonとなる
+    pub fn write_line(&mut self, line: usize) -> bool {
+        let mut sprite_0_hit = false;
         for x in 0..WIDTH {
             let p = x + line * WIDTH;
+            let p2 = (x + self.scroll_x as usize) + (line + self.scroll_y as usize) * WIDTH * 2;
             let mut c = self.frame_sprite_fg[p];
             if c == 0xff {
-                let p2 = (x + self.scroll_x as usize) + (line + self.scroll_y as usize) * WIDTH * 2;
                 c = self.frame_bg.borrow()[p2];
             }
             if c == 0xff {
@@ -335,10 +353,17 @@ impl PPU {
                 out_pixel[0..3].clone_from_slice(&COLORS[self.palette_ram[0] as usize]);
                 out_pixel[3] = 0xff;
             } else {
-                out_pixel[0..3].clone_from_slice(&COLORS[c as usize]);
+                out_pixel[0..3].clone_from_slice(&COLORS[(c & 0x3f) as usize]);
                 out_pixel[3] = 0xff;
             }
+
+            if (self.frame_sprite_fg[p] & 0x80 | self.frame_sprite_bg[p] & 0x80) != 0 {
+                if self.frame_bg.borrow()[p2] != 0xff {
+                    sprite_0_hit |= true;
+                }
+            }
         }
+        sprite_0_hit
     }
 
     fn palette_to_color(&self, i: usize) -> u8 {
