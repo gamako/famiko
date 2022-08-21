@@ -339,7 +339,9 @@ impl PPU {
         let mut sprite_0_hit = false;
         for x in 0..WIDTH {
             let p = x + line * WIDTH;
-            let p2 = (x + self.scroll_x as usize) + (line + self.scroll_y as usize) * WIDTH * 2;
+            let scroll_x = self.scroll_x as usize + ((self.ppuctrl & 1) as usize) * 256;
+            let scroll_y = self.scroll_y as usize + (((self.ppuctrl & 2) >> 1) as usize) * 240;
+            let p2 = (x + scroll_x as usize) + (line + scroll_y as usize) * WIDTH * 2;
             let mut c = self.frame_sprite_fg[p];
             if c == 0xff {
                 c = self.frame_bg.borrow()[p2];
