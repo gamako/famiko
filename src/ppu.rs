@@ -32,7 +32,7 @@ pub struct PPU {
     sprite_addr : u8,
     scroll_x : u8,
     scroll_y : u8,
-    scroll_next_y : bool,
+    scroll_set_x : bool,
     palette_ram : [u8; 0x20],
     name_table : [u8; 0x400 * 4],
     pattern_table : Vec<u8>,
@@ -69,7 +69,7 @@ impl PPU {
             sprite_addr: 0,
             scroll_x: 0,
             scroll_y: 0,
-            scroll_next_y: true,
+            scroll_set_x: true,
             palette_ram: [0; 0x20],
             name_table: [0; 0x400 * 4],
             pattern_table: chr,
@@ -115,12 +115,11 @@ impl PPU {
     }
 
     pub fn write_ppuscroll(&mut self, v : u8) {
-        //println!(" write scroll: {:02x}", v);
-        match self.scroll_next_y {
-            false => { self.scroll_x = v }
-            true => { self.scroll_y = v }
+        match self.scroll_set_x {
+            true => { self.scroll_x = v }
+            false => { self.scroll_y = v }
         }
-        self.scroll_next_y = self.scroll_next_y;
+        self.scroll_set_x = !self.scroll_set_x;
     }
 
     pub fn write_ppuaddr(&mut self, v : u8) {
