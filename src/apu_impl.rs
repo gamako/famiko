@@ -1,9 +1,9 @@
 
 use core::fmt;
-use std::{usize::MIN, collections::VecDeque, time::{self, Instant}, fs::{self, File}, io::BufWriter};
+use std::{fs::{self, File}, io::BufWriter};
 
 use hound::WavWriter;
-use pa::{Stream, Blocking, Output, StreamAvailable, OutputStreamSettings};
+use pa::{Stream, Blocking, Output, StreamAvailable};
 use portaudio as pa;
 use apu::{self, Apu};
 
