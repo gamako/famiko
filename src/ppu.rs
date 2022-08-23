@@ -267,16 +267,16 @@ impl PPU {
     }
 
     pub fn write_sprite(&mut self, frame: &mut Option<Vec<u8>>) {
-        for i in 0..64 {
-            let sprite = &self.sprite_ram[i*4..i*4+4];
+        for sprite_i in 0..64 {
+            let sprite = &self.sprite_ram[sprite_i*4..sprite_i*4+4];
             let tile = sprite[1] as usize;
             let attr = sprite[2] as usize;
             let is_h_reverse = attr & (1 << 6) != 0;
             let is_v_reverse = attr & (1 << 7) != 0;
 
             let is_debug = frame.is_some();
-            let sprite_x = if !is_debug {sprite[3] as usize} else { i % 8 * 8};
-            let sprite_y = if !is_debug {sprite[0] as usize} else { i / 8 * 8};
+            let sprite_x = if !is_debug {sprite[3] as usize} else { sprite_i % 8 * 8};
+            let sprite_y = if !is_debug {sprite[0] as usize} else { sprite_i / 8 * 8};
             let width = if !is_debug { WIDTH } else { 64 };
 
             // https://www.nesdev.org/wiki/PPU_OAM
@@ -318,8 +318,7 @@ impl PPU {
                             frame_[i+3] = 0xff;
                         } else {
                             // Sprite 0 Hit判定のためにフラグを一緒にセットする
-                            let color = color | if i == 0 && palette_num % 4 != 0 { 0x80 } else { 0 };
-
+                            let color = color | if sprite_i == 0 && palette_num % 4 != 0 { 0x80 } else { 0 };
                             if color != 0xff {
                                 if is_fg {
                                     self.frame_sprite_fg[i] = self.frame_sprite_fg[i] & 0x80 | color;
