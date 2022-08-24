@@ -1,5 +1,6 @@
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Read;
 use std::sync::mpsc;
@@ -123,6 +124,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         cpu.bus.ppu.step(7*3);
 
+        let mut elapsed_times = VecDeque::<u128>::new();
+        let mut elapsed_times_sum = 0u128;
+
         let mut u = Instant::now();
         loop {
             let mut log = CpuDebugLog::new();
@@ -155,15 +159,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     cpu.bus.ppu.write_sprite(&mut frame);
                     render_sender.send(RenderEvent::SpriteRender(frame.unwrap())).unwrap();
                 }
+                if elapsed_times.len() >= 60 {
+                    let last = elapsed_times.pop_front().unwrap();
+                    elapsed_times_sum -= last;
+                }
+
                 let u1 = u.elapsed().as_nanos();
-                let one_frame_nsec = 1_000_000_000 / 60u128; 
-                
-                if one_frame_nsec > u1 {
-                    sleep(Duration::from_nanos((one_frame_nsec - u1) as u64));
+                let one_frame_nsec = 1_000_000_000 / 60u128;
+
+                let elapsed_times_sum__ = elapsed_times_sum + u1;
+                let expect_time = one_frame_nsec * (elapsed_times.len()+1) as u128;
+
+                if expect_time > elapsed_times_sum__ {
+                    let a = (expect_time - elapsed_times_sum__) as u64;
+                    sleep(Duration::from_nanos(a));
                 }
                 let u2 = u.elapsed().as_nanos();
-                if is_show_fps {
-                    println!("draw : {}msec fps:{}", u2/1000_000, 1_000_000_000 / u2);
+                elapsed_times_sum += u2;
+                elapsed_times.push_back(u2);
+
+                if is_show_fps && elapsed_times.len() == 60 {
+                    let n = 1_000_000_000 * 60 / elapsed_times_sum;
+                    println!("draw : fps:{}", n);
                 }
                 if let Ok((k, b)) = key_receiver.try_recv() {
                     cpu.bus.joy_pad.update_key(k, b);
