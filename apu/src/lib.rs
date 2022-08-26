@@ -835,4 +835,17 @@ mod tests {
         m.write_wav_file(&file); 
     }
 
+    #[test]
+    #[ignore]
+    fn noise_lengthファイル出力() {
+        let mut m = Apu::new();
+        m.noise.write_reg1(0b00011100);
+        m.noise.write_reg2(0b00001100);
+        m.noise.write_reg3(0b00100000);
+
+        m.step(40*44100/2);
+
+        let file = TEST_OUTPUT.to_string() + "noise_4_length.wav";
+        m.write_wav_file(&file); 
+    }
 }
