@@ -152,6 +152,7 @@ impl ApuImpl {
                 Ok(StreamAvailable::Frames(l)) => {
                     if l > (FRAMES_PER_BUFFER as i64) {
                         let write_len = std::cmp::min(buffer_len, l as usize);
+                        let write_len = std::cmp::min(FRAMES_PER_BUFFER as usize, write_len);
                         let r = stream.write(write_len as u32, |output|{
 
                             let mut i = 0;
