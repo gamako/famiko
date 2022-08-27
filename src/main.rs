@@ -44,6 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .long("sound-debug")
                 .action(ArgAction::SetTrue)
         )
+        .arg(Arg::new("no-sound").long("no-sound").action(ArgAction::SetTrue))
         .arg(
             Arg::new("show-chr-table")
                 .long("show-chr-table")
@@ -78,6 +79,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = matches.get_one::<String>("rom").unwrap();
     let debug = matches.get_one::<bool>("debug").map_or(false, |v| *v);
     let sound_debug = matches.get_one::<bool>("sound-debug").map_or(false, |v| *v);
+    let no_sound = matches.get_one::<bool>("no-sound").map_or(false, |v| *v);
     let show_chr_table = matches.get_one::<bool>("show-chr-table").map_or(false, |v| *v);
     let show_name_table = matches.get_one::<bool>("show-name-table").map_or(false, |v| *v);
     let show_sprite = matches.get_one::<bool>("show-sprite").map_or(false, |v| *v);
@@ -109,7 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
     thread::spawn(move ||{
-        let bus = Bus::new(prg_rom, chr_rom, h.flag6 & 1 == 0, sound_debug);
+        let bus = Bus::new(prg_rom, chr_rom, h.flag6 & 1 == 0, sound_debug, no_sound);
         let mut cpu = CPU::new(bus);
 
         // apu開始

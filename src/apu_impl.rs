@@ -17,6 +17,7 @@ pub struct ApuImpl {
     pub irq : bool,
 
     is_debug : bool,
+    no_sound: bool,
     debug_writer : Option<WavWriter<BufWriter<File>>>,
     debug_writer_num : usize,
     debug_writer_length : usize,
@@ -30,12 +31,13 @@ impl fmt::Debug for ApuImpl {
 }
 
 impl ApuImpl {
-    pub fn new(is_debug : bool) -> Self {
+    pub fn new(is_debug : bool, no_sound : bool) -> Self {
         Self{
             stream: None,
             apu : Apu::new(),
             irq : false,
-            is_debug : is_debug,
+            is_debug,
+            no_sound,
             debug_writer : None,
             debug_writer_num : 0,
             debug_writer_length : 0,
@@ -43,6 +45,9 @@ impl ApuImpl {
     }
 
     pub fn start(&mut self) -> Result<(), pa::Error>{
+        if self.no_sound {
+            return Ok(())
+        }
     
         let pa = pa::PortAudio::new()?;
     
@@ -133,6 +138,11 @@ impl ApuImpl {
     }
 
     fn flush_buffer_if_need(&mut self) {
+        if self.no_sound {
+            self.apu.frames.clear();
+            return;
+        }
+
         let buffer_len = self.apu.frames.len();
         let stream = self.stream.as_mut().unwrap();
         
