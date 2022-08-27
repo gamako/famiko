@@ -88,6 +88,7 @@ impl fmt::Debug for AddressingMode {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum FlagType {
     Carry,
     Zero,
@@ -1000,6 +1001,7 @@ impl CPU {
         v
     }
 
+    #[allow(dead_code)]
     fn read_word(&mut self, addr: u16) -> u16 {
         let l = self.read_byte(addr, false);
         let h = self.read_byte(addr + 1, false);
@@ -1018,6 +1020,7 @@ impl CPU {
         (h as u16) << 8 | l as u16
     }
 
+    #[allow(dead_code)]
     fn read_word_pc(&mut self) -> u16 {
         let v = self.read_word(self.pc);
         self.pc += 2;
