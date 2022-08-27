@@ -44,7 +44,7 @@ static TND_TABLE : Lazy<[f32;256]> = Lazy::new(||{
 
 #[derive(Debug)]
 pub struct Pulse {
-    num : u8,
+    pub num : u8,
     pub reg_duty_type : usize,
     pub reg_envelope_loop_enable_and_length_is_disable : bool,
     pub reg_envelope_is_disabled : bool,
@@ -59,7 +59,6 @@ pub struct Pulse {
     pub reg_is_reset : bool,
     pub reg_is_enable : bool,
     pub reg_5step_mode : bool,
-    pub reg_enable_IRQ : bool,
 
     timer_divider : u16,
     timer_step : u8,
@@ -93,7 +92,6 @@ impl Pulse {
             reg_is_reset : true,
             reg_is_enable : false,
             reg_5step_mode : false,
-            reg_enable_IRQ : true,
 
             timer_divider : 0,
             timer_step : 0,
@@ -159,7 +157,7 @@ impl Pulse {
         } else {
             self.sequencer_diveder = 7467;
 
-            let (step_max, (is_IRQ, is_length, is_envelope)) = if self.reg_5step_mode {
+            let (step_max, (_is_irq, is_length, is_envelope)) = if self.reg_5step_mode {
                 (5, FLAME_SEQ_5[self.sequencer_step as usize])
             } else {
                 (4, FLAME_SEQ_4[self.sequencer_step as usize])
@@ -528,7 +526,7 @@ impl Apu {
          }
     }
 
-    pub fn read(&mut self, addr : u16, is_debug : bool) -> u8 {
+    pub fn read(&mut self, addr : u16, _is_debug : bool) -> u8 {
         match addr {
             0x4015 => {
                 ( (self.pulse1.reg_is_enable as u8) << 0) | 
