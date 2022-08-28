@@ -1273,7 +1273,6 @@ impl CPU {
             return self.int_nmi();
         }
         if self.bus.read_irq() & (self.p & P_MASK_INT_DISABLE == 0) {
-            println!("interruption irq");
             self.p &= !P_MASK_BREAK_COMMAND;
             return self.int_irq();
         }
