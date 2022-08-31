@@ -16,7 +16,7 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use winit::window::{WindowBuilder, Window};
 use winit_input_helper::WinitInputHelper;
 
-use famiko::cpu::{CPU, CpuDebugLog};
+use famiko::cpu::{CPU, CpuDebugLog, CPU_CLOCK_UNIT_NSEC};
 use famiko::bus::Bus;
 use famiko::ppu::{WIDTH, HEIGHT, CHR_DEBUG_FRAME_SIZE, CHR_DEBUG_WIDTH, CHR_DEBUG_HEIGT, SPRITE_DEBUG_WIDTH, SPRITE_DEBUG_HEIGT};
 use clap::{arg, Command, Arg, ArgAction};
@@ -130,6 +130,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut elapsed_times_sum = 0u128;
 
         let mut u = Instant::now();
+
+        let mut elapsed_time = 0u128;
+        let time_base = Instant::now();
+        
         loop {
             let mut log = CpuDebugLog::new();
             log.ppu_line = cpu.bus.ppu.y_();
@@ -141,6 +145,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let frame_ = cpu.bus.ppu.step(cycle*3);
 
             cpu.bus.apu.step(cycle);
+
+            elapsed_time += (cycle as u128) * CPU_CLOCK_UNIT_NSEC;
+            let time = Instant::now();
+            let actual = time.duration_since(time_base).as_nanos();
+            if elapsed_time > actual && elapsed_time - actual > 1_000_000 { // 1.2msec
+                let t = elapsed_time - actual;
+                sleep(Duration::from_nanos(t as u64));
+            }
 
             if let Some(f) = frame_ {
 
@@ -166,16 +178,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     elapsed_times_sum -= last;
                 }
 
-                let u1 = u.elapsed().as_nanos();
-                let one_frame_nsec = 1_000_000_000 / 60u128;
-
-                let elapsed_times_sum__ = elapsed_times_sum + u1;
-                let expect_time = one_frame_nsec * (elapsed_times.len()+1) as u128;
-
-                if expect_time > elapsed_times_sum__ {
-                    let a = (expect_time - elapsed_times_sum__) as u64;
-                    sleep(Duration::from_nanos(a));
-                }
                 let u2 = u.elapsed().as_nanos();
                 elapsed_times_sum += u2;
                 elapsed_times.push_back(u2);
