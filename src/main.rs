@@ -1,6 +1,5 @@
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
-use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Read;
 use std::sync::mpsc;
@@ -29,6 +28,30 @@ enum RenderEvent {
     NameTableRender(RefCell<Vec<u8>>),
     SpriteRender(Vec<u8>),
 }
+
+#[derive(Debug)]
+struct FpsCounter {
+    start_time : Instant,
+    pub frame_count : usize,
+    pub fps : f32,
+}
+
+impl FpsCounter {
+    pub fn new() -> Self {
+        Self {
+            start_time : Instant::now(),
+            frame_count : 0,
+            fps : 0f32,
+        }
+    }
+
+    pub fn add_frame(&mut self) {
+        let time = Instant::now().duration_since(self.start_time).as_secs_f32();
+        self.frame_count += 1;
+        self.fps = (self.frame_count as f32) / time;
+    }
+}
+
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new("famiko")
@@ -126,10 +149,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         cpu.bus.ppu.step(7*3);
 
-        let mut elapsed_times = VecDeque::<u128>::new();
-        let mut elapsed_times_sum = 0u128;
 
-        let mut u = Instant::now();
+        let mut fps = FpsCounter::new();
 
         let mut elapsed_time = 0u128;
         let time_base = Instant::now();
@@ -147,8 +168,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             cpu.bus.apu.step(cycle);
 
             elapsed_time += (cycle as u128) * CPU_CLOCK_UNIT_NSEC;
-            let time = Instant::now();
-            let actual = time.duration_since(time_base).as_nanos();
+            let actual = Instant::now().duration_since(time_base).as_nanos();
             if elapsed_time > actual && elapsed_time - actual > 1_000_000 { // 1.2msec
                 let t = elapsed_time - actual;
                 sleep(Duration::from_nanos(t as u64));
@@ -173,26 +193,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     cpu.bus.ppu.write_sprite(&mut frame);
                     render_sender.send(RenderEvent::SpriteRender(frame.unwrap())).unwrap();
                 }
-                if elapsed_times.len() >= 60 {
-                    let last = elapsed_times.pop_front().unwrap();
-                    elapsed_times_sum -= last;
-                }
 
-                let u2 = u.elapsed().as_nanos();
-                elapsed_times_sum += u2;
-                elapsed_times.push_back(u2);
+                if is_show_fps {
+                    fps.add_frame();
+                    println!("draw : fps:{}", fps.fps);
 
-                if is_show_fps && elapsed_times.len() == 60 {
-                    let n = 1_000_000_000 * 60 / elapsed_times_sum;
-                    println!("draw : fps:{}", n);
+                    if fps.frame_count > 60 {
+                        fps = FpsCounter::new();
+                    }
                 }
                 if let Ok((k, b)) = key_receiver.try_recv() {
                     cpu.bus.joy_pad.update_key(k, b);
                 }
-
-                u = Instant::now();
-
-
             }
         };
     });
