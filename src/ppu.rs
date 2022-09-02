@@ -13,6 +13,8 @@ pub const SPRITE_DEBUG_WIDTH : usize = 8 * 8;
 pub const SPRITE_DEBUG_HEIGT : usize = 8 * 8;
 pub const SPRITE_DEBUG_FRAME_SIZE : usize = SPRITE_DEBUG_HEIGT * SPRITE_DEBUG_WIDTH;
 
+const CLEAR_COLOR : u8 = 0x40;
+
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct PPU {
@@ -69,7 +71,7 @@ impl PPU {
             sprite_addr: 0,
             scroll_x: 0,
             scroll_y: 0,
-            scroll_set_x: true,
+            scroll_set_x: false,
             palette_ram: [0; 0x20],
             name_table: [0; 0x400 * 4],
             pattern_table: chr,
@@ -111,13 +113,14 @@ impl PPU {
     pub fn read_status(&mut self) -> u8 {
         let status = self.ppustatus;
         self.update_vblank(false);
+        self.scroll_set_x = false;
         status
     }
 
     pub fn write_ppuscroll(&mut self, v : u8) {
         match self.scroll_set_x {
-            true => { self.scroll_x = v }
-            false => { self.scroll_y = v }
+            false => { self.scroll_x = v }
+            true => { self.scroll_y = v }
         }
         self.scroll_set_x = !self.scroll_set_x;
     }
@@ -253,9 +256,9 @@ impl PPU {
     } 
 
     pub fn init_frame(&mut self) {
-        _ = self.frame_bg.borrow_mut().iter_mut().map(|v|*v=0xffu8).count();
-        _ = self.frame_sprite_bg.iter_mut().map(|v|*v=0xffu8).count();
-        _ = self.frame_sprite_fg.iter_mut().map(|v|*v=0xffu8).count();
+        _ = self.frame_bg.borrow_mut().iter_mut().map(|v|*v=CLEAR_COLOR).count();
+        _ = self.frame_sprite_bg.iter_mut().map(|v|*v=CLEAR_COLOR).count();
+        _ = self.frame_sprite_fg.iter_mut().map(|v|*v=CLEAR_COLOR).count();
     }
 
     pub fn write_frame_bg(&mut self) {
@@ -307,7 +310,7 @@ impl PPU {
                         let i = (y_ * width + x_) as usize;
                         if let Some(frame_) = frame {
                             let i = i*4;
-                            if color == 0xff {
+                            if color == CLEAR_COLOR {
                                 frame_[i+0] = 0;
                                 frame_[i+1] = 0;
                                 frame_[i+2] = 0;
@@ -318,13 +321,20 @@ impl PPU {
                             frame_[i+3] = 0xff;
                         } else {
                             // Sprite 0 Hit判定のためにフラグを一緒にセットする
-                            let color = color | if sprite_i == 0 && palette_num % 4 != 0 { 0x80 } else { 0 };
-                            if color != 0xff {
+                            if color != CLEAR_COLOR {
+                                let color_ = color | if sprite_i == 0 && palette_num % 4 != 0 { 0x80 } else { 0x00 };
                                 if is_fg {
-                                    self.frame_sprite_fg[i] = self.frame_sprite_fg[i] & 0x80 | color;
+                                    self.frame_sprite_fg[i] = self.frame_sprite_fg[i] & 0x80 | color_;
                                 } else {
-                                    self.frame_sprite_bg[i] = self.frame_sprite_bg[i] & 0x80 | color;
+                                    self.frame_sprite_bg[i] = self.frame_sprite_bg[i] & 0x80 | color_;
                                 }
+                            }
+
+                            if self.frame_sprite_fg[i] & 0xc0 == 0x80 {
+                                println!("fg x{:} y{:} {:08b}", x_, y_, self.frame_sprite_fg[i])
+                            }
+                            if self.frame_sprite_bg[i] & 0xc0 == 0x80 {
+                                println!("fg x{:} y{:} {:08b}", x_, y_, self.frame_sprite_bg[i])
                             }
                         }
                     }
@@ -342,14 +352,14 @@ impl PPU {
             let scroll_y = self.scroll_y as usize + (((self.ppuctrl & 2) >> 1) as usize) * 240;
             let p2 = (x + scroll_x as usize) + (line + scroll_y as usize) * WIDTH * 2;
             let mut c = self.frame_sprite_fg[p];
-            if c == 0xff {
+            if c == CLEAR_COLOR {
                 c = self.frame_bg.borrow()[p2];
             }
-            if c == 0xff {
+            if c == CLEAR_COLOR {
                 c = self.frame_sprite_bg[p];
             }
             let out_pixel = &mut self.frame[p*4..p*4+4];
-            if c == 0xff {
+            if c == CLEAR_COLOR {
                 out_pixel[0..3].clone_from_slice(&COLORS[self.palette_ram[0] as usize]);
                 out_pixel[3] = 0xff;
             } else {
@@ -357,8 +367,9 @@ impl PPU {
                 out_pixel[3] = 0xff;
             }
 
-            if (self.frame_sprite_fg[p] & 0x80 | self.frame_sprite_bg[p] & 0x80) != 0 {
-                if self.frame_bg.borrow()[p2] != 0xff {
+            if (self.frame_sprite_fg[p] & 0x80 != 0) || ( self.frame_sprite_bg[p] & 0x80 != 0) {
+                if self.frame_bg.borrow()[p2] != CLEAR_COLOR {
+                    println!("hit x{:} y{:}", x, line);
                     sprite_0_hit |= true;
                 }
             }
@@ -368,7 +379,7 @@ impl PPU {
 
     fn palette_to_color(&self, i: usize) -> u8 {
         if i % 4 == 0 {
-            return 0xff
+            return CLEAR_COLOR
         }
         self.palette_ram[i]
     }
@@ -414,7 +425,7 @@ impl PPU {
         let mut frame = frame_.borrow_mut();
         self.draw_name_table_(|x,y,c| {
             let i = (x + y * WIDTH * 2) * 4;
-            let color = if c == 0xff {
+            let color = if c == CLEAR_COLOR as usize {
                 &COLORS[self.palette_ram[0] as usize]
             } else {
                 &COLORS[c]
@@ -475,7 +486,7 @@ impl PPU {
                                     let color = if palette_num % 4 != 0 {
                                         self.palette_ram[palette_index * 4 + palette_num] as usize 
                                     } else {
-                                        0xff
+                                        CLEAR_COLOR as usize
                                     };
 
                                     let x_ = if i % 2 == 1 { x + WIDTH } else { x };
