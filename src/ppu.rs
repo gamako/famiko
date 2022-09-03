@@ -117,6 +117,10 @@ impl PPU {
         status
     }
 
+    pub fn write_ppuctrl(&mut self, v : u8) {
+        self.ppuctrl = v;
+    }
+
     pub fn write_ppuscroll(&mut self, v : u8) {
         match self.scroll_set_x {
             false => { self.scroll_x = v }

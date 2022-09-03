@@ -81,7 +81,7 @@ impl Bus {
                 self.ram[addr as usize] = value;
             }
             0x2000 => {
-                self.ppu.ppuctrl = value;
+                self.ppu.write_ppuctrl(value);
             }
             0x2001 => {
                 self.ppu.ppumask = value;
