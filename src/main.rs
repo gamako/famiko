@@ -196,7 +196,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 if is_show_fps {
                     fps.add_frame();
-                    println!("draw : fps:{}", fps.fps);
+                    println!("fps:{}", fps.fps);
 
                     if fps.frame_count > 60 {
                         fps = FpsCounter::new();
