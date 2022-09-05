@@ -354,7 +354,7 @@ impl PPU {
             let p = x + line * WIDTH;
             let scroll_x = self.scroll_x as usize + ((self.ppuctrl & 1) as usize) * 256;
             let scroll_y = self.scroll_y as usize + (((self.ppuctrl & 2) >> 1) as usize) * 240;
-            let p2 = (x + scroll_x as usize) + (line + scroll_y as usize) * WIDTH * 2;
+            let p2 = ((x + scroll_x) % (WIDTH*2)) + ((line + scroll_y) % (HEIGHT * 2)) * WIDTH * 2;
             let mut c = self.frame_sprite_fg[p];
             if c == CLEAR_COLOR {
                 c = self.frame_bg.borrow()[p2];
