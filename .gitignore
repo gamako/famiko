@@ -1,4 +1,7 @@
 /target
 /rom/nestest_.log
+/rom/smb.nes
+/rom/smb.dbg
+/rom/smb.log
 /apu/test_result
 /test_output
