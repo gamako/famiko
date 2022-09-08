@@ -1,5 +1,5 @@
 use crate::bus::Bus;
-use std::{fmt};
+use std::{fmt, str};
 use crate::hex::dump_bytes;
 use std::string::ToString;
 use std::fmt::Write as FmtWrite;
@@ -1409,7 +1409,37 @@ impl FceuxLog {
 
 fn fceux_flag_str(p:u8) -> String {
     let table = &['n','v','u','b','d','i','z','c'];
-    "".to_string()
+
+    let mut buf : [u8; 8] = [0u8; 8];
+    for i in 0..8usize {
+        let c = table[i] as u8;
+        let c = if p >> (7-i) & 1 != 0{
+            c - 0x20
+        } else {
+            c 
+        };
+        buf[i] = c;
+    }
+    str::from_utf8(&buf).unwrap().to_string()
+}
+
+#[cfg(test)]
+mod fceux_flag_str_tests {
+    use super::*;
+
+    #[test]
+    fn フラグテスト() {
+        assert_eq!(fceux_flag_str(0b00000000), "nvubdizc");
+        assert_eq!(fceux_flag_str(0b11111111), "NVUBDIZC");
+        assert_eq!(fceux_flag_str(0b00000001), "nvubdizC");
+        assert_eq!(fceux_flag_str(0b00000010), "nvubdiZc");
+        assert_eq!(fceux_flag_str(0b00000100), "nvubdIzc");
+        assert_eq!(fceux_flag_str(0b00001000), "nvubDizc");
+        assert_eq!(fceux_flag_str(0b00010000), "nvuBdizc");
+        assert_eq!(fceux_flag_str(0b00100000), "nvUbdizc");
+        assert_eq!(fceux_flag_str(0b01000000), "nVubdizc");
+        assert_eq!(fceux_flag_str(0b01000000), "Nvubdizc");
+    }
 }
 
 trait Address {
