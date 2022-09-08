@@ -1371,6 +1371,47 @@ impl CpuDebugLog {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct CpuState {
+    a : u8,
+    x : u8,
+    y : u8,
+    s : u8,
+    p : u8,
+    pc : u16,
+}
+
+pub struct FceuxLog {
+    frame_num : Option<u64>,
+    cpu : Option<CpuState>,
+    mem : Option<Vec<u8>>,
+    nemo : Option<String>
+    // f1      A:10 X:FF Y:00 S:FF P:nvubdIzc  $800A: AD 02 20 LDA $2002 PPU_STATUS = #$10
+}
+
+impl FceuxLog {
+    pub fn log_str(&self) -> String {
+        let cpu = self.cpu.unwrap();
+        format!(
+            "f{: <6} A:{:02X} X:{:02X} Y:{:02X} S:{:02X} P:{}  ${:04X}",
+            self.frame_num.unwrap(),
+            cpu.a,
+            cpu.x,
+            cpu.y,
+            cpu.s,
+            fceux_flag_str(cpu.p),
+            cpu.pc,
+        );
+        "".to_string()
+    }
+
+}
+
+fn fceux_flag_str(p:u8) -> String {
+    let table = &['n','v','u','b','d','i','z','c'];
+    "".to_string()
+}
+
 trait Address {
     fn page(&self) -> u8;
 }
