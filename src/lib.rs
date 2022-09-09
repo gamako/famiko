@@ -4,3 +4,4 @@ pub mod ppu;
 pub mod joypad;
 pub mod hex;
 pub mod apu_impl;
+pub mod log_compare;
