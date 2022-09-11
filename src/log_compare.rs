@@ -1,25 +1,30 @@
 use std::fs::File;
-use std::io::{self, BufReader};
+use std::io::{self, BufReader, BufRead};
 
-struct LogCompare<T> {
-    file : BufReader<T>,
+pub struct log_compare<R : io::Read> {
+    log_file : BufReader<R>,
 
 }
 
-impl <R : io::Read> LogCompare<R> {
+impl <R : io::Read> log_compare<R> {
     pub fn new(expectFile : R) -> Self {
         Self {
-            file : BufReader::new(expectFile)
+            log_file : BufReader::new(expectFile)
         }
     }
 
-    pub fn line(line : String) -> bool {
-        true
+    pub fn line(&mut self, line : &str) -> bool {
+        let mut buf  = String::new();
+        self.log_file.read_line(&mut buf);
+        
+        buf.eq(line)
     }
 }
 
 #[cfg(test)]
-mod LogCompareTest {
+mod log_compare_test {
+    use std::fs;
+
     use super::*;
 
     #[test]
@@ -28,7 +33,8 @@ mod LogCompareTest {
 f1      A:00 X:00 Y:00 S:FD P:nvubdIzc  $8000: 78       SEI
 f1      A:00 X:00 Y:00 S:FD P:nvubdIzc  $8001: D8       CLD
 ".as_bytes();
-        
-        let f = LogCompare::new(b);
+        let mut compare = log_compare::new(b);
+        let new_line = "Log Start";
+        assert!(compare.line(new_line));
     }
 }
