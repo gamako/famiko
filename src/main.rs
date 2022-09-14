@@ -1,13 +1,14 @@
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, BufReader};
 use std::sync::mpsc;
 use std::thread::{self, sleep};
 use std::time::{Duration, Instant};
 
 use famiko::joypad;
 use famiko::joypad::PadKey;
+use famiko::log_compare::LogCompare;
 use pixels::{Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode, WindowEvent};
@@ -15,7 +16,7 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use winit::window::{WindowBuilder, Window};
 use winit_input_helper::WinitInputHelper;
 
-use famiko::cpu::{CPU, CpuDebugLog, CPU_CLOCK_UNIT_NSEC};
+use famiko::cpu::{CPU, CpuDebugLog, CPU_CLOCK_UNIT_NSEC, FceuxLog};
 use famiko::bus::Bus;
 use famiko::ppu::{WIDTH, HEIGHT, CHR_DEBUG_FRAME_SIZE, CHR_DEBUG_WIDTH, CHR_DEBUG_HEIGT, SPRITE_DEBUG_WIDTH, SPRITE_DEBUG_HEIGT};
 use clap::{arg, Command, Arg, ArgAction};
@@ -134,6 +135,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // キー情報をUIスレッドから転送するチャネル
     let (key_sender, key_receiver) = mpsc::channel::<(PadKey, bool)>();
 
+    // Fceuxログとの比較準備
+    let mut fceux_log_compare = if let Some(log_file) = fceux_debug_file {
+        let f = File::open(log_file)?;
+        let reader = BufReader::new(f);
+        Some(LogCompare::new(reader))
+    } else {
+        None
+    };
 
     thread::spawn(move ||{
         let bus = Bus::new(prg_rom, chr_rom, h.flag6 & 1 == 0, sound_debug, no_sound);
