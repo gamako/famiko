@@ -62,11 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .long("debug")
                 .action(ArgAction::SetTrue)
         )
-        .arg(
-            Arg::new("fceux-log")
-                .long("fceux-log")
-                .action(ArgAction::SetTrue)
-        )
+        .arg(arg!(--fceuxlog [path] "fceuxログ比較対象(デバッグ用)"))
         .arg(
             Arg::new("sound-debug")
                 .long("sound-debug")
@@ -106,7 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let file = matches.get_one::<String>("rom").unwrap();
     let debug = matches.get_one::<bool>("debug").map_or(false, |v| *v);
-    let fceux_debug = matches.get_one::<bool>("fceux-log").map_or(false, |v| *v);
+    let fceux_debug_file = matches.get_one::<String>("fceux-log");
     let sound_debug = matches.get_one::<bool>("sound-debug").map_or(false, |v| *v);
     let no_sound = matches.get_one::<bool>("no-sound").map_or(false, |v| *v);
     let show_chr_table = matches.get_one::<bool>("show-chr-table").map_or(false, |v| *v);
