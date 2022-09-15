@@ -170,6 +170,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut log = CpuDebugLog::new();
             log.ppu_line = cpu.bus.ppu.y_();
             log.ppu_x = cpu.bus.ppu.x_();
+
+            let fceux_log = if fceux_log_compare.is_some() {
+                Some(FceuxLog::new())
+            } else {
+                None
+            };
+
             let cycle = cpu.step_next(&mut log);
             if debug {
                 log.log();

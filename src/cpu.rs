@@ -1385,11 +1385,20 @@ pub struct FceuxLog {
     frame_num : Option<u64>,
     cpu : Option<CpuState>,
     mem : Option<Vec<u8>>,
-    nemo : Option<String>
+    nmemo : Option<String>
     // f1      A:10 X:FF Y:00 S:FF P:nvubdIzc  $800A: AD 02 20 LDA $2002 PPU_STATUS = #$10
 }
 
 impl FceuxLog {
+    pub fn new() -> Self {
+        Self {
+            frame_num: None,
+            cpu: None,
+            mem: None,
+            nmemo: None,
+        }
+    }
+
     pub fn log_str(&self) -> String {
         let cpu = self.cpu.unwrap();
         format!(
