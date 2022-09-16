@@ -1267,7 +1267,7 @@ impl CPU {
         }
     }
 
-    pub fn step_next(&mut self, log : &mut CpuDebugLog) -> usize {
+    pub fn step_next(&mut self, log : &mut CpuDebugLog, fceux_log: &mut Option<FceuxLog>) -> usize {
         if self.bus.read_nmi() {
             //println!("interruption nmi");
             return self.int_nmi();
