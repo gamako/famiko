@@ -1276,6 +1276,9 @@ impl CPU {
             self.p &= !P_MASK_BREAK_COMMAND;
             return self.int_irq();
         }
+        if let Some(l) = fceux_log {
+            l.cpu = Some(CpuState::from_cpu(&self))
+        }
 
         log.addr = Some(self.pc);
         log.cpu_register = Some(format!("{}", self.log_str()));
@@ -1284,6 +1287,10 @@ impl CPU {
         let (command, bytes) = self.fetch();
         let fetch_cycle = bytes.len();
         log.bytes = Some(bytes);
+
+        if let Some(l) = fceux_log {
+            l.mem = Some(bytes);
+        }
 
         let (command_log, exec_cycle) = self.exec_command(&command);
         let cycle = exec_cycle + fetch_cycle;
@@ -1379,6 +1386,19 @@ pub struct CpuState {
     s : u8,
     p : u8,
     pc : u16,
+}
+
+impl CpuState {
+    fn from_cpu(cpu : &CPU) -> Self{
+        Self {
+            a : cpu.a,
+            x : cpu.x,
+            y : cpu.y,
+            s : cpu.s,
+            p : cpu.p,
+            pc : cpu.pc,
+        }
+    }
 }
 
 pub struct FceuxLog {
