@@ -13,25 +13,35 @@ impl <R : io::Read> LogCompare<R> {
         }
     }
 
-    pub fn line(&mut self, line : &str) -> bool {
+    pub fn line(&mut self, line : &str) -> (bool, String) {
         let mut buf  = String::new();
         let result = self.log_file.read_line(&mut buf);
-        match result {
+        let expect = buf[..buf.len()-1].to_string();
+        let result = match result {
             // EOF
             Ok(0) => false,
             Ok(_) => {
-                let chomped = &buf[..buf.len()-1];
-                chomped.eq(line)
+                expect.eq(line)
             }
             Err(e) => {
                 println!("log file read error {:?}", e);
                 false
             }
-        }
+        };
+        (result, buf)
     }
 
     pub fn line_number(&self) -> usize {
         self.line_number
+    }
+
+    pub fn test_line(&mut self, line: &str) {
+        let (result, expect) = self.line(&line);
+        if !result {
+            println!("wrong : line : {:}", self.line_number());
+            println!("wrong : expect : [{:}]", expect);
+            println!("wrong : expect : [{:}]", line);
+        }
     }
 }
 
@@ -46,8 +56,8 @@ f1      A:00 X:00 Y:00 S:FD P:nvubdIzc  $8000: 78       SEI
 f1      A:00 X:00 Y:00 S:FD P:nvubdIzc  $8001: D8       CLD
 ".as_bytes();
         let mut compare = LogCompare::new(b);
-        assert!(compare.line("Log Start"));
-        assert!(compare.line("f1      A:00 X:00 Y:00 S:FD P:nvubdIzc  $8000: 78       SEI"));
-        assert!(compare.line("f1      A:00 X:00 Y:00 S:FD P:nvubdIzc  $8001: D8       CLD"));
+        assert!(compare.line("Log Start").0);
+        assert!(compare.line("f1      A:00 X:00 Y:00 S:FD P:nvubdIzc  $8000: 78       SEI").0);
+        assert!(compare.line("f1      A:00 X:00 Y:00 S:FD P:nvubdIzc  $8001: D8       CLD").0);
     }
 }

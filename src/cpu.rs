@@ -589,7 +589,7 @@ impl CPU {
         }
     }
 
-    fn exec_command(&mut self, command: &Command) -> (String, usize) {
+    fn exec_command(&mut self, command: &Command) -> (String, usize, CommandLog) {
         let mut l = String::new();
         
         write!(l, "{:>4} ", command.type_name()).unwrap();
@@ -988,7 +988,7 @@ impl CPU {
             }
             _ => { panic!("xx") }
         };
-        return (l, cycle);
+        return (l, cycle, CommandLog::SE(FlagType::IntDisable));
     }
 
     fn read_byte(&mut self, addr: u16, is_debug: bool) -> u8 {
@@ -1286,16 +1286,18 @@ impl CPU {
 
         let (command, bytes) = self.fetch();
         let fetch_cycle = bytes.len();
-        log.bytes = Some(bytes);
+        log.bytes = Some(bytes.clone());
+
+        let (command_log_str, exec_cycle, command_log) = self.exec_command(&command);
 
         if let Some(l) = fceux_log {
             l.mem = Some(bytes);
+            l.command_log = Some(command_log);
         }
 
-        let (command_log, exec_cycle) = self.exec_command(&command);
         let cycle = exec_cycle + fetch_cycle;
         self.cycle += cycle;
-        log.command = Some(command_log);
+        log.command = Some(command_log_str);
         cycle
     }
 
@@ -1402,20 +1404,20 @@ impl CpuState {
 }
 
 pub struct FceuxLog {
-    frame_num : Option<u64>,
+    frame_num : u64,
     cpu : Option<CpuState>,
     mem : Option<Vec<u8>>,
-    nmemo : Option<String>
+    command_log : Option<CommandLog>,
     // f1      A:10 X:FF Y:00 S:FF P:nvubdIzc  $800A: AD 02 20 LDA $2002 PPU_STATUS = #$10
 }
 
 impl FceuxLog {
-    pub fn new() -> Self {
+    pub fn new(frame_num : u64) -> Self {
         Self {
-            frame_num: None,
+            frame_num: frame_num,
             cpu: None,
             mem: None,
-            nmemo: None,
+            command_log: None,
         }
     }
 
@@ -1423,7 +1425,7 @@ impl FceuxLog {
         let cpu = self.cpu.unwrap();
         format!(
             "f{: <6} A:{:02X} X:{:02X} Y:{:02X} S:{:02X} P:{}  ${:04X}",
-            self.frame_num.unwrap(),
+            self.frame_num,
             cpu.a,
             cpu.x,
             cpu.y,
@@ -1477,5 +1479,76 @@ trait Address {
 impl Address for u16 {
     fn page(&self) -> u8 {
         (*self >> 8) as u8
+    }
+}
+
+enum CommandLog{
+    // STA(AddressingMode),
+    // STX(AddressingMode),
+    // STY(AddressingMode),
+    // LDA(AddressingMode),
+    // LDX(AddressingMode),
+    // LDY(AddressingMode),
+    // TAX,
+    // TAY,
+    // TSX,
+    // TXA,
+    // TXS,
+    // TYA,
+    // DEC(AddressingMode),
+    // DEX,
+    // DEY,
+    // INC(AddressingMode),
+    // INX,
+    // INY,
+    // AND(AddressingMode),
+    // ORA(AddressingMode),
+    // EOR(AddressingMode),
+    // ASL(AddressingMode),
+    // LSR(AddressingMode),
+    // ROL(AddressingMode),
+    // ROR(AddressingMode),
+    // ADC(AddressingMode),
+    // SBC(AddressingMode),
+    // CMP(AddressingMode),
+    // CPX(AddressingMode),
+    // CPY(AddressingMode),
+    // BPL(AddressingMode),
+    // BCC(AddressingMode),
+    // BCS(AddressingMode),
+    // BEQ(AddressingMode),
+    // BVS(AddressingMode),
+    // BVC(AddressingMode),
+    // BMI(AddressingMode),
+    // BNE(AddressingMode),
+    // JMP(AddressingMode),
+    // JSR(AddressingMode),
+    // RTS,
+    // RTI,
+    // CL(FlagType),
+    SE(FlagType),
+    // BIT(AddressingMode),
+    // PHA,
+    // PHP,
+    // PLA,
+    // PLP,
+    // NOP,
+    // NOP_,
+    // DOP(AddressingMode),
+    // TOP(AddressingMode),
+    // LAX(AddressingMode),
+    // SAX(AddressingMode),
+    // SBC_(AddressingMode),
+    // DCP(AddressingMode),
+    // ISB(AddressingMode),
+    // SLO(AddressingMode),
+    // RLA(AddressingMode),
+    // SRE(AddressingMode),
+    // RRA(AddressingMode),
+}
+
+impl CommandLog {
+    pub fn write_fceux_log(l: &mut String) {
+        write!(l, "xxx").unwrap();
     }
 }

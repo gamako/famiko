@@ -29,6 +29,8 @@ pub struct PPU {
     pub ppudata : u8,
     pub oamdma: u8,
 
+    pub frame_count : u64,
+
     is_mirror_horizontal: bool,
     addr: u16,
     sprite_addr : u8,
@@ -66,6 +68,7 @@ impl PPU {
             ppuaddr: 0,
             ppudata: 0,
             oamdma: 0,
+            frame_count : 0,
             is_mirror_horizontal,
             addr: 0,
             sprite_addr: 0,
@@ -250,6 +253,7 @@ impl PPU {
                     self.update_sprite_0_hit(false);
                 }
                 if self.y > 262 {
+                    self.frame_count += 1;
                     self.y = 0;
                     ret = Some(Box::new(self.frame.clone()));
                     self.frame.iter_mut().for_each(|v| *v = 0);

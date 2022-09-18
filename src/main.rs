@@ -135,18 +135,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // キー情報をUIスレッドから転送するチャネル
     let (key_sender, key_receiver) = mpsc::channel::<(PadKey, bool)>();
 
-    // Fceuxログとの比較準備
-    let mut fceux_log_compare = if let Some(log_file) = fceux_debug_file {
-        let f = File::open(log_file)?;
-        let reader = BufReader::new(f);
-        Some(LogCompare::new(reader))
-    } else {
-        None
-    };
-
     thread::spawn(move ||{
         let bus = Bus::new(prg_rom, chr_rom, h.flag6 & 1 == 0, sound_debug, no_sound);
         let mut cpu = CPU::new(bus);
+
+        // Fceuxログとの比較準備
+        let mut fceux_log_compare = if let Some(log_file) = fceux_debug_file {
+            let f = File::open(log_file)?;
+            let reader = BufReader::new(f);
+            Some(LogCompare::new(reader))
+        } else {
+            None
+        };
 
         // apu開始
         _ = cpu.bus.apu.start();
@@ -171,12 +171,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             log.ppu_line = cpu.bus.ppu.y_();
             log.ppu_x = cpu.bus.ppu.x_();
 
-            let mut fceux_log = fceux_log_compare.as_ref().map(|_| FceuxLog::new());
+            let mut fceux_log = fceux_log_compare.as_ref().map(|_| FceuxLog::new(cpu.bus.ppu.frame_count+1));
 
             let cycle = cpu.step_next(&mut log, &mut fceux_log);
             if debug {
                 log.log();
             }
+            if let( Some(l), Some(mut c)) = (fceux_log, fceux_log_compare) {
+                let s = l.log_str();
+                c.test_line(&s);
+            }
+
             let frame_ = cpu.bus.ppu.step(cycle*3);
 
             cpu.bus.apu.step(cycle);
