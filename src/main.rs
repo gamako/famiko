@@ -103,7 +103,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let file = matches.get_one::<String>("rom").unwrap();
     let debug = matches.get_one::<bool>("debug").map_or(false, |v| *v);
-    let fceux_debug_file = matches.get_one::<String>("fceux-log");
+    let fceux_debug_file = matches.get_one::<String>("fceuxlog").cloned();
     let sound_debug = matches.get_one::<bool>("sound-debug").map_or(false, |v| *v);
     let no_sound = matches.get_one::<bool>("no-sound").map_or(false, |v| *v);
     let show_chr_table = matches.get_one::<bool>("show-chr-table").map_or(false, |v| *v);
@@ -141,7 +141,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Fceuxログとの比較準備
         let mut fceux_log_compare = if let Some(log_file) = fceux_debug_file {
-            let f = File::open(log_file)?;
+            let f = File::open(log_file).unwrap();
             let reader = BufReader::new(f);
             Some(LogCompare::new(reader))
         } else {
@@ -177,7 +177,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if debug {
                 log.log();
             }
-            if let( Some(l), Some(mut c)) = (fceux_log, fceux_log_compare) {
+            if let( Some(l), Some(c)) = (fceux_log, fceux_log_compare.as_mut()) {
                 let s = l.log_str();
                 c.test_line(&s);
             }
