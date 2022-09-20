@@ -28,7 +28,7 @@ impl <R : io::Read> LogCompare<R> {
                 false
             }
         };
-        (result, buf)
+        (result, expect)
     }
 
     pub fn line_number(&self) -> usize {
@@ -38,9 +38,10 @@ impl <R : io::Read> LogCompare<R> {
     pub fn test_line(&mut self, line: &str) {
         let (result, expect) = self.line(&line);
         if !result {
-            println!("wrong : line : {:}", self.line_number());
+            println!("wrong : line : {:}", self.line_number()+1);
             println!("wrong : expect : [{:}]", expect);
-            println!("wrong : expect : [{:}]", line);
+            println!("wrong : actual : [{:}]", line);
+            panic!("fail to match")
         }
     }
 }
