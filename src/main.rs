@@ -143,7 +143,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut fceux_log_compare = if let Some(log_file) = fceux_debug_file {
             let f = File::open(log_file).unwrap();
             let reader = BufReader::new(f);
-            Some(LogCompare::new(reader))
+            let mut l = Some(LogCompare::new(reader));
+            l.as_mut().and_then(|f| {f.test_line(&"Log Start"); Some(())});
+            l
         } else {
             None
         };
