@@ -1423,8 +1423,10 @@ impl FceuxLog {
 
     pub fn log_str(&self) -> String {
         let cpu = self.cpu.unwrap();
-        format!(
-            "f{: <6} A:{:02X} X:{:02X} Y:{:02X} S:{:02X} P:{}  ${:04X}",
+        
+        let command_str = self.command_log.as_ref().unwrap().fceux_log_str();
+        let str = format!(
+            "f{: <6} A:{:02X} X:{:02X} Y:{:02X} S:{:02X} P:{}  ${:04X}: {: <8} {:}",
             self.frame_num,
             cpu.a,
             cpu.x,
@@ -1432,8 +1434,10 @@ impl FceuxLog {
             cpu.s,
             fceux_flag_str(cpu.p),
             cpu.pc,
+            dump_bytes(&self.mem.as_ref().unwrap()),
+            command_str,
         );
-        "".to_string()
+        str
     }
 
 }
@@ -1548,7 +1552,78 @@ enum CommandLog{
 }
 
 impl CommandLog {
-    pub fn write_fceux_log(l: &mut String) {
-        write!(l, "xxx").unwrap();
+    fn _write_fceux_log(&self, l: &mut String) {
+        write!(l, "{:}", self.type_name()).unwrap();
+    }
+
+    fn fceux_log_str(&self) -> String {
+        let mut s = String::new();
+        self._write_fceux_log(&mut s);
+        s
+    }
+
+    fn type_name(&self) -> String {
+        match self {
+            // Command::STA(_) => "STA".to_string(),
+            // Command::STX(_) => "STX".to_string(),
+            // Command::STY(_) => "STY".to_string(),
+            // Command::LDA(_) => "LDA".to_string(),
+            // Command::LDX(_) => "LDX".to_string(),
+            // Command::LDY(_) => "LDY".to_string(),
+            // Command::TAX => "TAX".to_string(),
+            // Command::TAY => "TAY".to_string(),
+            // Command::AND(_) => "AND".to_string(),
+            // Command::EOR(_) => "EOR".to_string(),
+            // Command::LSR(_) => "LSR".to_string(),
+            // Command::ADC(_) => "ADC".to_string(),
+            // Command::ROL(_) => "ROL".to_string(),
+            // Command::ROR(_) => "ROR".to_string(),
+            // Command::SBC(_) => "SBC".to_string(),
+            // Command::ORA(_) => "ORA".to_string(),
+            // Command::CMP(_) => "CMP".to_string(),
+            // Command::CPX(_) => "CPX".to_string(),
+            // Command::CPY(_) => "CPY".to_string(),
+            // Command::BPL(_) => "BPL".to_string(),
+            // Command::BMI(_) => "BMI".to_string(),
+            // Command::BNE(_) => "BNE".to_string(),
+            // Command::BEQ(_) => "BEQ".to_string(),
+            // Command::BCC(_) => "BCC".to_string(),
+            // Command::BCS(_) => "BCS".to_string(),
+            // Command::BVS(_) => "BVS".to_string(),
+            // Command::BVC(_) => "BVC".to_string(),
+            // Command::JMP(_) => "JMP".to_string(),
+            // Command::JSR(_) => "JSR".to_string(),
+            // Command::CL(t) =>
+            //     match t {
+            //         FlagType::Carry => "CLC".to_string(),
+            //         FlagType::IntDisable => "CLI".to_string(),
+            //         FlagType::Decimal => "CLD".to_string(),
+            //         FlagType::Overflow => "CLV".to_string(),
+            //         _ => "CL?".to_string(),
+            //     },
+            CommandLog::SE(t) =>
+                match t {
+                    FlagType::Carry => "SEC".to_string(),
+                    FlagType::IntDisable => "SEI".to_string(),
+                    FlagType::Decimal => "SED".to_string(),
+                    _ => "SE?".to_string(),
+                },
+            // Command::BIT(_) => "BIT".to_string(),
+            // Command::PHA => "PHA".to_string(),
+            // Command::PHP => "PHP".to_string(),
+            // Command::NOP_ => "*NOP".to_string(),
+            // Command::DOP(_) => "*NOP".to_string(),
+            // Command::TOP(_) => "*NOP".to_string(),
+            // Command::LAX(_) => "*LAX".to_string(),
+            // Command::SAX(_) => "*SAX".to_string(),
+            // Command::SBC_(_) => "*SBC".to_string(),
+            // Command::DCP(_) => "*DCP".to_string(),
+            // Command::ISB(_) => "*ISB".to_string(),
+            // Command::SLO(_) => "*SLO".to_string(),
+            // Command::RLA(_) => "*RLA".to_string(),
+            // Command::SRE(_) => "*SRE".to_string(),
+            // Command::RRA(_) => "*RRA".to_string(),
+            // _ => self.to_string(),
+        }   
     }
 }
