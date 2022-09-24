@@ -246,8 +246,8 @@ impl Command {
 }
 
 impl CPU {
-    pub fn new(bus : Bus) -> Self {
-        CPU { a: 0, x: 0, y: 0, p: 0x24, s: 0xff, pc: 0, bus: bus, cycle: 0 }
+    pub fn new(bus : Bus, p: u8) -> Self {
+        CPU { a: 0, x: 0, y: 0, p: p, s: 0x00, pc: 0, bus: bus, cycle: 0 }
     }
 
     pub fn int_reset(&mut self) -> usize {

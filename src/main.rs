@@ -57,6 +57,7 @@ impl FpsCounter {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = Command::new("famiko")
         .arg(arg!(--start_addr [addr] "開始アドレス"))
+        .arg(arg!(--start_p_reg [v] "Pレジスタ初期値"))
         .arg(
             Arg::new("debug")
                 .short('d')
@@ -101,6 +102,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         None
     };
+    let start_p_reg = if let Some(data) = matches.get_one::<String>("start_p_reg") {
+        let v = hex::decode(data).unwrap();
+        v[0]
+    } else {
+        0x34u8
+    };
     let file = matches.get_one::<String>("rom").unwrap();
     let debug = matches.get_one::<bool>("debug").map_or(false, |v| *v);
     let fceux_debug_file = matches.get_one::<String>("fceuxlog").cloned();
@@ -137,7 +144,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     thread::spawn(move ||{
         let bus = Bus::new(prg_rom, chr_rom, h.flag6 & 1 == 0, sound_debug, no_sound);
-        let mut cpu = CPU::new(bus);
+        println!("start_p_reg: {:02x}", start_p_reg);
+        let mut cpu = CPU::new(bus, start_p_reg);
 
         // Fceuxログとの比較準備
         let mut fceux_log_compare = if let Some(log_file) = fceux_debug_file {
