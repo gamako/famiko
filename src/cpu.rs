@@ -87,7 +87,7 @@ impl fmt::Debug for AddressingMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 enum FlagType {
     Carry,
@@ -591,7 +591,8 @@ impl CPU {
 
     fn exec_command(&mut self, command: &Command) -> (String, usize, CommandLog) {
         let mut l = String::new();
-        
+        let mut commandLog = CommandLog::SE(FlagType::IntDisable);
+
         write!(l, "{:>4} ", command.type_name()).unwrap();
         let cycle : usize = match command {
             Command::STA(a) => { self.store(a, self.a, Some(&mut l)) },
@@ -838,7 +839,9 @@ impl CPU {
                 5
             }
             Command::CL(f) => {self.p &= !f.mask(); 1},
-            Command::SE(f) => {self.p |= f.mask(); 1},
+            Command::SE(f) => {self.p |= f.mask(); 
+                commandLog = CommandLog::SE(FlagType::IntDisable);
+            1},
             Command::BIT(a) => {
                 let (m, _, cycle) = self.load(a, &mut l);
                 let r = m & self.a;
@@ -988,7 +991,7 @@ impl CPU {
             }
             _ => { panic!("xx") }
         };
-        return (l, cycle, CommandLog::SE(FlagType::IntDisable));
+        return (l, cycle, commandLog);
     }
 
     fn read_byte(&mut self, addr: u16, is_debug: bool) -> u8 {
@@ -1486,6 +1489,7 @@ impl Address for u16 {
     }
 }
 
+#[derive(Debug, Clone)]
 enum CommandLog{
     // STA(AddressingMode),
     // STX(AddressingMode),
