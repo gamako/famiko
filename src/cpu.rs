@@ -838,10 +838,16 @@ impl CPU {
                 self.pc = self.pop_stack_word();
                 5
             }
-            Command::CL(f) => {self.p &= !f.mask(); 1},
-            Command::SE(f) => {self.p |= f.mask(); 
-                commandLog = CommandLog::SE(FlagType::IntDisable);
-            1},
+            Command::CL(f) => {
+                self.p &= !f.mask(); 
+                commandLog = CommandLog::CL(f.clone());
+                1
+            },
+            Command::SE(f) => {
+                self.p |= f.mask(); 
+                commandLog = CommandLog::SE(f.clone());
+                1
+            },
             Command::BIT(a) => {
                 let (m, _, cycle) = self.load(a, &mut l);
                 let r = m & self.a;
@@ -1533,7 +1539,7 @@ enum CommandLog{
     // JSR(AddressingMode),
     // RTS,
     // RTI,
-    // CL(FlagType),
+    CL(FlagType),
     SE(FlagType),
     // BIT(AddressingMode),
     // PHA,
@@ -1597,14 +1603,14 @@ impl CommandLog {
             // Command::BVC(_) => "BVC".to_string(),
             // Command::JMP(_) => "JMP".to_string(),
             // Command::JSR(_) => "JSR".to_string(),
-            // Command::CL(t) =>
-            //     match t {
-            //         FlagType::Carry => "CLC".to_string(),
-            //         FlagType::IntDisable => "CLI".to_string(),
-            //         FlagType::Decimal => "CLD".to_string(),
-            //         FlagType::Overflow => "CLV".to_string(),
-            //         _ => "CL?".to_string(),
-            //     },
+            CommandLog::CL(t) =>
+                match t {
+                    FlagType::Carry => "CLC".to_string(),
+                    FlagType::IntDisable => "CLI".to_string(),
+                    FlagType::Decimal => "CLD".to_string(),
+                    FlagType::Overflow => "CLV".to_string(),
+                    _ => "CL?".to_string(),
+                },
             CommandLog::SE(t) =>
                 match t {
                     FlagType::Carry => "SEC".to_string(),
