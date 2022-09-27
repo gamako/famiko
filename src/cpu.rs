@@ -1,3 +1,5 @@
+use pixels::wgpu::AddressMode;
+
 use crate::bus::Bus;
 use std::{fmt, str};
 use crate::hex::dump_bytes;
@@ -53,6 +55,7 @@ static P_MASK_BREAK_COMMAND : u8 = 1 << 4;
 static P_MASK_OVERFLOW : u8 = 1 << 6;
 static P_MASK_NEGATIVE : u8 = 1 << 7;
 
+#[derive(Clone)]
 enum AddressingMode {
     Accumelator,
     Imm(u8),
@@ -603,6 +606,7 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
+                command_log = CommandLog::LDA(LogAddressingMode::new(a, &self));
                 cycle
             },
             Command::LDX(a) => {
@@ -1497,112 +1501,16 @@ impl Address for u16 {
 
 #[derive(Debug, Clone)]
 enum CommandLog{
-    // STA(AddressingMode),
-    // STX(AddressingMode),
-    // STY(AddressingMode),
-    // LDA(AddressingMode),
-    // LDX(AddressingMode),
-    // LDY(AddressingMode),
-    // TAX,
-    // TAY,
-    // TSX,
-    // TXA,
-    // TXS,
-    // TYA,
-    // DEC(AddressingMode),
-    // DEX,
-    // DEY,
-    // INC(AddressingMode),
-    // INX,
-    // INY,
-    // AND(AddressingMode),
-    // ORA(AddressingMode),
-    // EOR(AddressingMode),
-    // ASL(AddressingMode),
-    // LSR(AddressingMode),
-    // ROL(AddressingMode),
-    // ROR(AddressingMode),
-    // ADC(AddressingMode),
-    // SBC(AddressingMode),
-    // CMP(AddressingMode),
-    // CPX(AddressingMode),
-    // CPY(AddressingMode),
-    // BPL(AddressingMode),
-    // BCC(AddressingMode),
-    // BCS(AddressingMode),
-    // BEQ(AddressingMode),
-    // BVS(AddressingMode),
-    // BVC(AddressingMode),
-    // BMI(AddressingMode),
-    // BNE(AddressingMode),
-    // JMP(AddressingMode),
-    // JSR(AddressingMode),
-    // RTS,
-    // RTI,
+    LDA(LogAddressingMode),
     CL(FlagType),
     SE(FlagType),
-    // BIT(AddressingMode),
-    // PHA,
-    // PHP,
-    // PLA,
-    // PLP,
-    // NOP,
-    // NOP_,
-    // DOP(AddressingMode),
-    // TOP(AddressingMode),
-    // LAX(AddressingMode),
-    // SAX(AddressingMode),
-    // SBC_(AddressingMode),
-    // DCP(AddressingMode),
-    // ISB(AddressingMode),
-    // SLO(AddressingMode),
-    // RLA(AddressingMode),
-    // SRE(AddressingMode),
-    // RRA(AddressingMode),
+
 }
 
 impl CommandLog {
-    fn _write_fceux_log(&self, l: &mut String) {
-        write!(l, "{:}", self.type_name()).unwrap();
-    }
-
     fn fceux_log_str(&self) -> String {
-        let mut s = String::new();
-        self._write_fceux_log(&mut s);
-        s
-    }
-
-    fn type_name(&self) -> String {
         match self {
-            // Command::STA(_) => "STA".to_string(),
-            // Command::STX(_) => "STX".to_string(),
-            // Command::STY(_) => "STY".to_string(),
-            // Command::LDA(_) => "LDA".to_string(),
-            // Command::LDX(_) => "LDX".to_string(),
-            // Command::LDY(_) => "LDY".to_string(),
-            // Command::TAX => "TAX".to_string(),
-            // Command::TAY => "TAY".to_string(),
-            // Command::AND(_) => "AND".to_string(),
-            // Command::EOR(_) => "EOR".to_string(),
-            // Command::LSR(_) => "LSR".to_string(),
-            // Command::ADC(_) => "ADC".to_string(),
-            // Command::ROL(_) => "ROL".to_string(),
-            // Command::ROR(_) => "ROR".to_string(),
-            // Command::SBC(_) => "SBC".to_string(),
-            // Command::ORA(_) => "ORA".to_string(),
-            // Command::CMP(_) => "CMP".to_string(),
-            // Command::CPX(_) => "CPX".to_string(),
-            // Command::CPY(_) => "CPY".to_string(),
-            // Command::BPL(_) => "BPL".to_string(),
-            // Command::BMI(_) => "BMI".to_string(),
-            // Command::BNE(_) => "BNE".to_string(),
-            // Command::BEQ(_) => "BEQ".to_string(),
-            // Command::BCC(_) => "BCC".to_string(),
-            // Command::BCS(_) => "BCS".to_string(),
-            // Command::BVS(_) => "BVS".to_string(),
-            // Command::BVC(_) => "BVC".to_string(),
-            // Command::JMP(_) => "JMP".to_string(),
-            // Command::JSR(_) => "JSR".to_string(),
+            CommandLog::LDA(a) => format!("LDA {}", a.fceux_log_str()),
             CommandLog::CL(t) =>
                 match t {
                     FlagType::Carry => "CLC".to_string(),
@@ -1618,22 +1526,38 @@ impl CommandLog {
                     FlagType::Decimal => "SED".to_string(),
                     _ => "SE?".to_string(),
                 },
-            // Command::BIT(_) => "BIT".to_string(),
-            // Command::PHA => "PHA".to_string(),
-            // Command::PHP => "PHP".to_string(),
-            // Command::NOP_ => "*NOP".to_string(),
-            // Command::DOP(_) => "*NOP".to_string(),
-            // Command::TOP(_) => "*NOP".to_string(),
-            // Command::LAX(_) => "*LAX".to_string(),
-            // Command::SAX(_) => "*SAX".to_string(),
-            // Command::SBC_(_) => "*SBC".to_string(),
-            // Command::DCP(_) => "*DCP".to_string(),
-            // Command::ISB(_) => "*ISB".to_string(),
-            // Command::SLO(_) => "*SLO".to_string(),
-            // Command::RLA(_) => "*RLA".to_string(),
-            // Command::SRE(_) => "*SRE".to_string(),
-            // Command::RRA(_) => "*RRA".to_string(),
-            // _ => self.to_string(),
         }   
     }
+}
+
+#[derive(Debug, Clone)]
+enum LogAddressingMode {
+    Accumelator,
+    Imm(u8),
+}
+
+impl LogAddressingMode {
+    fn new(a: &AddressingMode, cpu: &CPU) -> Self {
+        match *a {
+            AddressingMode::Accumelator => {
+                Self::Accumelator
+            },
+            AddressingMode::Imm(v) => {
+                Self::Imm(v)
+            }
+            _ => panic!("not match"),
+        }
+    }
+
+    fn fceux_log_str(&self) -> String {
+        match self {
+            LogAddressingMode::Accumelator => {
+                "Self::Accumelator".to_string()
+            },
+            LogAddressingMode::Imm(v) => {
+                format!("#${:02X}", v)
+            }
+            _ => panic!("not match"),
+        }
+    } 
 }
