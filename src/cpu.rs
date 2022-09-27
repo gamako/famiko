@@ -591,7 +591,7 @@ impl CPU {
 
     fn exec_command(&mut self, command: &Command) -> (String, usize, CommandLog) {
         let mut l = String::new();
-        let mut commandLog = CommandLog::SE(FlagType::IntDisable);
+        let mut command_log = CommandLog::SE(FlagType::IntDisable);
 
         write!(l, "{:>4} ", command.type_name()).unwrap();
         let cycle : usize = match command {
@@ -840,12 +840,12 @@ impl CPU {
             }
             Command::CL(f) => {
                 self.p &= !f.mask(); 
-                commandLog = CommandLog::CL(f.clone());
+                command_log = CommandLog::CL(f.clone());
                 1
             },
             Command::SE(f) => {
                 self.p |= f.mask(); 
-                commandLog = CommandLog::SE(f.clone());
+                command_log = CommandLog::SE(f.clone());
                 1
             },
             Command::BIT(a) => {
@@ -997,7 +997,7 @@ impl CPU {
             }
             _ => { panic!("xx") }
         };
-        return (l, cycle, commandLog);
+        return (l, cycle, command_log);
     }
 
     fn read_byte(&mut self, addr: u16, is_debug: bool) -> u8 {
