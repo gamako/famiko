@@ -1,5 +1,3 @@
-use pixels::wgpu::AddressMode;
-
 use crate::bus::Bus;
 use std::{fmt, str};
 use crate::hex::dump_bytes;
@@ -1557,7 +1555,6 @@ impl LogAddressingMode {
             LogAddressingMode::Imm(v) => {
                 format!("#${:02X}", v)
             }
-            _ => panic!("not match"),
         }
     } 
 }
