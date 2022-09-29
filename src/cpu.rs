@@ -72,18 +72,18 @@ enum AddressingMode {
 impl fmt::Debug for AddressingMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AddressingMode::Accumelator => write!(f, ""),
-            AddressingMode::Imm(v) => write!(f, "{:02X}", v),
-            AddressingMode::ZeroPage(addr) => write!(f, "#{:02X}", addr),
-            AddressingMode::ZeroPageX(addr) => write!(f, "#{:02X},x", addr),
-            AddressingMode::ZeroPageY(addr) => write!(f, "#{:02X},y", addr),
-            AddressingMode::Absolute(addr) => write!(f, "{:02X}", addr),
-            AddressingMode::AbsoluteX(addr) => write!(f, "[{:02X} + x]", addr),
-            AddressingMode::AbsoluteY(addr) => write!(f, "[{:02X} + y]", addr),
-            AddressingMode::Indirect(h, l) => write!(f, "({:02X}{:02X})", h, l),
-            AddressingMode::IndirectX(h) => write!(f, "({:02X} , x)", h),
-            AddressingMode::IndirectY(h) => write!(f, "({:02X} , y)", h),
-            AddressingMode::Relative(rel) => write!(f, "({:02X} , y)", rel),
+            AddressingMode::Accumelator => write!(f, "Accumelator"),
+            AddressingMode::Imm(v) => write!(f, "Imm({:02X})", v),
+            AddressingMode::ZeroPage(addr) => write!(f, "ZeroPage(#{:02X})", addr),
+            AddressingMode::ZeroPageX(addr) => write!(f, "ZeroPageX(#{:02X},x)", addr),
+            AddressingMode::ZeroPageY(addr) => write!(f, "ZeroPageY(#{:02X},y)", addr),
+            AddressingMode::Absolute(addr) => write!(f, "Absolute({:02X})", addr),
+            AddressingMode::AbsoluteX(addr) => write!(f, "AbsoluteX([{:02X} + x])", addr),
+            AddressingMode::AbsoluteY(addr) => write!(f, "AbsoluteY([{:02X} + y])", addr),
+            AddressingMode::Indirect(h, l) => write!(f, "Indirect({:02X}{:02X})", h, l),
+            AddressingMode::IndirectX(h) => write!(f, "IndirectX({:02X} , x)", h),
+            AddressingMode::IndirectY(h) => write!(f, "IndirectY({:02X} , y)", h),
+            AddressingMode::Relative(rel) => write!(f, "Relative({:02X} , y)", rel),
         }
     }
 }
