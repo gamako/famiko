@@ -43,6 +43,7 @@ impl <R : io::Read> LogCompare<R> {
             println!("wrong : actual : [{:}]", line);
             panic!("fail to match")
         }
+        self.line_number += 1;
     }
 }
 
