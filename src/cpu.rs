@@ -596,12 +596,18 @@ impl CPU {
 
         write!(l, "{:>4} ", command.type_name()).unwrap();
         let cycle : usize = match command {
-            Command::STA(a) => { 
+            Command::STA(a) => {
                 command_log = CommandLog::STA(LogAddressingMode::new(a, self));
-                self.store(a, self.a, Some(&mut l)) 
+                self.store(a, self.a, Some(&mut l))
             },
-            Command::STX(a) => { self.store(a, self.x, Some(&mut l)) },
-            Command::STY(a) => { self.store(a, self.y, Some(&mut l)) },
+            Command::STX(a) => {
+                command_log = CommandLog::STX(LogAddressingMode::new(a, self));
+                self.store(a, self.x, Some(&mut l))
+            },
+            Command::STY(a) => {
+                command_log = CommandLog::STY(LogAddressingMode::new(a, self));
+                self.store(a, self.y, Some(&mut l))
+            },
             Command::LDA(a) => {
                 let (v, _, cycle) = self.load(a, &mut l);
                 self.a = v;
@@ -615,6 +621,7 @@ impl CPU {
                 self.x = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
+                command_log = CommandLog::LDX(LogAddressingMode::new(a, self));
                 cycle
             },
             Command::LDY(a) => {
@@ -622,40 +629,49 @@ impl CPU {
                 self.y = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
+                command_log = CommandLog::LDY(LogAddressingMode::new(a, self));
                 cycle
             },
             Command::TSX => {
                 self.x = self.s;
                 self.update_status_zero(self.x);
                 self.update_status_negative(self.x);
+                command_log = CommandLog::TSX;
                 1
             },
             Command::TAX => {
                 self.x = self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
+                command_log = CommandLog::TAX;
                 1
             },
             Command::TAY => {
                 self.y = self.a;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
+                command_log = CommandLog::TAY;
                 1
             },
             Command::TXA => {
                 self.a = self.x;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
+                command_log = CommandLog::TXA;
                 1
             },
-            Command::TXS => {self.s = self.x; 1},
+            Command::TXS => {
+                self.s = self.x; 
+                command_log = CommandLog::TXS;
+                1
+            },
             Command::TYA => {
                 self.a = self.y;
                 self.update_status_zero(self.a);
                 self.update_status_negative(self.a);
+                command_log = CommandLog::TYA;
                 1
             },
-            
             Command::AND(a) => {
                 let (v, _, cycle) = self.load(a, &mut l);
                 let v = v & self.a;
@@ -1503,7 +1519,17 @@ impl Address for u16 {
 #[derive(Debug, Clone)]
 enum CommandLog{
     STA(LogAddressingMode),
+    STX(LogAddressingMode),
+    STY(LogAddressingMode),
     LDA(LogAddressingMode),
+    LDX(LogAddressingMode),
+    LDY(LogAddressingMode),
+    TAX,
+    TAY,
+    TSX,
+    TXA,
+    TXS,
+    TYA,
     CL(FlagType),
     SE(FlagType),
 
@@ -1513,7 +1539,17 @@ impl CommandLog {
     fn fceux_log_str(&self) -> String {
         match self {
             CommandLog::STA(a) => format!("STA {}", a.fceux_log_str()),
+            CommandLog::STX(a) => format!("STX {}", a.fceux_log_str()),
+            CommandLog::STY(a) => format!("STY {}", a.fceux_log_str()),
             CommandLog::LDA(a) => format!("LDA {}", a.fceux_log_str()),
+            CommandLog::LDX(a) => format!("LDX {}", a.fceux_log_str()),
+            CommandLog::LDY(a) => format!("LDY {}", a.fceux_log_str()),
+            CommandLog::TAX => "TAX".to_string(),
+            CommandLog::TAY => "TAY".to_string(),
+            CommandLog::TSX => "TSX".to_string(),
+            CommandLog::TXA => "TXA".to_string(),
+            CommandLog::TXS => "TXS".to_string(),
+            CommandLog::TYA => "TYA".to_string(),
             CommandLog::CL(t) =>
                 match t {
                     FlagType::Carry => "CLC".to_string(),
@@ -1538,7 +1574,15 @@ enum LogAddressingMode {
     Accumelator,
     Imm(u8),
     ZeroPage(u16, u8),
+    ZeroPageX(u8, u8, u8),
+    ZeroPageY(u8, u8, u8),
     Absolute(u16, u8),
+    AbsoluteX(u16, u16, u8),
+    AbsoluteY(u16, u16, u8),
+    Indirect(u8, u8),
+    IndirectX(u8, u8, u16, u8),
+    IndirectY(u8, u16, u16, u8),
+    Relative(u8),
 }
 
 
@@ -1552,10 +1596,45 @@ impl LogAddressingMode {
                 let v = cpu.read_byte(addr, false);
                 Self::ZeroPage(addr, v)
             }
+            AddressingMode::ZeroPageX(addr) => {
+                let addr1 = addr.wrapping_add(cpu.x);
+                let v = cpu.read_byte(addr1 as u16, false);
+                Self::ZeroPageX(addr, addr1, v)
+            },
+            AddressingMode::ZeroPageY(addr) => {
+                let addr1 = addr.wrapping_add(cpu.x);
+                let v = cpu.read_byte(addr1 as u16, false);
+                Self::ZeroPageY(addr, addr1, v)
+            },
             AddressingMode::Absolute(addr) => {
                 let v = cpu.read_byte(addr, false);
                 Self::Absolute(addr, v)
             },
+            AddressingMode::AbsoluteX(addr) => {
+                let addr1 = addr.wrapping_add(cpu.x as u16);
+                let v = cpu.read_byte(addr1, false);
+                Self::AbsoluteX(addr, addr1, v)
+            },
+            AddressingMode::AbsoluteY(addr) => {
+                let addr1 = addr.wrapping_add(cpu.y as u16);
+                let v = cpu.read_byte(addr1, false);
+                Self::AbsoluteY(addr, addr1, v)
+            },
+            AddressingMode::Indirect(_h, _l) => panic!("load indirect"),
+            AddressingMode::IndirectX(m) => {
+                let addr = m.wrapping_add(cpu.x);
+                let addr1 = cpu.read_word_zeropage(addr);
+                let v = cpu.read_byte(addr1, false);
+                Self::IndirectX(m, addr, addr1, v)
+            },
+            AddressingMode::IndirectY(m) => {
+                let addr0 = cpu.read_word_zeropage(m);
+                let addr1 = addr0.wrapping_add(cpu.y as u16);
+                let v = cpu.read_byte(addr1, false);
+                Self::IndirectY(m, addr0, addr1, v)
+
+            },
+            AddressingMode::Relative(_) => panic!("load rel"),
             _ => panic!("not match {:?}", a)
         }
     }
@@ -1567,8 +1646,29 @@ impl LogAddressingMode {
             },
             LogAddressingMode::Imm(v) => format!("#${:02X}", v),
             LogAddressingMode::ZeroPage(addr, v) => format!("${:02X} = {:02X}", addr, v),
+            LogAddressingMode::ZeroPageX(addr, addr1, v) => {
+                format!("${:02X},X @ {:02X} = {:02X}", addr, addr1, v)
+            },
+            LogAddressingMode::ZeroPageY(addr, addr1, v) => {
+                format!("${:02X},X @ {:02X} = {:02X}", addr, addr1, v)
+            },
             LogAddressingMode::Absolute(addr, v) => format!("${:04X} {:} = #${:02X}", addr, addr_label(*addr), v),
-
+            LogAddressingMode::AbsoluteX(addr, addr1, v) => {
+                format!("${:04X},X @ {:04X} = {:02X}", addr, addr1, v)
+            },
+            LogAddressingMode::AbsoluteY(addr, addr1, v) => {
+                format!("${:04X},X @ {:04X} = {:02X}", addr, addr1, v)
+            },
+            LogAddressingMode::Indirect(_, _) => {
+                panic!("not impl Indirect",);
+            },
+            LogAddressingMode::IndirectX(m, addr, addr1, v) => {
+                format!("(${:02X},X) @ {:02X} = {:04X} = {:02X}", m, addr, addr1, v)
+            },
+            LogAddressingMode::IndirectY(m, addr0, addr1, v) => {
+                format!("(${:02X}),Y = {:04X} @ {:04X} = {:02X}", m, addr0, addr1, v)
+            },
+            LogAddressingMode::Relative(_) => panic!("load rel"),
         }
     } 
 }
@@ -1576,6 +1676,7 @@ impl LogAddressingMode {
 fn addr_label(addr : u16) -> String {
     match addr {
         0x2000 => "PPU_CTRL".to_string(),
+        0x2002 => "PPU_STATUS".to_string(),
         _ => "".to_string(),
     }
 }
