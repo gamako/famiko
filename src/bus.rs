@@ -30,7 +30,7 @@ impl Bus {
                 let addr = addr & 0x7fff;
                 self.ram[addr as usize]
             }
-            0x2000 => 0xff,
+            0x2000 => self.ppu.read_ppuctrl(),
             0x2001 => 0xff,
             0x2002 => self.ppu.read_status(),
             0x2003 => 0xff,

@@ -596,7 +596,10 @@ impl CPU {
 
         write!(l, "{:>4} ", command.type_name()).unwrap();
         let cycle : usize = match command {
-            Command::STA(a) => { self.store(a, self.a, Some(&mut l)) },
+            Command::STA(a) => { 
+                command_log = CommandLog::STA(LogAddressingMode::new(a, self));
+                self.store(a, self.a, Some(&mut l)) 
+            },
             Command::STX(a) => { self.store(a, self.x, Some(&mut l)) },
             Command::STY(a) => { self.store(a, self.y, Some(&mut l)) },
             Command::LDA(a) => {
@@ -604,7 +607,7 @@ impl CPU {
                 self.a = v;
                 self.update_status_zero(v);
                 self.update_status_negative(v);
-                command_log = CommandLog::LDA(LogAddressingMode::new(a, &self));
+                command_log = CommandLog::LDA(LogAddressingMode::new(a, self));
                 cycle
             },
             Command::LDX(a) => {
@@ -1499,6 +1502,7 @@ impl Address for u16 {
 
 #[derive(Debug, Clone)]
 enum CommandLog{
+    STA(LogAddressingMode),
     LDA(LogAddressingMode),
     CL(FlagType),
     SE(FlagType),
@@ -1508,6 +1512,7 @@ enum CommandLog{
 impl CommandLog {
     fn fceux_log_str(&self) -> String {
         match self {
+            CommandLog::STA(a) => format!("STA {}", a.fceux_log_str()),
             CommandLog::LDA(a) => format!("LDA {}", a.fceux_log_str()),
             CommandLog::CL(t) =>
                 match t {
@@ -1532,18 +1537,26 @@ impl CommandLog {
 enum LogAddressingMode {
     Accumelator,
     Imm(u8),
+    ZeroPage(u16, u8),
+    Absolute(u16, u8),
 }
 
+
 impl LogAddressingMode {
-    fn new(a: &AddressingMode, cpu: &CPU) -> Self {
+    fn new(a: &AddressingMode, cpu: &mut CPU) -> Self {
         match *a {
-            AddressingMode::Accumelator => {
-                Self::Accumelator
-            },
-            AddressingMode::Imm(v) => {
-                Self::Imm(v)
+            AddressingMode::Accumelator => Self::Accumelator,
+            AddressingMode::Imm(v) => Self::Imm(v),
+            AddressingMode::ZeroPage(addr) => {
+                let addr = addr as u16;
+                let v = cpu.read_byte(addr, false);
+                Self::ZeroPage(addr, v)
             }
-            _ => panic!("not match"),
+            AddressingMode::Absolute(addr) => {
+                let v = cpu.read_byte(addr, false);
+                Self::Absolute(addr, v)
+            },
+            _ => panic!("not match {:?}", a)
         }
     }
 
@@ -1552,9 +1565,17 @@ impl LogAddressingMode {
             LogAddressingMode::Accumelator => {
                 "Self::Accumelator".to_string()
             },
-            LogAddressingMode::Imm(v) => {
-                format!("#${:02X}", v)
-            }
+            LogAddressingMode::Imm(v) => format!("#${:02X}", v),
+            LogAddressingMode::ZeroPage(addr, v) => format!("${:02X} = {:02X}", addr, v),
+            LogAddressingMode::Absolute(addr, v) => format!("${:04X} {:} = #${:02X}", addr, addr_label(*addr), v),
+
         }
     } 
+}
+
+fn addr_label(addr : u16) -> String {
+    match addr {
+        0x2000 => "PPU_CTRL".to_string(),
+        _ => "".to_string(),
+    }
 }

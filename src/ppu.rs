@@ -120,6 +120,10 @@ impl PPU {
         status
     }
 
+    pub fn read_ppuctrl(&self) -> u8 {
+        self.ppuctrl
+    }
+
     pub fn write_ppuctrl(&mut self, v : u8) {
         self.ppuctrl = v;
     }
