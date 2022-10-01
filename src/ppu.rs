@@ -31,6 +31,8 @@ pub struct PPU {
 
     pub frame_count : u64,
 
+    open_bus : u8,
+
     is_mirror_horizontal: bool,
     addr: u16,
     sprite_addr : u8,
@@ -69,6 +71,7 @@ impl PPU {
             ppudata: 0,
             oamdma: 0,
             frame_count : 0,
+            open_bus : 0,
             is_mirror_horizontal,
             addr: 0,
             sprite_addr: 0,
@@ -117,7 +120,7 @@ impl PPU {
         let status = self.ppustatus;
         self.update_vblank(false);
         self.scroll_set_x = false;
-        status
+        status & 0xe0 | self.open_bus & 0x1f
     }
 
     pub fn read_ppuctrl(&self) -> u8 {
@@ -125,6 +128,7 @@ impl PPU {
     }
 
     pub fn write_ppuctrl(&mut self, v : u8) {
+        self.open_bus = v;
         self.ppuctrl = v;
     }
 
