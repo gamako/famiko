@@ -824,7 +824,10 @@ impl CPU {
                 self.update_status_negative(v);
                 cycle
             }
-            Command::BPL(a) => self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) == 0}, a, &mut l),
+            Command::BPL(a) => {
+                command_log = CommandLog::BPL(LogAddressingMode::new(a, self));
+                self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) == 0}, a, &mut l)
+            },
             Command::BMI(a) => self.exec_branch( |p|{ (p & P_MASK_NEGATIVE) != 0}, a, &mut l),
             Command::BNE(a) => self.exec_branch( |p|{ (p & P_MASK_ZERO) == 0}, a, &mut l),
             Command::BEQ(a) => self.exec_branch( |p|{ (p & P_MASK_ZERO) != 0}, a, &mut l),
@@ -1530,6 +1533,7 @@ enum CommandLog{
     TXA,
     TXS,
     TYA,
+    BPL(LogAddressingMode),
     CL(FlagType),
     SE(FlagType),
 
@@ -1550,6 +1554,7 @@ impl CommandLog {
             CommandLog::TXA => "TXA".to_string(),
             CommandLog::TXS => "TXS".to_string(),
             CommandLog::TYA => "TYA".to_string(),
+            CommandLog::BPL(a) => format!("BPL {}", a.fceux_log_str()),
             CommandLog::CL(t) =>
                 match t {
                     FlagType::Carry => "CLC".to_string(),
@@ -1582,7 +1587,7 @@ enum LogAddressingMode {
     Indirect(u8, u8),
     IndirectX(u8, u8, u16, u8),
     IndirectY(u8, u16, u16, u8),
-    Relative(u8),
+    Relative(u8, u16),
 }
 
 
@@ -1634,8 +1639,10 @@ impl LogAddressingMode {
                 Self::IndirectY(m, addr0, addr1, v)
 
             },
-            AddressingMode::Relative(_) => panic!("load rel"),
-            _ => panic!("not match {:?}", a)
+            AddressingMode::Relative(a) => {
+                let addr = cpu.pc.wrapping_add(a as i8 as u16);
+                Self::Relative(a, addr)
+            },
         }
     }
 
@@ -1668,7 +1675,9 @@ impl LogAddressingMode {
             LogAddressingMode::IndirectY(m, addr0, addr1, v) => {
                 format!("(${:02X}),Y = {:04X} @ {:04X} = {:02X}", m, addr0, addr1, v)
             },
-            LogAddressingMode::Relative(_) => panic!("load rel"),
+            LogAddressingMode::Relative(_, addr) => {
+                format!("${:04X}", addr)
+            },
         }
     } 
 }
