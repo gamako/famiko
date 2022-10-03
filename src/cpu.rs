@@ -1625,7 +1625,9 @@ impl LogAddressingMode {
                 let v = cpu.read_byte(addr1, false);
                 Self::AbsoluteY(addr, addr1, v)
             },
-            AddressingMode::Indirect(_h, _l) => panic!("load indirect"),
+            AddressingMode::Indirect(h, l) => {
+                Self::Indirect(h, l)
+            },
             AddressingMode::IndirectX(m) => {
                 let addr = m.wrapping_add(cpu.x);
                 let addr1 = cpu.read_word_zeropage(addr);
