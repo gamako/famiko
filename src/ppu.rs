@@ -63,7 +63,7 @@ impl PPU {
         PPU { 
             ppuctrl: 0,
             ppumask: 0,
-            ppustatus: 1 << 7,
+            ppustatus: 0,
             oamaddr: 0,
             oamdata: 0,
             ppuscroll: 0,
