@@ -15,6 +15,9 @@ pub const SPRITE_DEBUG_FRAME_SIZE : usize = SPRITE_DEBUG_HEIGT * SPRITE_DEBUG_WI
 
 const CLEAR_COLOR : u8 = 0x40;
 
+const PPUMASK_SHOW_SPRITE : u8 = 1 << 4;
+const PPUMASK_SHOW_BG : u8 = 1 << 4;
+
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct PPU {
@@ -234,8 +237,12 @@ impl PPU {
                 if self.y == 0 {
                     // 最初にそれぞれのフレームを描く
                     self.init_frame();
-                    self.write_sprite(&mut None::<Vec<u8>>);
-                    self.write_frame_bg();
+                    if self.ppumask & PPUMASK_SHOW_SPRITE != 0 {
+                        self.write_sprite(&mut None::<Vec<u8>>);
+                    }
+                    if self.ppumask & PPUMASK_SHOW_BG != 0 {
+                        self.write_frame_bg();
+                    }
                 }
 
                 if self.y < HEIGHT {
@@ -252,9 +259,11 @@ impl PPU {
                 self.x = 0;
                 self.y += 1;
                 if self.y == 241 {
-                    self.update_vblank(true);
-                    if self.ppuctrl & (1 << 7) != 0 {
-                        self.nmi = true;
+                    if self.frame_count > 2 {
+                        self.update_vblank(true);
+                        if self.ppuctrl & (1 << 7) != 0 {
+                            self.nmi = true;
+                        }
                     }
                 } else if self.y == 261 {
                     self.update_vblank(false);
@@ -367,11 +376,17 @@ impl PPU {
             let scroll_x = self.scroll_x as usize + ((self.ppuctrl & 1) as usize) * 256;
             let scroll_y = self.scroll_y as usize + (((self.ppuctrl & 2) >> 1) as usize) * 240;
             let p2 = ((x + scroll_x) % (WIDTH*2)) + ((line + scroll_y) % (HEIGHT * 2)) * WIDTH * 2;
-            let mut c = self.frame_sprite_fg[p];
-            if c == CLEAR_COLOR {
+
+            let mut c = CLEAR_COLOR;
+            
+            if self.ppumask & PPUMASK_SHOW_SPRITE != 0 {
+                self.frame_sprite_fg[p];
+            }
+            
+            if self.ppumask & PPUMASK_SHOW_BG != 0 && c == CLEAR_COLOR {
                 c = self.frame_bg.borrow()[p2];
             }
-            if c == CLEAR_COLOR {
+            if self.ppumask & PPUMASK_SHOW_SPRITE != 0 && c == CLEAR_COLOR {
                 c = self.frame_sprite_bg[p];
             }
             let out_pixel = &mut self.frame[p*4..p*4+4];
@@ -382,11 +397,13 @@ impl PPU {
                 out_pixel[0..3].clone_from_slice(&COLORS[(c & 0x3f) as usize]);
                 out_pixel[3] = 0xff;
             }
-
-            if (self.frame_sprite_fg[p] & 0x80 != 0) || ( self.frame_sprite_bg[p] & 0x80 != 0) {
-                if self.frame_bg.borrow()[p2] != CLEAR_COLOR {
-                    // println!("hit x{:} y{:}", x, line);
-                    sprite_0_hit |= true;
+ 
+            if self.ppumask & (PPUMASK_SHOW_SPRITE | PPUMASK_SHOW_BG) != 0 {
+                if (self.frame_sprite_fg[p] & 0x80 != 0) || ( self.frame_sprite_bg[p] & 0x80 != 0) {
+                    if self.frame_bg.borrow()[p2] != CLEAR_COLOR {
+                        // println!("hit x{:} y{:}", x, line);
+                        sprite_0_hit |= true;
+                    }
                 }
             }
         }
