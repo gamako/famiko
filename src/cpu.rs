@@ -17,7 +17,7 @@ pub struct CPU {
 
     pub bus : Bus,
 
-    cycle : usize
+    pub cycle : usize
 }
 
 impl CPU {
@@ -1421,6 +1421,7 @@ pub struct CpuState {
     s : u8,
     p : u8,
     pc : u16,
+    cycle : usize,
 }
 
 impl CpuState {
@@ -1432,6 +1433,7 @@ impl CpuState {
             s : cpu.s,
             p : cpu.p,
             pc : cpu.pc,
+            cycle : cpu.cycle
         }
     }
 }
@@ -1459,8 +1461,9 @@ impl FceuxLog {
         
         let command_str = self.command_log.as_ref().unwrap().fceux_log_str();
         let str = format!(
-            "f{: <6} A:{:02X} X:{:02X} Y:{:02X} S:{:02X} P:{}  ${:04X}: {: <8} {:}",
+            "f{: <6} c{: <11} A:{:02X} X:{:02X} Y:{:02X} S:{:02X} P:{}  ${:04X}: {: <8} {:}",
             self.frame_num,
+            cpu.cycle,
             cpu.a,
             cpu.x,
             cpu.y,

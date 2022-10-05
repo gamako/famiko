@@ -169,7 +169,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             cpu.int_reset();
         }
         cpu.bus.ppu.step(7*3);
-
+        cpu.cycle = 0;
 
         let mut fps = FpsCounter::new();
 
