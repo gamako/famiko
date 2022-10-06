@@ -269,7 +269,7 @@ impl PPU {
                     self.update_vblank(false);
                     self.update_sprite_0_hit(false);
                 }
-                if self.y > 262 {
+                if self.y >= 262 {
                     self.frame_count += 1;
                     self.y = 0;
                     ret = Some(Box::new(self.frame.clone()));
