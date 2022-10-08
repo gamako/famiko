@@ -19,7 +19,7 @@ use winit_input_helper::WinitInputHelper;
 use famiko::cpu::{CPU, CpuDebugLog, CPU_CLOCK_UNIT_NSEC, FceuxLog};
 use famiko::bus::Bus;
 use famiko::ppu::{WIDTH, HEIGHT, CHR_DEBUG_FRAME_SIZE, CHR_DEBUG_WIDTH, CHR_DEBUG_HEIGT, SPRITE_DEBUG_WIDTH, SPRITE_DEBUG_HEIGT};
-use clap::{arg, Command, Arg, ArgAction};
+use clap::{arg, Command, Arg, ArgAction, value_parser};
 use hex;
 
 #[derive(Debug)]
@@ -65,6 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .action(ArgAction::SetTrue)
         )
         .arg(arg!(--fceuxlog [path] "fceuxログ比較対象(デバッグ用)"))
+        .arg(arg!(--ppu_pre_step [n] "ppu初期ステップ").value_parser(value_parser!(usize)))
         .arg(
             Arg::new("sound-debug")
                 .long("sound-debug")
@@ -111,6 +112,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = matches.get_one::<String>("rom").unwrap();
     let debug = matches.get_one::<bool>("debug").map_or(false, |v| *v);
     let fceux_debug_file = matches.get_one::<String>("fceuxlog").cloned();
+    let ppu_pre_step = matches.get_one::<usize>("ppu_pre_step").cloned();
     let sound_debug = matches.get_one::<bool>("sound-debug").map_or(false, |v| *v);
     let no_sound = matches.get_one::<bool>("no-sound").map_or(false, |v| *v);
     let show_chr_table = matches.get_one::<bool>("show-chr-table").map_or(false, |v| *v);
@@ -168,7 +170,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else {
             cpu.int_reset();
         }
-        cpu.bus.ppu.step(7*3);
+        if let Some(step) = ppu_pre_step {
+            cpu.bus.ppu.step(step);
+        }
         cpu.cycle = 0;
 
         let mut fps = FpsCounter::new();
