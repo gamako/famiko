@@ -88,7 +88,7 @@ impl PPU {
             read_buffer : 0,
             nmi : false,
             x: 0,
-            y: 0,
+            y: 240,
             frame: [0].repeat(FRAME_SIZE),
             frame_sprite_bg: [0].repeat(WIDTH*HEIGHT),
             frame_sprite_fg: [0].repeat(WIDTH*HEIGHT),
@@ -258,22 +258,25 @@ impl PPU {
             if self.x >= 341 {
                 self.x = 0;
                 self.y += 1;
-                if self.y == 241 {
-                    if self.frame_count > 2 {
-                        self.update_vblank(true);
-                        if self.ppuctrl & (1 << 7) != 0 {
-                            self.nmi = true;
-                        }
-                    }
-                } else if self.y == 261 {
+                if self.y == 240 {
+                    self.frame_count += 1;
+                }
+                if self.y == 261 {
                     self.update_vblank(false);
                     self.update_sprite_0_hit(false);
                 }
                 if self.y >= 262 {
-                    self.frame_count += 1;
                     self.y = 0;
                     ret = Some(Box::new(self.frame.clone()));
                     self.frame.iter_mut().for_each(|v| *v = 0);
+                }
+            }
+            if self.x == 0 && self.y == 241 {
+                if self.frame_count >= 2 {
+                    self.update_vblank(true);
+                    if self.ppuctrl & (1 << 7) != 0 {
+                        self.nmi = true;
+                    }
                 }
             }
         }
