@@ -1601,31 +1601,31 @@ impl LogAddressingMode {
             AddressingMode::Imm(v) => Self::Imm(v),
             AddressingMode::ZeroPage(addr) => {
                 let addr = addr as u16;
-                let v = cpu.read_byte(addr, false);
+                let v = cpu.read_byte(addr, true);
                 Self::ZeroPage(addr, v)
             }
             AddressingMode::ZeroPageX(addr) => {
                 let addr1 = addr.wrapping_add(cpu.x);
-                let v = cpu.read_byte(addr1 as u16, false);
+                let v = cpu.read_byte(addr1 as u16, true);
                 Self::ZeroPageX(addr, addr1, v)
             },
             AddressingMode::ZeroPageY(addr) => {
                 let addr1 = addr.wrapping_add(cpu.x);
-                let v = cpu.read_byte(addr1 as u16, false);
+                let v = cpu.read_byte(addr1 as u16, true);
                 Self::ZeroPageY(addr, addr1, v)
             },
             AddressingMode::Absolute(addr) => {
-                let v = cpu.read_byte(addr, false);
+                let v = cpu.read_byte(addr, true);
                 Self::Absolute(addr, v)
             },
             AddressingMode::AbsoluteX(addr) => {
                 let addr1 = addr.wrapping_add(cpu.x as u16);
-                let v = cpu.read_byte(addr1, false);
+                let v = cpu.read_byte(addr1, true);
                 Self::AbsoluteX(addr, addr1, v)
             },
             AddressingMode::AbsoluteY(addr) => {
                 let addr1 = addr.wrapping_add(cpu.y as u16);
-                let v = cpu.read_byte(addr1, false);
+                let v = cpu.read_byte(addr1, true);
                 Self::AbsoluteY(addr, addr1, v)
             },
             AddressingMode::Indirect(h, l) => {
@@ -1634,13 +1634,13 @@ impl LogAddressingMode {
             AddressingMode::IndirectX(m) => {
                 let addr = m.wrapping_add(cpu.x);
                 let addr1 = cpu.read_word_zeropage(addr);
-                let v = cpu.read_byte(addr1, false);
+                let v = cpu.read_byte(addr1, true);
                 Self::IndirectX(m, addr, addr1, v)
             },
             AddressingMode::IndirectY(m) => {
                 let addr0 = cpu.read_word_zeropage(m);
                 let addr1 = addr0.wrapping_add(cpu.y as u16);
-                let v = cpu.read_byte(addr1, false);
+                let v = cpu.read_byte(addr1, true);
                 Self::IndirectY(m, addr0, addr1, v)
 
             },
