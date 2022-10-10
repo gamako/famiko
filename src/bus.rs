@@ -142,7 +142,7 @@ impl Bus {
 
     pub fn debug_prg_bytes(&mut self, addr: u16, l: usize) -> String {
         (addr .. (addr + (l as u16)))
-            .map(|v|{ self.read(v, false) })
+            .map(|v|{ self.read(v, true) })
             .map(|x| { format!("{:02X}", x) })
             .collect::<Vec<_>>()
             .join(" ")
