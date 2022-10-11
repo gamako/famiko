@@ -1047,9 +1047,9 @@ impl CPU {
         let h = self.read_byte(addr_h | ((addr_l + 1) & 0xffu16), false);
         (h as u16) << 8 | l as u16
     }
-    fn read_word_zeropage(&mut self, addr: u8) -> u16 {
-        let l = self.read_byte(addr as u16, false);
-        let h = self.read_byte(addr.wrapping_add(1) as u16, false);
+    fn read_word_zeropage(&mut self, addr: u8, is_debug: bool) -> u16 {
+        let l = self.read_byte(addr as u16, is_debug);
+        let h = self.read_byte(addr.wrapping_add(1) as u16, is_debug);
         (h as u16) << 8 | l as u16
     }
 
@@ -1200,13 +1200,13 @@ impl CPU {
             AddressingMode::Indirect(_h, _l) => panic!("load indirect"),
             AddressingMode::IndirectX(m) => {
                 let addr = m.wrapping_add(self.x);
-                let addr1 = self.read_word_zeropage(addr);
+                let addr1 = self.read_word_zeropage(addr, false);
                 let v = self.read_byte(addr1, false);
                 write!(l, "(${:02X},X) @ {:02X} = {:04X} = {:02X}", m, addr, addr1, v).unwrap();
                 (v, AddressingMode::Absolute(addr1), 4)
             },
             AddressingMode::IndirectY(m) => {
-                let addr0 = self.read_word_zeropage(m);
+                let addr0 = self.read_word_zeropage(m, false);
                 let addr1 = addr0.wrapping_add(self.y as u16);
                 let v = self.read_byte(addr1, false);
                 write!(l, "(${:02X}),Y = {:04X} @ {:04X} = {:02X}", m, addr0, addr1, v).unwrap();
@@ -1277,7 +1277,7 @@ impl CPU {
             AddressingMode::Indirect(_h, _l) => panic!("store indirect"),
             AddressingMode::IndirectX(m) => {
                 let addr = m.wrapping_add(self.x);
-                let addr1 = self.read_word_zeropage(addr);
+                let addr1 = self.read_word_zeropage(addr, true);
                 let old_v = self.read_byte(addr1, true);
                 if let Some(l) = l {
                     write!(l, "(${:02X},X) @ {:02X} = {:04X} = {:02X}", m, addr, addr1, old_v).unwrap();
@@ -1287,7 +1287,7 @@ impl CPU {
                 4
             },
             AddressingMode::IndirectY(m) => {
-                let addr0 = self.read_word_zeropage(m);
+                let addr0 = self.read_word_zeropage(m, true);
                 let addr1 = addr0.wrapping_add(self.y as u16);
                 let old_v = self.read_byte(addr1, true);
                 if let Some(l) = l {
@@ -1633,12 +1633,12 @@ impl LogAddressingMode {
             },
             AddressingMode::IndirectX(m) => {
                 let addr = m.wrapping_add(cpu.x);
-                let addr1 = cpu.read_word_zeropage(addr);
+                let addr1 = cpu.read_word_zeropage(addr,true);
                 let v = cpu.read_byte(addr1, true);
                 Self::IndirectX(m, addr, addr1, v)
             },
             AddressingMode::IndirectY(m) => {
-                let addr0 = cpu.read_word_zeropage(m);
+                let addr0 = cpu.read_word_zeropage(m, true);
                 let addr1 = addr0.wrapping_add(cpu.y as u16);
                 let v = cpu.read_byte(addr1, true);
                 Self::IndirectY(m, addr0, addr1, v)
