@@ -146,7 +146,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     thread::spawn(move ||{
         let bus = Bus::new(prg_rom, chr_rom, h.flag6 & 1 == 0, sound_debug, no_sound);
-        println!("start_p_reg: {:02x}", start_p_reg);
+        //println!("start_p_reg: {:02x}", start_p_reg);
         let mut cpu = CPU::new(bus, start_p_reg);
 
         // Fceuxログとの比較準備
@@ -165,7 +165,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
         // 電源ON
         if let Some(start_addr) = start_addr {
-            println!("start addr {start_addr:04x}");
+            // println!("start addr {start_addr:04x}");
             cpu.jmp_int_handler(start_addr);
         } else {
             cpu.int_reset();
