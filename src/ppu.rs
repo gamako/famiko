@@ -88,7 +88,7 @@ impl PPU {
             read_buffer : 0,
             nmi : false,
             x: 0,
-            y: 240,
+            y: 0,
             frame: [0].repeat(FRAME_SIZE),
             frame_sprite_bg: [0].repeat(WIDTH*HEIGHT),
             frame_sprite_fg: [0].repeat(WIDTH*HEIGHT),
@@ -145,6 +145,7 @@ impl PPU {
 
     pub fn write_ppuaddr(&mut self, v : u8) {
         self.addr = self.addr << 8 | v as u16;
+        println!("ppu_addr: {:04X}", self.addr);
     }
 
     // https://www.nesdev.org/wiki/PPU_memory_map
@@ -172,6 +173,7 @@ impl PPU {
             } else {
                 self.addr += 1;
             }
+            println!("ppu_addr inc: {:04X}", self.addr);
         };
         // パレットのみ値がすぐに読める
         let ret = match self.addr {

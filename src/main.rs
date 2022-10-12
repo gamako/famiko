@@ -173,7 +173,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(step) = ppu_pre_step {
             cpu.bus.ppu.step(step);
         }
-        cpu.cycle = 0;
+        cpu.cycle = 7;
 
         let mut fps = FpsCounter::new();
 

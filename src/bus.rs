@@ -79,6 +79,14 @@ impl Bus {
             0x0000 ..= 0x1fff => {
                 let addr = addr & 0x7fff;
                 self.ram[addr as usize] = value;
+                {
+                    if addr == 0x00 || addr == 0x01 {
+                        println!(" write 0000 {:02X}{:02X}", self.ram[0x0001], self.ram[0x0000])
+                    }
+                    if addr == 0x0300 || addr == 0x0301 {
+                        println!(" write 0300 {:02X}{:02X}", self.ram[0x0301], self.ram[0x0300])
+                    }
+                }
             }
             0x2000 => {
                 self.ppu.write_ppuctrl(value);
