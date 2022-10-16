@@ -6,8 +6,7 @@ use std::sync::mpsc;
 use std::thread::{self, sleep};
 use std::time::{Duration, Instant};
 
-use famiko::joypad;
-use famiko::joypad::PadKey;
+use famiko::{joypad, joypad::PadKey};
 use pixels::{Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode, WindowEvent};
