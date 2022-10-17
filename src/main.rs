@@ -60,11 +60,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .short('d')
                 .long("debug")
                 .action(ArgAction::SetTrue)
+                .help("デバッグログON")
         )
         .arg(
             Arg::new("sound-debug")
                 .long("sound-debug")
                 .action(ArgAction::SetTrue)
+                .help("サウンドのデバッグ出力ON")
         )
         .arg(Arg::new("no-sound").long("no-sound").action(ArgAction::SetTrue))
         .arg(
