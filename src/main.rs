@@ -73,16 +73,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arg::new("show-chr-table")
                 .long("show-chr-table")
                 .action(ArgAction::SetTrue)
+                .help("キャラクタテーブル表示")
         )
         .arg(
             Arg::new("show-name-table")
                 .long("show-name-table")
                 .action(ArgAction::SetTrue)
+                .help("ネームテーブル表示")
         )
         .arg(
             Arg::new("show-sprite")
                 .long("show-sprite")
                 .action(ArgAction::SetTrue)
+                .help("スプライトテーブル表示")
         )
         .arg(
             Arg::new("fps")
