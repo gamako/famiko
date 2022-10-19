@@ -91,8 +91,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arg::new("fps")
                 .long("fps")
                 .action(ArgAction::SetTrue)
+                .help("fps出力")
         )
-        .arg(arg!([rom] "rom"))
+        .arg(arg!([rom] "rom").help("ROMファイル"))
         .get_matches();
     
     // You can check the value provided by positional arguments, or option arguments
