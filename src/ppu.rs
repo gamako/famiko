@@ -28,6 +28,8 @@ pub struct PPU {
     pub ppudata : u8,
     pub oamdma: u8,
 
+    togle : bool,
+    
     is_mirror_horizontal: bool,
     addr: u16,
     sprite_addr : u8,
@@ -65,6 +67,7 @@ impl PPU {
             ppuaddr: 0,
             ppudata: 0,
             oamdma: 0,
+            togle: false,
             is_mirror_horizontal,
             addr: 0,
             sprite_addr: 0,
@@ -130,6 +133,10 @@ impl PPU {
 
     pub fn write_ppuaddr(&mut self, v : u8) {
         self.addr = self.addr << 8 | v as u16;
+        if !self.togle {
+            self.ppuctrl = self.ppuctrl & !0x3u8 | v & 0x3u8;
+        }
+        self.togle = !self.togle;
     }
 
     // https://www.nesdev.org/wiki/PPU_memory_map
