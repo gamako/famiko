@@ -31,7 +31,7 @@ pub struct PPU {
     togle : bool,
     
     is_mirror_horizontal: bool,
-    addr: u16,
+    vram_addr: u16,
     sprite_addr : u8,
     scroll_x : u8,
     scroll_y : u8,
@@ -69,7 +69,7 @@ impl PPU {
             oamdma: 0,
             togle: false,
             is_mirror_horizontal,
-            addr: 0,
+            vram_addr: 0,
             sprite_addr: 0,
             scroll_x: 0,
             scroll_y: 0,
@@ -132,7 +132,7 @@ impl PPU {
     }
 
     pub fn write_ppuaddr(&mut self, v : u8) {
-        self.addr = self.addr << 8 | v as u16;
+        self.vram_addr = self.vram_addr << 8 | v as u16;
         if !self.togle {
             self.ppuctrl = self.ppuctrl & !0x3u8 | v & 0x3u8;
         }
@@ -141,12 +141,12 @@ impl PPU {
 
     // https://www.nesdev.org/wiki/PPU_memory_map
     pub fn read_ppudata(&mut self, is_increment : bool) -> u8 {
-        let read_for_buffer = match self.addr {
+        let read_for_buffer = match self.vram_addr {
             0x0000 ..= 0x1fff => {
-                self.pattern_table[self.addr as usize]
+                self.pattern_table[self.vram_addr as usize]
             }
             0x2000 ..= 0x3fff => {
-                let a = (self.addr as usize - 0x2000) % 0x1000;
+                let a = (self.vram_addr as usize - 0x2000) % 0x1000;
                 let a = match self.is_mirror_horizontal {
                     true => a & !0x400,
                     false => a & !0x800,
@@ -154,21 +154,21 @@ impl PPU {
                 self.name_table[a]
             }
             _ => {
-                println!(" ppu cant read {:04X}", self.addr);
+                println!(" ppu cant read {:04X}", self.vram_addr);
                 panic!("not impl ppu read addr");
             }
         };
         if is_increment {
             if self.ppuctrl & 4 != 0 {
-                self.addr += 32;
+                self.vram_addr += 32;
             } else {
-                self.addr += 1;
+                self.vram_addr += 1;
             }
         };
         // パレットのみ値がすぐに読める
-        let ret = match self.addr {
+        let ret = match self.vram_addr {
             0x3f00 ..= 0x3fff => {
-                let a = (self.addr & 0x001f) as usize;
+                let a = (self.vram_addr & 0x001f) as usize;
                 self.palette_ram[a]
             }
             _ => self.read_buffer
@@ -186,9 +186,9 @@ impl PPU {
     }
 
     pub fn write_ppudata(&mut self, v : u8) {
-        match self.addr {
+        match self.vram_addr {
             0x2000 ..= 0x3eff | 0x3f20 ..= 0x3fff => {
-                let a = (self.addr as usize - 0x2000) % 0x1000;
+                let a = (self.vram_addr as usize - 0x2000) % 0x1000;
                 let a = match self.is_mirror_horizontal {
                     true => a & !0x400,
                     false => a & !0x800,
@@ -196,7 +196,7 @@ impl PPU {
                 self.name_table[a] = v;
             }
             0x3f00 ..= 0x3f1f => {
-                let a = (self.addr & 0x001f) as usize;
+                let a = (self.vram_addr & 0x001f) as usize;
                 if a % 4 == 0 {
                     let a = a & 0x0f;
                     self.palette_ram[a] = v;
@@ -206,14 +206,14 @@ impl PPU {
                 }
             }
             _ => {
-                println!(" ppu cant write {:04x} {:02X}", self.addr, v);
+                println!(" ppu cant write {:04x} {:02X}", self.vram_addr, v);
                 panic!("not impl ppu write addr");
             }
         }
         if self.ppuctrl & 4 != 0 {
-            self.addr += 32;
+            self.vram_addr += 32;
         } else {
-            self.addr += 1;
+            self.vram_addr += 1;
         }
     }
     
