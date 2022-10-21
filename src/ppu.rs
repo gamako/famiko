@@ -181,7 +181,6 @@ impl PPU {
         self.sprite_addr = v;
     }
     pub fn write_ppu_sprite_data(&mut self, v: u8) {
-        println!(" write sprite data: {:02x} {:02X}", self.sprite_addr, v);
         self.sprite_ram[self.sprite_addr as usize] = v;
     }
 
@@ -339,13 +338,6 @@ impl PPU {
                                     self.frame_sprite_bg[i] = self.frame_sprite_bg[i] & 0x80 | color_;
                                 }
                             }
-
-                            if self.frame_sprite_fg[i] & 0xc0 == 0x80 {
-                                println!("fg x{:} y{:} {:08b}", x_, y_, self.frame_sprite_fg[i])
-                            }
-                            if self.frame_sprite_bg[i] & 0xc0 == 0x80 {
-                                println!("fg x{:} y{:} {:08b}", x_, y_, self.frame_sprite_bg[i])
-                            }
                         }
                     }
                 }
@@ -379,7 +371,6 @@ impl PPU {
 
             if (self.frame_sprite_fg[p] & 0x80 != 0) || ( self.frame_sprite_bg[p] & 0x80 != 0) {
                 if self.frame_bg.borrow()[p2] != CLEAR_COLOR {
-                    println!("hit x{:} y{:}", x, line);
                     sprite_0_hit |= true;
                 }
             }
