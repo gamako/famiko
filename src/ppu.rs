@@ -35,7 +35,6 @@ pub struct PPU {
     sprite_addr : u8,
     scroll_x : u8,
     scroll_y : u8,
-    scroll_set_x : bool,
     palette_ram : [u8; 0x20],
     name_table : [u8; 0x400 * 4],
     pattern_table : Vec<u8>,
@@ -73,7 +72,6 @@ impl PPU {
             sprite_addr: 0,
             scroll_x: 0,
             scroll_y: 0,
-            scroll_set_x: false,
             palette_ram: [0; 0x20],
             name_table: [0; 0x400 * 4],
             pattern_table: chr,
@@ -115,7 +113,7 @@ impl PPU {
     pub fn read_status(&mut self) -> u8 {
         let status = self.ppustatus;
         self.update_vblank(false);
-        self.scroll_set_x = false;
+        self.togle = false;
         status
     }
 
@@ -124,11 +122,11 @@ impl PPU {
     }
 
     pub fn write_ppuscroll(&mut self, v : u8) {
-        match self.scroll_set_x {
+        match self.togle {
             false => { self.scroll_x = v }
             true => { self.scroll_y = v }
         }
-        self.scroll_set_x = !self.scroll_set_x;
+        self.togle = !self.togle;
     }
 
     pub fn write_ppuaddr(&mut self, v : u8) {
