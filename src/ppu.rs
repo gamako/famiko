@@ -32,6 +32,8 @@ pub struct PPU {
     
     is_mirror_horizontal: bool,
     vram_addr: u16,
+    temp_vram_addr: u16,
+    x : u8,
     sprite_addr : u8,
     scroll_x : u8,
     scroll_y : u8,
@@ -69,6 +71,8 @@ impl PPU {
             togle: false,
             is_mirror_horizontal,
             vram_addr: 0,
+            temp_vram_addr: 0,
+            x : 0,
             sprite_addr: 0,
             scroll_x: 0,
             scroll_y: 0,
@@ -119,12 +123,28 @@ impl PPU {
 
     pub fn write_ppuctrl(&mut self, v : u8) {
         self.ppuctrl = v;
+
+        // t: ...GH.. ........ <- d: ......GH
+        //    <used elsewhere> <- d: ABCDEF..
+        self.temp_vram_addr = self.temp_vram_addr & !0xc00 | (v as u16) & 0x3 << 10;
     }
 
     pub fn write_ppuscroll(&mut self, v : u8) {
         match self.togle {
-            false => { self.scroll_x = v }
-            true => { self.scroll_y = v }
+            false => { 
+                self.scroll_x = v;
+                // t: ....... ...ABCDE <- d: ABCDE...
+                // x:              FGH <- d: .....FGH
+                // w:                  <- 1
+                self.temp_vram_addr = self.temp_vram_addr & !0x1f | (v as u16) >> 3;
+                self.x = v & 0x07;
+            }
+            true => { 
+                self.scroll_y = v;
+                // t: FGH..AB CDE..... <- d: ABCDEFGH
+                // w:                  <- 0
+                self.temp_vram_addr = self.temp_vram_addr & !0x0c1f | (v as u16) & 0x07 << 12 | (v as u16) & 0xf8 << 2;
+            }
         }
         self.togle = !self.togle;
     }
