@@ -33,7 +33,7 @@ pub struct PPU {
     is_mirror_horizontal: bool,
     vram_addr: u16,
     temp_vram_addr: u16,
-    x : u8,
+    x_value : u8,
     sprite_addr : u8,
     scroll_x : u8,
     scroll_y : u8,
@@ -72,7 +72,7 @@ impl PPU {
             is_mirror_horizontal,
             vram_addr: 0,
             temp_vram_addr: 0,
-            x : 0,
+            x_value : 0,
             sprite_addr: 0,
             scroll_x: 0,
             scroll_y: 0,
@@ -137,7 +137,7 @@ impl PPU {
                 // x:              FGH <- d: .....FGH
                 // w:                  <- 1
                 self.temp_vram_addr = self.temp_vram_addr & !0x1f | (v as u16) >> 3;
-                self.x = v & 0x07;
+                self.x_value = v & 0x07;
             }
             true => { 
                 self.scroll_y = v;
