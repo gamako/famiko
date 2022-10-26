@@ -154,6 +154,15 @@ impl PPU {
         if !self.togle {
             self.ppuctrl = self.ppuctrl & !0x3u8 | v & 0x3u8;
         }
+        match self.togle {
+            false => {
+                self.temp_vram_addr = self.temp_vram_addr & 0x00ff | (v as u16) & 0x3f << 8;
+            }
+            true => {
+                self.temp_vram_addr = self.temp_vram_addr & 0xff00 | (v as u16);
+                //self.vram_addr = self.temp_vram_addr;
+            }
+        }
         self.togle = !self.togle;
     }
 
