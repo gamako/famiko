@@ -126,7 +126,7 @@ impl PPU {
 
         // t: ...GH.. ........ <- d: ......GH
         //    <used elsewhere> <- d: ABCDEF..
-        self.temp_vram_addr = self.temp_vram_addr & !0xc00 | (v as u16) & 0x3 << 10;
+        self.temp_vram_addr = self.temp_vram_addr & !0xc00 | (((v as u16) & 0x3) << 10);
     }
 
     pub fn write_ppuscroll(&mut self, v : u8) {
@@ -136,31 +136,31 @@ impl PPU {
                 // t: ....... ...ABCDE <- d: ABCDE...
                 // x:              FGH <- d: .....FGH
                 // w:                  <- 1
-                self.temp_vram_addr = self.temp_vram_addr & !0x1f | (v as u16) >> 3;
+                self.temp_vram_addr = self.temp_vram_addr & !0x1f | ((v as u16) >> 3);
                 self.x_value = v & 0x07;
             }
             true => { 
                 self.scroll_y = v;
                 // t: FGH..AB CDE..... <- d: ABCDEFGH
                 // w:                  <- 0
-                self.temp_vram_addr = self.temp_vram_addr & !0x0c1f | (v as u16) & 0x07 << 12 | (v as u16) & 0xf8 << 2;
+                self.temp_vram_addr = self.temp_vram_addr & !0x0c1f | ((v as u16) & 0x07 << 12) | ((v as u16) & 0xf8 << 2);
             }
         }
         self.togle = !self.togle;
     }
 
     pub fn write_ppuaddr(&mut self, v : u8) {
-        self.vram_addr = self.vram_addr << 8 | v as u16;
+        //self.vram_addr = self.vram_addr << 8 | v as u16;
         if !self.togle {
             self.ppuctrl = self.ppuctrl & !0x3u8 | v & 0x3u8;
         }
         match self.togle {
             false => {
-                self.temp_vram_addr = self.temp_vram_addr & 0x00ff | (v as u16) & 0x3f << 8;
+                self.temp_vram_addr = self.temp_vram_addr & 0x00ff | (((v as u16) & 0x3f) << 8);
             }
             true => {
                 self.temp_vram_addr = self.temp_vram_addr & 0xff00 | (v as u16);
-                //self.vram_addr = self.temp_vram_addr;
+                self.vram_addr = self.temp_vram_addr;
             }
         }
         self.togle = !self.togle;
