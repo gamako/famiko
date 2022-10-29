@@ -210,6 +210,26 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "smb starsoldier no-sound",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=famiko",
+                    "--package=famiko"
+                ],
+                "filter": {
+                    "name": "famiko",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "--no-sound",
+                "./rom/starsoldier.nes"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "smb fceuxlog",
             "cargo": {
                 "args": [
