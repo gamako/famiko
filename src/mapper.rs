@@ -1,16 +1,18 @@
+use std::rc::Rc;
+
 
 trait Mapper {
     fn read(&self, addr: u16) -> u8;
     fn write(&mut self, addr: u16, v: u8);
 }
 
-fn new_mapper(n : u8, prg : Vec::<u8>) -> dyn Mapper {
-    Mapper0::new(prg)
-    // match n {
-    //     0 => Mapper0::new(prg),
-    //     3 => Mapper3::new(prg),
-    //     _ = > panic!("not impl %d", n)
-    // }
+pub fn new_mapper(n : u8, prg : Vec::<u8>) -> Box::<dyn Mapper> {
+        match n {
+            0 => Box::new(Mapper0::new(prg)),
+            3 => Box::new(Mapper3::new(prg)),
+            _ => panic!("not impl {:}", n)
+        }
+    
 }
 
 struct Mapper0 {
@@ -25,7 +27,7 @@ impl Mapper0 {
     }
 }
 
-impl Mapper for Mapper1 {
+impl Mapper for Mapper0 {
     fn read(&self, addr: u16) -> u8{
         self.prg[addr as usize]
     }

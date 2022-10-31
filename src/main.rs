@@ -6,6 +6,7 @@ use std::sync::mpsc;
 use std::thread::{self, sleep};
 use std::time::{Duration, Instant};
 
+use famiko::mapper::new_mapper;
 use famiko::{joypad, joypad::PadKey};
 use pixels::{Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
@@ -139,6 +140,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
     thread::spawn(move ||{
+        let mapper = new_mapper(h.mapper, chr_rom);
+
         let bus = Bus::new(prg_rom, chr_rom, h.flag6 & 1 == 0, sound_debug, no_sound);
         let mut cpu = CPU::new(bus);
 
@@ -384,6 +387,8 @@ struct NesHeader {
     // |||||+--- 1: 512-byte trainer at $7000-$71FF (stored before PRG data)
     // ||||+---- 1: Ignore mirroring control or above mirroring bit; instead provide four-screen VRAM
     // ++++----- Lower nybble of mapper number
+    flag7 : u8,
+    mapper : u8,
     trainer_exist : bool,
 }
 
@@ -400,8 +405,9 @@ fn parse_header(buf : &[u8]) -> Result<Box<NesHeader>, Box<dyn std::error::Error
     let prg = buf[4];
     let chr = buf[5];
     let flag6 = buf[6];
+    let flag7 = buf[7];
 
-
+    let mapper = ((flag6 >> 4) & 0x0f) | (flag7 & 0xf0); 
 
     Ok(Box::new(NesHeader{
         prg : prg,
@@ -409,6 +415,8 @@ fn parse_header(buf : &[u8]) -> Result<Box<NesHeader>, Box<dyn std::error::Error
         chr : chr,
         chr_size: chr as usize * 8 * 1024,
         flag6 : flag6,
+        flag7 : flag7,
+        mapper : mapper,
         trainer_exist : flag6 & 0x40 != 0
     }))
 }
