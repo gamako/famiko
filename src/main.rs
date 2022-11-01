@@ -142,7 +142,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     thread::spawn(move ||{
         let mapper = new_mapper(h.mapper, chr_rom);
 
-        let bus = Bus::new(prg_rom, chr_rom, h.flag6 & 1 == 0, sound_debug, no_sound);
+        let bus = Bus::new(prg_rom, mapper, h.flag6 & 1 == 0, sound_debug, no_sound);
         let mut cpu = CPU::new(bus);
 
         // apu開始

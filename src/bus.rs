@@ -1,6 +1,6 @@
 use log::debug;
 
-use crate::{ppu::PPU, joypad::Joypad, apu_impl::ApuImpl};
+use crate::{ppu::PPU, joypad::Joypad, apu_impl::ApuImpl, mapper::Mapper};
 
 #[derive(Debug)]
 pub struct Bus {
@@ -13,10 +13,10 @@ pub struct Bus {
 
 impl Bus {
 
-    pub fn new(prg: Vec<u8>, chr: Vec<u8>, is_mirror_horizontal: bool, sound_debug : bool, no_sound : bool) -> Self {
+    pub fn new(prg: Vec<u8>, mapper: Box<dyn Mapper>, is_mirror_horizontal: bool, sound_debug : bool, no_sound : bool) -> Self {
         Bus { 
             prg: prg,
-            ppu: PPU::new(chr, is_mirror_horizontal),
+            ppu: PPU::new(mapper, is_mirror_horizontal),
             ram: [0,0,0,0,0xff,0xff,0xff,0xff].repeat(0x100),
             joy_pad: Joypad::new(),
             apu : ApuImpl::new(sound_debug, no_sound),
