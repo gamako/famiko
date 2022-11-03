@@ -1,11 +1,13 @@
+use std::rc::Rc;
+
 use log::debug;
 
 use crate::{ppu::PPU, joypad::Joypad, apu_impl::ApuImpl, mapper::Mapper};
 
 #[derive(Debug)]
 pub struct Bus {
-    pub prg : Vec<u8>,
     pub ppu : PPU,
+    pub mapper : Rc::<Box<dyn Mapper>>,
     ram : Vec<u8>,
     pub joy_pad : Joypad,
     pub apu : ApuImpl,
@@ -13,10 +15,11 @@ pub struct Bus {
 
 impl Bus {
 
-    pub fn new(prg: Vec<u8>, mapper: Box<dyn Mapper>, is_mirror_horizontal: bool, sound_debug : bool, no_sound : bool) -> Self {
+    pub fn new(mapper: Rc::<Box<dyn Mapper>>, is_mirror_horizontal: bool, sound_debug : bool, no_sound : bool) -> Self {
+        
         Bus { 
-            prg: prg,
-            ppu: PPU::new(mapper, is_mirror_horizontal),
+            ppu: PPU::new(mapper.clone(), is_mirror_horizontal),
+            mapper: mapper,
             ram: [0,0,0,0,0xff,0xff,0xff,0xff].repeat(0x100),
             joy_pad: Joypad::new(),
             apu : ApuImpl::new(sound_debug, no_sound),
@@ -51,14 +54,7 @@ impl Bus {
             0x4020 ..= 0xffff => {
                 // mapper-0 prg
                 if addr >= 0x8000 {
-                    let offset_ = addr - 0x8000;
-                    // mapper-0
-                    let offset = if offset_ >= 16 * 0x400 && self.prg.len() == 16 * 0x400 {
-                        offset_ - 16 * 0x400
-                    } else {
-                        offset_
-                    };
-                    self.prg[offset as usize]
+                    self.mapper.read_prg(addr as usize)
                 } else {
                     println!("cant read {:#02x}", addr);
                     panic!("not impl read addr");

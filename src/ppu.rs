@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 
 use crate::mapper::Mapper;
 
@@ -41,7 +41,7 @@ pub struct PPU {
     scroll_y : u8,
     palette_ram : [u8; 0x20],
     name_table : [u8; 0x400 * 4],
-    mapper : Box<dyn Mapper>,
+    mapper : Rc<Box<dyn Mapper>>,
     sprite_ram : [u8; 0x100],
 
     read_buffer : u8,
@@ -59,7 +59,7 @@ pub struct PPU {
 }
 
 impl PPU {
-    pub fn new(chr: Box<dyn Mapper>, is_mirror_horizontal: bool) -> Self {
+    pub fn new(mapper: Rc::<Box<dyn Mapper>>, is_mirror_horizontal: bool) -> Self {
         PPU { 
             ppuctrl: 0,
             ppumask: 0,
@@ -80,7 +80,7 @@ impl PPU {
             scroll_y: 0,
             palette_ram: [0; 0x20],
             name_table: [0; 0x400 * 4],
-            mapper: chr,
+            mapper: mapper,
             sprite_ram: [0; 0x100],
             read_buffer : 0,
             nmi : false,
@@ -172,7 +172,7 @@ impl PPU {
     pub fn read_ppudata(&mut self, is_increment : bool) -> u8 {
         let read_for_buffer = match self.vram_addr {
             0x0000 ..= 0x1fff => {
-                self.mapper.read(self.vram_addr as usize)
+                self.mapper.read_chr(self.vram_addr as usize)
             }
             0x2000 ..= 0x3fff => {
                 let a = (self.vram_addr as usize - 0x2000) % 0x1000;
@@ -326,7 +326,7 @@ impl PPU {
             // size : 8x8
             let pattern_table_base = if self.ppuctrl & 0x08 != 0 { 0x1000usize } else { 0x0000usize };
             let pattern_base = pattern_table_base + tile * 16;
-            let pattern_table = &self.mapper.read_range(pattern_base..pattern_base+16);
+            let pattern_table = &self.mapper.read_chr_range(pattern_base..pattern_base+16);
             let palette_type = attr & 3;
             let palette_base = palette_type * 4 + 0x10;
 
@@ -421,8 +421,8 @@ impl PPU {
             let chr_base = j * 0x1000;
             for i in 0..256 {
                 let base = i * 16 + chr_base;
-                let pattern0 = &self.mapper.read_range(base .. (base + 8));
-                let pattern1 = &self.mapper.read_range((base + 8).. (base + 16));
+                let pattern0 = &self.mapper.read_chr_range(base .. (base + 8));
+                let pattern1 = &self.mapper.read_chr_range((base + 8).. (base + 16));
     
                 for y_pattern in 0..8 {
                     let line0 = pattern0[y_pattern];
@@ -505,8 +505,8 @@ impl PPU {
                             for y in y_base..y_base+8 {
                                 let pattern_y = (y % 8) as usize;
     
-                                let pattern0 = self.mapper.read(chr_base + pattern_index * 16 + pattern_y);
-                                let pattern1 = self.mapper.read(chr_base + pattern_index * 16 + pattern_y + 8);
+                                let pattern0 = self.mapper.read_chr(chr_base + pattern_index * 16 + pattern_y);
+                                let pattern1 = self.mapper.read_chr(chr_base + pattern_index * 16 + pattern_y + 8);
 
                                 for x in x_base..x_base+8 {
 

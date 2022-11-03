@@ -2,6 +2,7 @@ use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::Read;
+use std::rc::Rc;
 use std::sync::mpsc;
 use std::thread::{self, sleep};
 use std::time::{Duration, Instant};
@@ -140,9 +141,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
     thread::spawn(move ||{
-        let mapper = new_mapper(h.mapper, chr_rom);
+        let mapper = Rc::new(new_mapper(h.mapper, prg_rom, chr_rom));
 
-        let bus = Bus::new(prg_rom, mapper, h.flag6 & 1 == 0, sound_debug, no_sound);
+        let bus = Bus::new(mapper, h.flag6 & 1 == 0, sound_debug, no_sound);
         let mut cpu = CPU::new(bus);
 
         // apu開始
