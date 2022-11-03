@@ -2,9 +2,13 @@ use std::{fmt::Debug, ops::Range};
 
 
 pub trait Mapper {
-    fn read(&self, addr: usize) -> u8;
-    fn read_range<'a>(&'a self, addr: Range<usize>) -> &'a [u8];
-    fn write(&mut self, addr: u16, v: u8);
+    fn read_prg(&self, addr: usize) -> u8;
+    fn read_prg_range<'a>(&'a self, addr: Range<usize>) -> &'a [u8];
+    fn write_prg(&mut self, addr: u16, v: u8);
+
+    fn read_chr(&self, addr: usize) -> u8;
+    fn read_chr_range<'a>(&'a self, addr: Range<usize>) -> &'a [u8];
+    fn write_chr(&mut self, addr: u16, v: u8);
 }
 
 pub fn new_mapper(n : u8, prg : Vec::<u8>) -> Box::<dyn Mapper> {
