@@ -141,7 +141,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
     thread::spawn(move ||{
-        let mapper = Rc::new(new_mapper(h.mapper, prg_rom, chr_rom));
+        let mapper = Rc::new(RefCell::new(new_mapper(h.mapper, prg_rom, chr_rom)));
 
         let bus = Bus::new(mapper, h.flag6 & 1 == 0, sound_debug, no_sound);
         let mut cpu = CPU::new(bus);
