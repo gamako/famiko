@@ -113,7 +113,7 @@ impl Mapper for Mapper3 {
         &self.prg[offset..offset + addr.len()]
     }
     fn write_prg(&mut self, addr: u16, v: u8) {
-        self.bank = (0x03 & (v as usize)) << 12;
+        self.bank = (0x03 & (v as usize)) * 0x2000;
     }
 
     fn read_chr(&self, addr: usize) -> u8{
