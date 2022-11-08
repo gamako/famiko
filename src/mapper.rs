@@ -1,6 +1,5 @@
 use std::{fmt::Debug, ops::Range};
 
-
 pub trait Mapper {
     fn read_prg(&self, addr: usize) -> u8;
     fn read_prg_range<'a>(&'a self, addr: Range<usize>) -> &'a [u8];
@@ -19,19 +18,15 @@ pub fn new_mapper(n : u8, prg : Vec::<u8>, chr: Vec::<u8>) -> Box::<dyn Mapper> 
     }
 }
 
-impl Debug for dyn Mapper {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Mapper0 => write!(f, "Mapper0"),
-            Mapper3 => write!(f, "Mapper3"),
-            _ =>  panic!("not impl"),
-        }
-    }
-}
-
 struct Mapper0 {
     prg : Vec::<u8>,
     chr : Vec::<u8>,
+}
+
+impl Debug for Mapper0 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Mapper0")
+    }
 }
 
 impl Mapper0 {
@@ -81,6 +76,12 @@ struct Mapper3 {
     prg : Vec::<u8>,
     chr : Vec::<u8>,
     bank : usize
+}
+
+impl Debug for Mapper3 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Mapper3")
+    }
 }
 
 impl Mapper3 {
