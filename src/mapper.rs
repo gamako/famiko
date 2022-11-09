@@ -1,6 +1,7 @@
 use std::{fmt::Debug, ops::Range};
 
-pub trait Mapper {
+
+pub trait Mapper : Debug {
     fn read_prg(&self, addr: usize) -> u8;
     fn read_prg_range<'a>(&'a self, addr: Range<usize>) -> &'a [u8];
     fn write_prg(&mut self, addr: u16, v: u8);
