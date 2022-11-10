@@ -59,7 +59,8 @@ impl Mapper for Mapper0 {
         
         &self.prg[offset..offset + addr.len()]
     }
-    fn write_prg(&mut self, addr: u16, v: u8) {
+
+    fn write_prg(&mut self, _addr: u16, _v: u8) {
     }
 
     fn read_chr(&self, addr: usize) -> u8 {
@@ -68,7 +69,7 @@ impl Mapper for Mapper0 {
     fn read_chr_range<'a>(&'a self, addr: Range<usize>) -> &'a [u8] {
         &self.prg[addr]
     }
-    fn write_chr(&mut self, addr: u16, v: u8) {
+    fn write_chr(&mut self, _addr: u16, _v: u8) {
     }
 }
 
@@ -114,7 +115,7 @@ impl Mapper for Mapper3 {
         };
         &self.prg[offset..offset + addr.len()]
     }
-    fn write_prg(&mut self, addr: u16, v: u8) {
+    fn write_prg(&mut self, _addr: u16, v: u8) {
         self.bank = (0x03 & (v as usize)) * 0x2000;
     }
 
@@ -127,6 +128,6 @@ impl Mapper for Mapper3 {
         &self.chr[r]
     }
 
-    fn write_chr(&mut self, addr: u16, v: u8) {
+    fn write_chr(&mut self, _addr: u16, _v: u8) {
     }
 }
