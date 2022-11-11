@@ -39,15 +39,21 @@ impl Mapper0 {
     }
 }
 
-impl Mapper for Mapper0 {
-    fn read_prg(&self, addr: usize) -> u8 {
+impl Mapper0 {
+    fn offset_from(&self, addr: usize) -> usize {
         let offset_ = addr - 0x8000;
-        let offset = if offset_ >= 16 * 0x400 && self.prg.len() == 16 * 0x400 {
+        if offset_ >= 16 * 0x400 && self.prg.len() == 16 * 0x400 {
             offset_ - 16 * 0x400
         } else {
             offset_
-        };
-        self.prg[offset]
+        }
+    }
+}
+
+impl Mapper for Mapper0 {
+
+    fn read_prg(&self, addr: usize) -> u8 {
+        self.prg[self.offset_from(addr)]
     }
     fn read_prg_range<'a>(&'a self, addr: Range<usize>) -> &'a [u8] {
         let offset_ = addr.start - 0x8000;
