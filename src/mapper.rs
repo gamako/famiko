@@ -71,6 +71,61 @@ impl Mapper for Mapper0 {
     }
 }
 
+//https://www.nesdev.org/wiki/INES_Mapper_003
+struct Mapper2 {
+    prg : Vec::<u8>,
+    chr : Vec::<u8>,
+    bank : usize
+}
+
+impl Debug for Mapper2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Mapper2")
+    }
+}
+
+impl Mapper2 {
+    fn new(prg : Vec::<u8>, chr : Vec::<u8>) -> Self {
+        print!("prg: {:} chr {:}", prg.len(), chr.len());
+        Self {
+           prg: prg,
+           chr: chr,
+           bank: 0,
+        }
+    }
+    fn offset_from(&self, addr: usize) -> usize {
+        let offset_ = addr - 0x8000;
+        if offset_ >= 16 * 0x400 && self.prg.len() == 16 * 0x400 {
+            offset_ - 16 * 0x400
+        } else {
+            offset_
+        }
+    }
+}
+
+impl Mapper for Mapper2 {
+    fn read_prg(&self, addr: usize) -> u8 {
+        self.prg[self.offset_from(addr)]
+    }
+    fn read_prg_range<'a>(&'a self, addr: Range<usize>) -> &'a [u8] {
+        let offset = self.offset_from(addr.start);
+        &self.prg[offset..offset + addr.len()]
+    }
+    fn write_prg(&mut self, _addr: u16, v: u8) {
+        print!("write {:04x} {:02x}", _addr, v);
+        self.bank = (0x03 & (v as usize)) * 0x2000;
+    }
+
+    fn read_chr(&self, addr: usize) -> u8 {
+        self.chr[addr as usize]
+    }
+    fn read_chr_range<'a>(&'a self, addr: Range<usize>) -> &'a [u8] {
+        &self.prg[addr]
+    }
+    fn write_chr(&mut self, _addr: u16, _v: u8) {
+    }
+}
+
 //https://www.nesdev.org/wiki/INES_Mapper_003#Bank_select_($8000-$FFFF)
 struct Mapper3 {
     prg : Vec::<u8>,
