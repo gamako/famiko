@@ -14,6 +14,7 @@ pub trait Mapper : Debug {
 pub fn new_mapper(n : u8, prg : Vec::<u8>, chr: Vec::<u8>) -> Box::<dyn Mapper> {
     match n {
         0 => Box::new(Mapper0::new(prg, chr)),
+        2 => Box::new(Mapper2::new(prg, chr)),
         3 => Box::new(Mapper3::new(prg, chr)),
         _ => panic!("not impl {:}", n)
     }
