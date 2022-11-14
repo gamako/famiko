@@ -215,6 +215,9 @@ impl PPU {
 
     pub fn write_ppudata(&mut self, v : u8) {
         match self.vram_addr {
+            0x0000 ..= 0x1fff => {
+                self.mapper.borrow_mut().write_chr(self.vram_addr, v)
+            }
             0x2000 ..= 0x3eff | 0x3f20 ..= 0x3fff => {
                 let a = (self.vram_addr as usize - 0x2000) % 0x1000;
                 let a = match self.is_mirror_horizontal {

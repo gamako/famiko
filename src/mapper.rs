@@ -66,7 +66,7 @@ impl Mapper for Mapper0 {
         self.chr[addr as usize]
     }
     fn read_chr_range<'a>(&'a self, addr: Range<usize>) -> &'a [u8] {
-        &self.prg[addr]
+        &self.chr[addr]
     }
     fn write_chr(&mut self, _addr: u16, _v: u8) {
     }
@@ -87,10 +87,17 @@ impl Debug for Mapper2 {
 
 impl Mapper2 {
     fn new(prg : Vec::<u8>, chr : Vec::<u8>) -> Self {
-        print!("prg: {:} chr {:}", prg.len(), chr.len());
         Self {
            prg: prg,
-           chr: chr,
+           chr: if chr.len() == 0 {
+            let mut v = Vec::<u8>::with_capacity(0x2000);
+            for _ in 0..0x2000 {
+                v.push(0)
+            }
+            v
+           } else {
+            chr
+           },
            bank: 0,
         }
     }
@@ -113,7 +120,6 @@ impl Mapper for Mapper2 {
         &self.prg[offset..offset + addr.len()]
     }
     fn write_prg(&mut self, _addr: u16, v: u8) {
-        print!("write {:04x} {:02x}", _addr, v);
         self.bank = (0x03 & (v as usize)) * 0x2000;
     }
 
@@ -121,9 +127,10 @@ impl Mapper for Mapper2 {
         self.chr[addr as usize]
     }
     fn read_chr_range<'a>(&'a self, addr: Range<usize>) -> &'a [u8] {
-        &self.prg[addr]
+        &self.chr[addr]
     }
-    fn write_chr(&mut self, _addr: u16, _v: u8) {
+    fn write_chr(&mut self, addr: u16, v: u8) {
+        self.chr[addr as usize] = v;
     }
 }
 
