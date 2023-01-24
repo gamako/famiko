@@ -116,8 +116,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let is_show_fps = matches.get_one::<bool>("fps").map_or(false, |v| *v);
 
     let mut file = File::open(file)?;
-    let mut rom = Vec::new();
-    
+    let mut rom = include_bytes!("../rom/smb.nes").to_vec();
     let _ = file.read_to_end(&mut rom)?;
     // println!("{:?}", buf);
 
