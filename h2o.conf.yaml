@@ -1,0 +1,10 @@
+# flutter build webでbuild/web/以下に出力された結果を
+# ローカルサーバーで確認するためのh2o設定
+# コマンド例） h2o -c h2o.conf.yaml
+hosts:
+  "localhost:3000":
+    listen:
+      port: 3000
+    paths:
+      "/":
+        file.dir: ./

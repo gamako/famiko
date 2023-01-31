@@ -2,15 +2,19 @@ use core::fmt;
 use std::{fs::{self, File}, io::BufWriter};
 
 use hound::WavWriter;
+#[cfg(not(target_arch="wasm32"))]
 use pa::{Stream, Blocking, Output, StreamAvailable};
+#[cfg(not(target_arch="wasm32"))]
 use portaudio as pa;
 use apu::{self, Apu};
+use std::error::Error;
 
 const CHANNELS: i32 = 1;
 const SAMPLE_RATE: f64 = 44_100.0;
 const FRAMES_PER_BUFFER: u32 = 512;
 
 pub struct ApuImpl {
+    #[cfg(not(target_arch="wasm32"))]
     stream: Option<Stream<Blocking<pa::stream::Buffer>, Output<f32>>>,
     apu : Apu,
     pub irq : bool,
@@ -32,6 +36,7 @@ impl fmt::Debug for ApuImpl {
 impl ApuImpl {
     pub fn new(is_debug : bool, no_sound : bool) -> Self {
         Self{
+            #[cfg(not(target_arch="wasm32"))]
             stream: None,
             apu : Apu::new(),
             irq : false,
@@ -43,31 +48,36 @@ impl ApuImpl {
         }
     }
 
-    pub fn start(&mut self) -> Result<(), pa::Error>{
+    pub fn start(&mut self) -> Result<(), Box<dyn Error>>{
         if self.no_sound {
             return Ok(())
         }
-    
-        let pa = pa::PortAudio::new()?;
-    
-        let mut settings =
-            pa.default_output_stream_settings(CHANNELS, SAMPLE_RATE, FRAMES_PER_BUFFER)?;
-        // we won't output out of range samples so don't bother clipping them.
-        settings.flags = pa::stream_flags::CLIP_OFF;
-        
-        let mut stream = pa.open_blocking_stream(settings)?;
-        stream.start()?;
-        self.stream = Some(stream);
 
+        #[cfg(not(target_arch="wasm32"))]
+        {
+            let pa = pa::PortAudio::new()?;
+    
+            let mut settings =
+                pa.default_output_stream_settings(CHANNELS, SAMPLE_RATE, FRAMES_PER_BUFFER)?;
+            // we won't output out of range samples so don't bother clipping them.
+            settings.flags = pa::stream_flags::CLIP_OFF;
+            
+            let mut stream = pa.open_blocking_stream(settings)?;
+            stream.start()?;
+            self.stream = Some(stream);
+        }
         Ok(())
     }
 
-    pub fn stop(&mut self) -> Result<(), pa::Error>{
-        println!("apu stop");
-        if let Some(st) = &mut self.stream {
-            (*st).stop()?
+    pub fn stop(&mut self) -> Result<(), Box<dyn Error>>{
+        #[cfg(not(target_arch="wasm32"))]
+        {
+            println!("apu stop");
+            if let Some(st) = &mut self.stream {
+                (*st).stop()?
+            }
+            self.stream = None;
         }
-        self.stream = None;
         Ok(())
     }
 
@@ -141,47 +151,50 @@ impl ApuImpl {
             self.apu.frames.clear();
             return;
         }
+        #[cfg(not(target_arch="wasm32"))]
+        {
 
-        let buffer_len = self.apu.frames.len();
-        let stream = self.stream.as_mut().unwrap();
-        
-        if buffer_len >= FRAMES_PER_BUFFER as usize {
+            let buffer_len = self.apu.frames.len();
+            let stream = self.stream.as_mut().unwrap();
+            
+            if buffer_len >= FRAMES_PER_BUFFER as usize {
 
-            match stream.write_available() {
-                Ok(StreamAvailable::Frames(l)) => {
-                    if l >= (FRAMES_PER_BUFFER as i64) {
-                        let write_len = std::cmp::min(buffer_len, l as usize);
-                        let write_len = std::cmp::min(FRAMES_PER_BUFFER as usize, write_len);
-                        let r = stream.write(write_len as u32, |output|{
+                match stream.write_available() {
+                    Ok(StreamAvailable::Frames(l)) => {
+                        if l >= (FRAMES_PER_BUFFER as i64) {
+                            let write_len = std::cmp::min(buffer_len, l as usize);
+                            let write_len = std::cmp::min(FRAMES_PER_BUFFER as usize, write_len);
+                            let r = stream.write(write_len as u32, |output|{
 
-                            let mut i = 0;
-                            let buffer_len = self.apu.frames.len();
+                                let mut i = 0;
+                                let buffer_len = self.apu.frames.len();
 
-                            while i < write_len as usize {
-                                output[i] = self.apu.frames[i % buffer_len];
-                                i += 1;
+                                while i < write_len as usize {
+                                    output[i] = self.apu.frames[i % buffer_len];
+                                    i += 1;
+                                }
+                            });
+                            if let Err(e) = r {
+                                println!("{:?}", e);
                             }
-                        });
-                        if let Err(e) = r {
-                            println!("{:?}", e);
-                        }
 
-                        if self.is_debug {
-                            self.debug_write();
-                        }
-                        if buffer_len <= write_len {
-                            self.apu.frames.clear();
-                        } else {
-                            for i in write_len..buffer_len {
-                                self.apu.frames[i - write_len] = self.apu.frames[i];
+                            if self.is_debug {
+                                self.debug_write();
                             }
-                            self.apu.frames.resize(buffer_len - write_len, 0.0);
+                            if buffer_len <= write_len {
+                                self.apu.frames.clear();
+                            } else {
+                                for i in write_len..buffer_len {
+                                    self.apu.frames[i - write_len] = self.apu.frames[i];
+                                }
+                                self.apu.frames.resize(buffer_len - write_len, 0.0);
+                            }
                         }
-                    }
-                },
-                Ok(StreamAvailable::OutputUnderflowed) => { println!("OutputUnderflowed"); },
-                Ok(StreamAvailable::InputOverflowed) => { println!("InputOverflowed");},
-                Err(err) => { println!("err {:?}", err); }
+                    },
+                    Ok(StreamAvailable::OutputUnderflowed) => { println!("OutputUnderflowed"); },
+                    Ok(StreamAvailable::InputOverflowed) => { println!("InputOverflowed");},
+                    Err(err) => { println!("err {:?}", err); }
+                }
             }
         }
         

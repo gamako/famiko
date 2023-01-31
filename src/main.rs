@@ -67,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         rom_bytes : {
             let file = matches.get_one::<String>("rom").unwrap();
             let mut file = File::open(file)?;
-            let mut rom = include_bytes!("../rom/smb.nes").to_vec();
+            let mut rom = vec![];
             let _ = file.read_to_end(&mut rom)?;
             // println!("{:?}", rom);
             rom

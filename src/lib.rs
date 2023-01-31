@@ -10,8 +10,10 @@ pub mod rom;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
+use instant;
 
 use pixels::{Pixels, SurfaceTexture};
+use pollster::FutureExt as _;
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
@@ -26,9 +28,13 @@ use bus::Bus;
 use rom::parse_header;
 use ppu::{WIDTH, HEIGHT, CHR_DEBUG_FRAME_SIZE, CHR_DEBUG_WIDTH, CHR_DEBUG_HEIGT, SPRITE_DEBUG_WIDTH, SPRITE_DEBUG_HEIGT};
 
+#[cfg(target_arch="wasm32")]
+use wasm_bindgen::prelude::*;
+
+
 #[derive(Debug)]
 struct FpsCounter {
-    start_time : Instant,
+    start_time : instant::Instant,
     pub frame_count : usize,
     pub fps : f32,
 }
@@ -36,20 +42,20 @@ struct FpsCounter {
 impl FpsCounter {
     pub fn new() -> Self {
         Self {
-            start_time : Instant::now(),
+            start_time : instant::Instant::now(),
             frame_count : 0,
             fps : 0f32,
         }
     }
 
     pub fn reset(&mut self) {
-        self.start_time = Instant::now();
+        self.start_time = instant::Instant::now();
         self.frame_count = 0;
         self.fps = 0f32;
     }
 
     pub fn add_frame(&mut self) {
-        let time = Instant::now().duration_since(self.start_time).as_secs_f32();
+        let time = instant::Instant::now().duration_since(self.start_time).as_secs_f32();
         self.frame_count += 1;
         self.fps = (self.frame_count as f32) / time;
     }
@@ -70,7 +76,7 @@ pub struct FamikoOption {
 struct FamikoRunner {
     cpu : CPU,
     debug : bool,
-    time_base : Instant,
+    time_base : instant::Instant,
     elapsed_time : u128,
     fps_counter : Option<FpsCounter>,
 }
@@ -114,7 +120,7 @@ impl FamikoRunner {
         Self {
             cpu: cpu,
             debug: debug,
-            time_base : Instant::now(),
+            time_base : instant::Instant::now(),
             elapsed_time : 0u128,
             fps_counter : if is_show_fps { Some(FpsCounter::new()) } else { None }
         }
@@ -130,7 +136,7 @@ impl FamikoRunner {
     // 内部時刻を実時刻が追い越したら、次の命令サイクルを消費する。
     fn run(&mut self) -> Option<Vec<u8>> {
 
-        let actual = Instant::now().duration_since(self.time_base).as_nanos();
+        let actual = instant::Instant::now().duration_since(self.time_base).as_nanos();
         
         let mut ret : Option<Vec<u8>> = None;
 
@@ -164,6 +170,29 @@ impl FamikoRunner {
         ret
 
     }
+}
+
+#[cfg(target_arch="wasm32")]
+#[wasm_bindgen(start)]
+pub fn wasm_start() {
+    console_log::init_with_level(log::Level::Debug).expect("Could't initialize logger");
+    log::debug!("start...");
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+
+    main(&FamikoOption {
+        start_addr: None,
+        debug: false,
+        sound_debug: false,
+        no_sound: true,
+        show_chr_table: false,
+        show_name_table: false,
+        show_sprite: false,
+        is_show_fps: false,
+        rom_bytes : {
+            let mut rom = include_bytes!("../rom/smb.nes").to_vec();
+            rom
+        }
+    });
 }
 
 pub fn main(option : &FamikoOption) -> Result<(), Box<dyn std::error::Error>> {
@@ -277,8 +306,30 @@ fn create_window<T>(
         .build(&target).unwrap();
     
     let window_size = win.inner_size();
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use winit::platform::web::WindowExtWebSys;
+        web_sys::window()
+            .and_then(|win| win.document())
+            .and_then(|doc| {
+                let dst = doc.get_element_by_id("wasm-example")?;
+                let canvas = web_sys::Element::from(win.canvas());
+                dst.append_child(&canvas).ok()?;
+
+                // Request fullscreen, if denied, continue as normal
+                match canvas.request_fullscreen() {
+                    Ok(_) => {},
+                    Err(_) => ()
+                }
+
+                Some(())
+            })
+            .expect("Couldn't append canvas to document body.");
+    }
+
     let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &win);
-    let p = Pixels::new(w, h, surface_texture)?;
+    let p = Pixels::new_async(w, h, surface_texture).block_on()?;
 
     Ok((win, p))
 }
